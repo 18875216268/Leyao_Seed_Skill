@@ -1,0 +1,50 @@
+{
+  "suite": "skill-router-suite",
+  "form": "FormC-generic-suite-plus-bridge",
+  "version": "0.1.0",
+  "spec": "Skill路由套件架构设计v1.0",
+  "principles": {
+    "dir_convention": {
+      "skills_dir": "skills",
+      "registry": "registry/skills.json",
+      "manifest": "manifest.json"
+    },
+    "as_is": {
+      "managed_dir": "skills",
+      "hash_algorithm": "sha256",
+      "suite_writes_into_managed_dir": false
+    },
+    "contract": {
+      "modes": [
+        "llm",
+        "native"
+      ],
+      "native_required": [
+        "describe",
+        "can_handle",
+        "invoke",
+        "health"
+      ]
+    },
+    "governance": {
+      "suite_scope": [
+        "route",
+        "dispatch",
+        "version",
+        "skill_add",
+        "skill_remove"
+      ],
+      "domain_knowledge_owner": "sub-skill-own-SEM",
+      "modify_skill_content": "requires-user-authorization"
+    }
+  },
+  "deploy": {
+    "provider": "git",
+    "mode": "read-only",
+    "remote": "origin",
+    "remote_url": "https://github.com/18875216268/Leyao_Seed_Skill.git",
+    "branch": "main",
+    "note": "用户端只读消费：仅查询版本与拉取更新。发布/推送属作者端职责，不在本套件能力内。"
+  },
+  "skills": {}
+}
