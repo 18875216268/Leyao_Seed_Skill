@@ -32,21 +32,16 @@ class Suite:
         )
 
     def schedule_background_sync(self):
-        """启动异步后台：自检安装位置后做版本查+条件拉取（未变 no-op）。不阻塞首用。"""
+        """启动异步后台：查远端版本并条件拉取（未变 no-op），不阻塞首用。
+        安装位置由运行时实际仓库状态启发式判定（非硬编码目录名）：非受管 git 套件仓库由 sync_before_use 内部 no-op。"""
         import threading
         threading.Thread(target=self._async_selfcheck_and_sync, daemon=True).start()
 
     def _async_selfcheck_and_sync(self):
         try:
-            if not self._is_installed_skill_location():
-                return
             self.sync()
         except Exception:
             pass
-
-    def _is_installed_skill_location(self):
-        """skill 包恒置于某 skills/ 目录下；非此形态（如开发副本）不触发自动更新，避免覆盖在研文件。"""
-        return os.path.basename(os.path.dirname(os.path.abspath(self.root))) == "skills"
 
     def version(self):
         return remote_version(self.root, self.manifest, remote=from_manifest(self.root, self.manifest))

@@ -3,6 +3,7 @@
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 
@@ -516,44 +517,71 @@ def test_suite_end_to_end():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def test_is_installed_skill_location_detects_skills_dir():
-    tmp = make_suite_root()
-    parent = None
-    try:
-        # 开发/工作副本：父目录非 skills → 判定非系统级套件目录，不触发自动更新
-        assert Suite(tmp)._is_installed_skill_location() is False
-
-        # 置于 skills/ 下：判定为系统级套件目录
-        parent = tempfile.mkdtemp(prefix="skills-")
-        installed = os.path.join(parent, "skills", "skill-router-suite")
-        os.makedirs(os.path.join(installed, "registry"), exist_ok=True)
-        with open(os.path.join(installed, "registry", "skills.json"), "w", encoding="utf-8") as f:
-            json.dump([], f)
-        with open(os.path.join(installed, "manifest.json"), "w", encoding="utf-8") as f:
-            json.dump({"suite": "skill-router-suite", "version": "0.1.0", "skills": {}}, f)
-        assert Suite(installed)._is_installed_skill_location() is True
-    finally:
-        shutil.rmtree(tmp, ignore_errors=True)
-        if parent:
-            shutil.rmtree(parent, ignore_errors=True)
-
-
-def test_async_selfcheck_noop_when_not_installed():
+def test_async_selfcheck_noop_when_not_git_repo():
     tmp = make_suite_root()
     try:
         s = Suite(tmp)
-        # 非系统级套件目录：后台自检应直接 no-op——不触网、不抛错、不破坏既有路由表
+        # 非受管 git 套件仓库（仅临时目录、无 git 上下文）：后台自检应启发式 no-op
+        # —— 不依赖硬编码目录名，由 sync_before_use 据真实仓库状态判定；不触网、不抛错、不破坏路由表
         s._async_selfcheck_and_sync()
         assert s.registry is not None
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_async_selfcheck_pulls_when_configured_repo_has_updates():
+    upstream = author = consumer_parent = None
+    try:
+        # 上游：本地裸仓库；作者工作副本（非裸）提交后推上去
+        upstream = tempfile.mkdtemp(prefix="async-up-")
+        assert subprocess.run(["git", "init", "--bare", "-b", "main", upstream], capture_output=True).returncode == 0
+        author = tempfile.mkdtemp(prefix="async-author-")
+        assert subprocess.run(["git", "init", "-b", "main", author], capture_output=True).returncode == 0
+        subprocess.run(["git", "-C", author, "config", "user.email", "a@b.c"], capture_output=True)
+        subprocess.run(["git", "-C", author, "config", "user.name", "A"], capture_output=True)
+        subprocess.run(["git", "-C", author, "remote", "add", "origin", upstream], capture_output=True)
+        with open(os.path.join(author, "seed.txt"), "w", encoding="utf-8") as f:
+            f.write("seed")
+        subprocess.run(["git", "-C", author, "add", "-A"], capture_output=True)
+        assert subprocess.run(["git", "-C", author, "commit", "-m", "seed"], capture_output=True).returncode == 0
+        assert subprocess.run(["git", "-C", author, "push", "-u", "origin", "main"], capture_output=True).returncode == 0
+
+        # 消费副本（clone 自上游，父目录非 skills，证明不依赖目录名）
+        consumer_parent = tempfile.mkdtemp(prefix="async-cons-")
+        consumer = os.path.join(consumer_parent, "suite")
+        assert subprocess.run(["git", "clone", upstream, consumer], capture_output=True).returncode == 0
+        os.makedirs(os.path.join(consumer, "registry"), exist_ok=True)
+        with open(os.path.join(consumer, "registry", "skills.json"), "w", encoding="utf-8") as f:
+            json.dump([], f)
+        with open(os.path.join(consumer, "manifest.json"), "w", encoding="utf-8") as f:
+            json.dump({"suite": "skill-router-suite", "version": "0.1.0", "skills": {},
+                       "deploy": {"provider": "git", "mode": "read-only", "remote": "origin",
+                                  "remote_url": upstream, "branch": "main"}}, f)
+
+        s = Suite(consumer)
+        assert s.sync()["pulled"] is False  # 已是最新，no-op
+
+        # 上游再发一次更新
+        with open(os.path.join(author, "marker.txt"), "w", encoding="utf-8") as f:
+            f.write("x")
+        subprocess.run(["git", "-C", author, "add", "-A"], capture_output=True)
+        assert subprocess.run(["git", "-C", author, "commit", "-m", "up"], capture_output=True).returncode == 0
+        assert subprocess.run(["git", "-C", author, "push", "origin", "main"], capture_output=True).returncode == 0
+
+        # 启发式自检：配置完备且有更新 → 应拉取（与目录名无关）
+        s._async_selfcheck_and_sync()
+        assert os.path.exists(os.path.join(consumer, "marker.txt"))
+    finally:
+        for p in (upstream, author, consumer_parent):
+            if p:
+                shutil.rmtree(p, ignore_errors=True)
+
+
 def test_schedule_background_sync_returns_without_blocking():
     tmp = make_suite_root()
     try:
         s = Suite(tmp)
-        # 启动异步后台不应阻塞首用、不应触网（非系统级目录直接 no-op）
+        # 启动异步后台不应阻塞首用、不应触网（非受管仓库由 sync_before_use 内部 no-op）
         s.schedule_background_sync()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
