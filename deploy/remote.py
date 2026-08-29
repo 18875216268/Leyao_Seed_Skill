@@ -74,12 +74,16 @@ class GitRemote:
         if self._is_network_error(result.err) and self.accelerator_url:
             # 全员拉取（source=all，不指定源/关键字/域名）→ 本地自测排序选可用 → git 钉 IP 拉取
             hosts = connectivity.fetch_hosts(self.accelerator_url, self.accelerator_source)
-            if hosts:
-                hosts = connectivity.select_usable(hosts)
+            usable = connectivity.select_usable(hosts) if hosts else {}
+            if usable:
                 pr = connectivity.run_git_with_hosts(
-                    self.root, ["pull", "--ff-only", self.remote, self.branch], hosts)
+                    self.root, ["pull", "--ff-only", self.remote, self.branch], usable)
                 if pr.returncode == 0:
                     return Result(True, pr.stdout, pr.stderr)
+            # 云函数 IP 本地直连全不可达：回退系统代理/正常 DNS（git 默认出口，不清空代理）
+            fb = self.run(["pull", "--ff-only", self.remote, self.branch])
+            if fb.ok:
+                return fb
         return result
 
     @staticmethod

@@ -60,9 +60,9 @@ def _probe_latency(ip, timeout=2.5):
 def select_usable(hosts, timeout=2.5):
     """云函数全员返回后，本地三步：测试 → 排序 → 按序使用。
 
-    对每个域名并行 TCP 443 测延迟，取最快可达者钉定；全不可达则回退信任云函数 IP（让 git 仍尝试）。
+    并行 TCP 443 测延迟，仅保留本地直连可达的域名→IP（每域名取最快）。
+    不可达域名不下钉，留给正常 DNS / 系统代理兜底。
     """
-    out = dict(hosts)
     best = {}
 
     def probe(item):
@@ -73,9 +73,7 @@ def select_usable(hosts, timeout=2.5):
         for domain, ip, lat in ex.map(probe, list(hosts.items())):
             if lat is not None and (domain not in best or lat < best[domain][1]):
                 best[domain] = (ip, lat)
-    for domain, (ip, _) in best.items():
-        out[domain] = ip
-    return out
+    return {domain: ip for domain, (ip, _) in best.items()}
 
 
 class IPProxy:
