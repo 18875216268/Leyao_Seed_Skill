@@ -40,6 +40,22 @@ agent_created: true
 - `llm`：只有 `SKILL.md`，框架交接路径给 agent 自行执行（最原样，零改动）。
 - `native`：提供 `handler.py` 实现 `describe / can_handle / invoke / health`（更快更确定）。**注意：`handler.py` 经 `exec_module` 原样执行，等于任意本地代码执行——只注册你信任的 skill**。可用 `Suite(allow_native=False)` 关闭原生执行（关闭后匹配到 native skill 直接拒绝，不静默跑未知代码）。不愿改就用 llm 模式。
 
+### 子 skill 最小 front-matter
+
+丢进 `skills/<id>/SKILL.md` 即可被 `discover()` 零摩擦纳入路由表，强制字段只有 `triggers`（主召回词，必填）；`domain` 可选（推荐，作为次级召回词，缺省即空、不影响路由）。其余字段均有安全默认值：
+
+```yaml
+---
+name: <id>            # 可选，缺省取目录名
+mode: llm             # 可选，有 handler.py 则自动判为 native
+triggers:            # 必填：主召回词（如「查销售报表」「pms」）
+  - 示例触发词
+priority: 0          # 可选，数值越大越优先
+scope: "*"           # 可选，越具体越优先胜出
+domain: []           # 可选：次级召回词（如 ["报表","销售"]）
+---
+```
+
 ## 每次使用前
 
 1. `Suite.sync()` —— 比对上游并拉取更新，热更新路由表；远端未配置则安全跳过。拉取后内存 manifest 与路由表一并重载，绝不会用过期副本覆盖刚拉取的配置。

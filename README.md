@@ -37,7 +37,7 @@ skill-router-suite/
 ## 快速开始
 
 ```bash
-python tests/test_suite.py           # 23/23 passed
+python tests/test_suite.py           # 27/27 passed
 python tests/test_deploy_remote.py   # 4/4 passed
 python tests/test_connectivity.py    # 8/8 passed
 ```

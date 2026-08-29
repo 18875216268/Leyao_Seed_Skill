@@ -7,6 +7,7 @@ MODES = ("llm", "native")
 NATIVE_FUNCS = ("describe", "can_handle", "invoke", "health")
 
 DEFAULTS = {
+    "domain": [],
     "auth": "none",
     "version_pin": "0.0.0",
     "enabled": True,
@@ -34,8 +35,8 @@ def validate(entry):
         raise ValueError("mode must be one of %s, got %r" % (list(MODES), entry["mode"]))
     if not isinstance(entry["triggers"], list) or not entry["triggers"]:
         raise ValueError("triggers must be a non-empty list")
-    if not isinstance(entry["domain"], list) or not entry["domain"]:
-        raise ValueError("domain must be a non-empty list")
+    if not isinstance(entry["domain"], list):
+        raise ValueError("domain must be a list")
     if not isinstance(entry["negative_triggers"], list):
         raise ValueError("negative_triggers must be a list")
     if not isinstance(entry["priority"], (int, float)):

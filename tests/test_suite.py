@@ -608,6 +608,23 @@ def test_discover_registers_unseen_skills():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_discover_registers_skill_without_domain():
+    # 壳层完善性：用户丢一个只带 triggers、无 domain 的最小 skill，不应被契约拦截。
+    tmp = make_suite_root()
+    try:
+        make_skill(tmp, "mini", "name: 最小\nmode: llm\ntriggers: [最小触发]\nversion: 0.1.0")
+        s = Suite(tmp)
+        results = s.discover()
+        actions = {sid: act for sid, act, _ in results}
+        assert actions["mini"] == "registered", "无 domain 的最小 skill 应被登记而非跳过"
+        entry = s.registry.get("mini")
+        assert entry["domain"] == []  # 缺省空列表，路由按 triggers 命中
+        routed = s.route("最小触发一下")
+        assert routed["routed"] == "direct" and routed["result"]["skill_id"] == "mini"
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def test_approve_proposal_executes():
     tmp = make_suite_root()
     try:
