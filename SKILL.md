@@ -70,6 +70,17 @@ agent_created: true
 - 版本：复合 manifest（semver）＋ 每 skill `version_pin`（lockfile 防漂移）。
 - 降级：本地非 git 仓库或无远端时安全跳过，绝不报错中断使用。
 
+## 自启用（无需每次指定）
+
+skill 的常态是"技能"而非"套件"，但本套件自带 `SKILL.md`，因此只要置于某 agent 的 `skills/` 自启用目录，启动即被自动发现，无需在对话中指定。
+
+- 用户级 `~/.workbuddy/skills/skill-router-suite/`：跨所有项目全局自启用（最稳）。
+- 项目级 `<项目>/.workbuddy/skills/skill-router-suite/`：仅当前项目自启用。
+
+**判定**：`Suite.install_status()` 返回 `installed`（当前是否已在 skills/ 目录）、`recognized_skills_dir`、`candidates`（候选目标）。
+
+**安装（AI 触发，不静默写系统目录）**：`Suite.install()` 默认装到用户级；传 `target` 装到项目级。目标已存在则跳过覆盖。AI 依当前环境启发式选目录后调用——这正是"让 AI 自行判断目录并安装"的落点：skill 给提示与可执行入口，不改写用户系统目录。
+
 ## 入口
 
 ```python
@@ -83,9 +94,12 @@ s.add_skill("pms", "user_drop")   # 三源之一：原样放入 → 派生 entry
 s.modify_skill("pms", {...})      # 改内容：生成提案，等用户授权
 s.learn(traces)                   # 轨迹蒸馏 + 用户建模
 s.evolve()                        # 消费知识资产做针对性变异
+s.install_status()                # 是否已自启用 + 候选目录
+s.install()                       # 装到用户级 skills/ 自启用（AI 触发）
+s.install(target="项目/.workbuddy/skills")  # 装到项目级
 ```
 
-等价命令行（除 `sync` 与 `version` 自身外，每个子命令执行前自动拉取一次上游更新）：
+等价命令行（除 `sync`、`version`、`status`、`install` 外，每个子命令执行前自动拉取一次上游更新）：
 
 ```bash
 python scripts/cli.py list
@@ -95,10 +109,13 @@ python scripts/cli.py remove pms
 python scripts/cli.py learn obs/traces.json
 python scripts/cli.py evolve
 python scripts/cli.py version
+python scripts/cli.py status
+python scripts/cli.py install
+python scripts/cli.py install --target "项目/.workbuddy/skills"
 python scripts/cli.py sync --force
 ```
 
-验收：`python tests/test_suite.py`（20 项全绿）、`python tests/test_deploy_remote.py`（3 项全绿）。
+验收：`python tests/test_suite.py`、`python tests/test_deploy_remote.py`（全绿）。
 
 ## 参考
 

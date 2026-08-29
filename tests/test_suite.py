@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unittest.mock as mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -585,6 +586,90 @@ def test_schedule_background_sync_returns_without_blocking():
         s.schedule_background_sync()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+
+
+def make_fake_suite_root():
+    """造一个最小但可被 Suite() 加载、且带 SKILL.md 的套件根，用于安装测试。"""
+    tmp = make_suite_root()
+    with open(os.path.join(tmp, "SKILL.md"), "w", encoding="utf-8") as f:
+        f.write("---\nname: skill-router-suite\nscope: suite.*\n---\n\n# 套件\n")
+    with open(os.path.join(tmp, "suite.py"), "w", encoding="utf-8") as f:
+        f.write("# fake suite module\n")
+    with open(os.path.join(tmp, "cli.py"), "w", encoding="utf-8") as f:
+        f.write("# fake cli\n")
+    return tmp
+
+
+def test_install_status_reports_not_installed_with_candidates():
+    fake = make_fake_suite_root()
+    try:
+        s = Suite(fake)
+        st = s.install_status()
+        # 父目录非 skills → 未处于自启用目录；候选目标非空（用户级恒在列）
+        assert st["installed"] is False
+        assert st["recognized_skills_dir"] is None
+        assert any("skills" in c.replace("\\", "/") for c in st["candidates"])
+    finally:
+        shutil.rmtree(fake, ignore_errors=True)
+
+
+def test_install_status_reports_installed_when_in_skills_dir():
+    parent = tempfile.mkdtemp(prefix="inst-in-")
+    try:
+        skills_dir = os.path.join(parent, "skills")
+        os.makedirs(skills_dir)
+        root = os.path.join(skills_dir, "my-suite")
+        shutil.copytree(make_fake_suite_root(), root)
+        s = Suite(root)
+        st = s.install_status()
+        assert st["installed"] is True
+        assert os.path.abspath(st["recognized_skills_dir"]) == os.path.abspath(skills_dir)
+    finally:
+        shutil.rmtree(parent, ignore_errors=True)
+
+
+def test_install_copies_to_target_and_is_idempotent():
+    fake = make_fake_suite_root()
+    target = tempfile.mkdtemp(prefix="inst-target-")
+    try:
+        skills_dir = os.path.join(target, "skills")
+        s = Suite(fake)
+        res = s.install(target=skills_dir)
+        assert res["ok"] is True and res["already"] is False
+        dest = res["path"]
+        assert os.path.exists(os.path.join(dest, "SKILL.md"))
+        assert os.path.exists(os.path.join(dest, "suite.py"))
+
+        # 二次调用：目标已存在 → 跳过覆盖（不破坏用户可能已修改的实例）
+        again = s.install(target=skills_dir)
+        assert again["ok"] is True and again["already"] is True
+
+        # 已在目标写入的标记不应被二次安装抹除（证明未覆盖）
+        sentinel = os.path.join(dest, "user_patch.txt")
+        with open(sentinel, "w", encoding="utf-8") as f:
+            f.write("kept")
+        s.install(target=skills_dir)
+        assert os.path.exists(sentinel)
+    finally:
+        shutil.rmtree(fake, ignore_errors=True)
+        shutil.rmtree(target, ignore_errors=True)
+
+
+def test_install_defaults_to_user_level_target():
+    fake = make_fake_suite_root()
+    base = tempfile.mkdtemp(prefix="fake-home-")
+    try:
+        # 用 mock 把 ~ 指到临时基目录，避免污染真实 ~/.workbuddy/skills
+        with mock.patch.object(os.path, "expanduser", return_value=base):
+            s = Suite(fake)
+            res = s.install()
+        expected = os.path.join(base, ".workbuddy", "skills")
+        assert res["target"] == expected
+        assert res["path"].startswith(expected)
+        assert os.path.exists(os.path.join(res["path"], "SKILL.md"))
+    finally:
+        shutil.rmtree(fake, ignore_errors=True)
+        shutil.rmtree(base, ignore_errors=True)
 
 
 def main():

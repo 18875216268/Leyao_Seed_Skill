@@ -70,6 +70,15 @@
 
 > 为什么这样切：用户拿到这个 skill 是为了用，不会也不需要发布。把作者端的发布塞进用户端框架，既放大了权限面，也让用户承担了本不属于他们的凭据与仓库管理负担。
 
+## 自启用（无需每次指定）
+
+skill 常态是"技能"而非"套件"；但本套件自带 `SKILL.md`，置于 agent 的 `skills/` 目录即被启动时自动发现，无需在对话中指定技能名。
+
+- 用户级 `~/.workbuddy/skills/skill-router-suite/`：跨所有项目全局自启用（最稳）。
+- 项目级 `<项目>/.workbuddy/skills/skill-router-suite/`：仅当前项目自启用。
+- 判定 `Suite.install_status()`：`installed`（当前是否在 skills/ 目录）、`recognized_skills_dir`、`candidates`（候选目标）。
+- 安装 `Suite.install([target])`：默认用户级；传 `target` 装到项目级。目标已存在则跳过覆盖。**安装动作由 AI 触发**——skill 只给提示与可执行入口（`install` / `status` 子命令、运行时方法），不静默写用户系统目录；AI 依当前环境启发式选目录后调用。
+
 ## 上下文预算（硬约束）
 
 | 约束 | 规则 |
@@ -82,5 +91,5 @@
 
 ## 落地状态
 
-- 已实现：五层骨架、双模式路由裁决、蒸馏三 Lane、共享知识库、成长与守门、只读更新获取（版本查询 / 拉取 / 拉取后完整性校验）、复合版本；`tests/test_suite.py` 20/20 与 `tests/test_deploy_remote.py` 3/3 全绿。
+- 已实现：五层骨架、双模式路由裁决、蒸馏三 Lane、共享知识库、成长与守门、只读更新获取（版本查询 / 拉取 / 拉取后完整性校验 / 异步后台条件拉取 + 云函数 IP 钉定兜底 / accelerator_retries 默认 20 可配）、自启用机制（`install_status` 启发式判定 + `install` 复制到 skills/ 自启用目录，AI 触发不静默写系统目录）；`tests/test_suite.py` 27/27 与 `tests/test_deploy_remote.py` 4/4 全绿。
 - 待定：初始 skill 内容、各生态桥接映射。
