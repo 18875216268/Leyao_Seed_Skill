@@ -1,8 +1,12 @@
 """三源注册管线：原样放入 skills/<id>/ → 读 SKILL.md 派生 entry → 刷路由表 → 打待部署标记。"""
 
+import logging
 import os
 
+from deploy import integrity
 from evolution import distiller, permissions
+
+log = logging.getLogger("skill-router-suite.pipeline")
 
 SOURCES = ("user_create", "user_drop", "remote_pull")
 
@@ -19,6 +23,9 @@ def register(registry, manifest, skill_id, source, root, rel_path=None, override
         "mode": stored["mode"],
         "source": source,
     }
+    # 闭合完整性链：注册即把 as-is 内容哈希写入 manifest，部署时比对防漂移。
+    integrity.pin(manifest, root, [skill_id])
+    log.info("register: %s from %s (version_pin=%s)", skill_id, source, stored["version_pin"])
     return stored
 
 

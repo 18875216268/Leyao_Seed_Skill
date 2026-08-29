@@ -10,7 +10,11 @@ def skill_md_path(entry, root):
     return os.path.join(root, entry["path"], "SKILL.md")
 
 
-def load_native(entry, root):
+def load_native(entry, root, allow_native=True):
+    if not allow_native:
+        # 原生 skill = 任意本地代码执行（exec_module）。默认信任但可被 Suite 显式关闭：
+        # 仅注册你信任的 skill；关闭后匹配到 native skill 直接拒绝，不静默执行未知代码。
+        raise RuntimeError("native execution disabled for %s; enable allow_native to run handler.py" % entry["id"])
     path = os.path.join(root, entry["path"], "handler.py")
     if not os.path.exists(path):
         raise RuntimeError("native skill %s missing handler.py under %s" % (entry["id"], entry["path"]))
@@ -21,7 +25,7 @@ def load_native(entry, root):
     return mod
 
 
-def invoke_one(entry, query, input_data=None, check_can=True, root=None):
+def invoke_one(entry, query, input_data=None, check_can=True, root=None, allow_native=True):
     root = root or os.getcwd()
     if entry.get("mode") == "llm":
         return {
@@ -31,7 +35,7 @@ def invoke_one(entry, query, input_data=None, check_can=True, root=None):
             "skill_md": skill_md_path(entry, root),
             "query": query,
         }
-    mod = load_native(entry, root)
+    mod = load_native(entry, root, allow_native=allow_native)
     if check_can and mod.can_handle(query) <= 0:
         raise RuntimeError("skill %s cannot handle" % entry["id"])
     state = mod.health()
@@ -63,34 +67,34 @@ def order_by_depends(entries):
     return ordered
 
 
-def direct(picked, query, root=None):
-    return invoke_one(picked[0]["entry"], query, root=root)
+def direct(picked, query, root=None, allow_native=True):
+    return invoke_one(picked[0]["entry"], query, root=root, allow_native=allow_native)
 
 
-def cascade(ranked, query, max_try=3, root=None):
+def cascade(ranked, query, max_try=3, root=None, allow_native=True):
     last = None
     for item in ranked[:max_try]:
         try:
-            return invoke_one(item["entry"], query, root=root)
+            return invoke_one(item["entry"], query, root=root, allow_native=allow_native)
         except Exception as ex:
             last = ex
     raise RuntimeError("cascade exhausted: %s" % last)
 
 
-def pipeline(picked, query, root=None):
+def pipeline(picked, query, root=None, allow_native=True):
     ordered = order_by_depends([item["entry"] for item in picked])
     data = {"query": query}
     for entry in ordered:
-        data = invoke_one(entry, query, data, check_can=False, root=root)
+        data = invoke_one(entry, query, data, check_can=False, root=root, allow_native=allow_native)
     return data
 
 
-def parallel(picked, query, root=None):
+def parallel(picked, query, root=None, allow_native=True):
     out = {}
     for item in picked:
         entry = item["entry"]
         try:
-            out[entry["id"]] = invoke_one(entry, query, root=root)
+            out[entry["id"]] = invoke_one(entry, query, root=root, allow_native=allow_native)
         except Exception as ex:
             out[entry["id"]] = {"error": True, "reason": str(ex)}
     return out

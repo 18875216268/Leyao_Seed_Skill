@@ -1,7 +1,11 @@
 """用户端唯一职责：获取远端版本，并在启动或用户要求时拉取更新、热更新路由表。作者端发布不在本层。"""
 
+import logging
+
 from deploy import integrity
 from deploy.remote import RemoteStatus, from_manifest
+
+log = logging.getLogger("skill-router-suite.pull")
 
 
 def remote_version(root, manifest=None, remote=None):
@@ -36,6 +40,8 @@ def sync_before_use(root, registry, manifest=None, remote=None, force=False):
 
     registry.load()
     report = integrity.verify(manifest or {}, root)
+    if not report["ok"]:
+        log.warning("sync_before_use: integrity drift detected after pull: %s", report)
     return {
         "pulled": True,
         "reloaded": True,

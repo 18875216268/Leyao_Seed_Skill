@@ -7,11 +7,14 @@
 - 流程：云函数全员返回（已按延迟排序）→ 每域直接取前 N 个最快候选 → git 钉定；单次调用内候选按序 failover；整体失败则重新拉取云函数最新 IP 再试。不在 skill 内做本地网络测试，简单清晰。
 """
 
+import logging
 import os
 import re
 import socket
 import subprocess
 import threading
+
+log = logging.getLogger("skill-router-suite.connectivity")
 
 DEFAULT_ACCELERATOR = "https://1317825751-jonkwhxmyb.ap-guangzhou.tencentscf.com"
 _HOST_LINE = re.compile(r"^(\d{1,3}(?:\.\d{1,3}){3})\s+(\S+)\s*$")
@@ -152,6 +155,7 @@ def run_git_with_hosts(root, args, hosts, timeout=120):
     """在云函数 IP 钉定下执行 git 命令（args 不含 'git'）。返回 subprocess.CompletedProcess。
 
     仅对 github 相关域名钉 IP；系统代理被清空，改走本机代理（直连钉定 IP）。
+    超时或异常统一转为失败 CompletedProcess（returncode=124），交由调用方按失败 failover，绝不抛出中断拉取。
     """
     proxy = IPProxy(hosts)
     port = proxy.start()
@@ -165,5 +169,11 @@ def run_git_with_hosts(root, args, hosts, timeout=120):
             ["git", "-c", "http.proxy=http://127.0.0.1:%d" % port] + list(args),
             cwd=root, capture_output=True, text=True, env=env, timeout=timeout,
         )
+    except subprocess.TimeoutExpired as ex:
+        log.warning("run_git_with_hosts timed out after %ss: git %s", timeout, " ".join(args))
+        return subprocess.CompletedProcess(ex.cmd, 124, getattr(ex, "stdout", "") or "", getattr(ex, "stderr", "") or "timed out")
+    except Exception as ex:
+        log.warning("run_git_with_hosts failed: %s", ex)
+        return subprocess.CompletedProcess(["git"] + list(args), 1, "", str(ex))
     finally:
         proxy.stop()

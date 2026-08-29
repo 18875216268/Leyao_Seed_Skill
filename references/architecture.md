@@ -86,5 +86,6 @@ skill 常态是"技能"而非"套件"；但本套件自带 `SKILL.md`，置于 a
 
 ## 落地状态
 
-- 已实现：五层骨架、双模式路由裁决、蒸馏三 Lane、共享知识库、成长与守门、只读更新获取（版本查询 / 拉取 / 拉取后完整性校验 / 异步后台条件拉取 + 云函数 IP 钉定兜底 / accelerator_retries 默认 20 可配）。自启用为**引导式**（SKILL.md 6 步启发式自检，无脚本实现）；`tests/test_suite.py` 23/23 与 `tests/test_deploy_remote.py` 4/4 全绿。
+- 已实现：五层骨架、双模式路由裁决、蒸馏三 Lane、共享知识库、成长与守门、只读更新获取（版本查询 / 拉取 / 拉取后完整性校验 / 异步后台条件拉取 + 云函数 IP 钉定兜底 / accelerator_retries 默认 20 可配）。自启用为**引导式**（SKILL.md 6 步启发式自检，无脚本实现）；`tests/test_suite.py` 23/23、`tests/test_deploy_remote.py` 4/4、`tests/test_connectivity.py` 8/8 全绿。
+- 壳层健壮性加固（接收 skill 前就绪）：`sync()` 拉取后重载内存 manifest + 路由表，杜绝过期副本覆盖；`Suite.discover()` 幂等自动发现未注册 skill（逐 skill 隔离）；`register` 即闭合完整性 pin 链；`Suite.approve_proposal()` 闭环"提案 → 批准 → 执行"；原生 skill 执行受 `allow_native` 闸门（默认开，可关，文档明示 = 任意代码执行）；`accelerator_url` 改为 opt-in（manifest 不配则走系统代理/正常 DNS）；拉取超时/后台异常统一收敛为日志可观测，不再静默吞掉。
 - 待定：初始 skill 内容、各生态桥接映射。

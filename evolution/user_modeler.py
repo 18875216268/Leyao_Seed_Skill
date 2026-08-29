@@ -30,12 +30,6 @@ class UserModeler:
     def profile(self):
         return self.store.user_model() or {}
 
-    def preferred_skill(self):
-        overrides = self.profile().get("overrides", {})
-        if not overrides:
-            return None
-        return max(overrides.items(), key=lambda kv: (kv[1], kv[0]))[0]
-
     def familiarity(self):
         runs = self.profile().get("runs", 0)
         for threshold, label in FAMILIARITY_THRESHOLDS:

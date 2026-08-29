@@ -587,6 +587,57 @@ def test_schedule_background_sync_returns_without_blocking():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_discover_registers_unseen_skills():
+    tmp = make_suite_root()
+    try:
+        # 预先把 skill 原样放进 skills/ 但路由表为空：discover 应幂等登记、逐 skill 隔离。
+        make_skill(tmp, "rep", "name: 报表\ndomain: [pms]\ntriggers: [报表]\nversion: 1.0.0")
+        make_skill(tmp, "nat", "name: 原生\ndomain: [pms]\ntriggers: [登录]", handler=handler_source("nat", ["登录"]))
+        os.makedirs(os.path.join(tmp, "skills", "junk"), exist_ok=True)  # 无 SKILL.md：跳过，不阻断其余
+        s = Suite(tmp)
+        results = s.discover()
+        actions = {sid: act for sid, act, _ in results}
+        assert actions["rep"] == "registered"
+        assert actions["nat"] == "registered"
+        assert actions["junk"] == "skipped"
+        assert {e["id"] for e in s.registry.all()} == {"rep", "nat"}
+        # 幂等：再次 discover 已注册者跳过
+        actions2 = {sid: act for sid, act, _ in s.discover()}
+        assert actions2["rep"] == "skipped"
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_approve_proposal_executes():
+    tmp = make_suite_root()
+    try:
+        make_skill(tmp, "rep", "name: 报表\ndomain: [pms]\ntriggers: [报表]\nversion: 1.0.0")
+        s = Suite(tmp)
+        s.add_skill("rep", "user_drop")
+        mod = s.modify_skill("rep", {"description": "改写后的描述"})
+        assert mod["allowed"] is False and mod["proposal_id"]
+        # 批准应执行：重派生 entry + 写回结构化字段 + 复 pin
+        proposal = s.approve_proposal(mod["proposal_id"])
+        assert proposal["state"] == "approved"
+        assert s.registry.get("rep")["description"] == "改写后的描述"
+        assert integrity.verify(s.manifest, tmp)["ok"] is True
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_executor_native_opt_in():
+    tmp = make_suite_root()
+    try:
+        make_skill(tmp, "ok", "name: OK\ntriggers: [报表]", handler=handler_source("ok", ["报表"]))
+        e = entry("ok", ["报表"], mode="native", path=os.path.join("skills", "ok"))
+        # 默认允许原生执行
+        assert executor.invoke_one(e, "查报表", root=tmp)["skill"] == "ok"
+        # 显式关闭 → 拒绝执行未知 handler.py，不静默跑代码
+        expect_raises(lambda: executor.invoke_one(e, "查报表", root=tmp, allow_native=False), "disabled")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main():
     tests = [(name, fn) for name, fn in sorted(globals().items()) if name.startswith("test_") and callable(fn)]
     results = []

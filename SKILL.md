@@ -27,7 +27,7 @@ agent_created: true
 | `manifest.json` | 版本 + 每 skill pin + 总则校验项 |
 | `core/` | 通用内核：契约 / 路由表 / 两段式召回 / 裁决 / 四策略执行 |
 | `evolution/` | 进化层：蒸馏（只读）→ 共享知识库 → 成长（读写）/ 建模 / 守门 |
-| `deploy/` | 部署层：完整性校验 / 远端适配 / push / pull |
+| `deploy/` | 部署层（只读）：完整性校验 / 远端适配 / 拉取（pull） |
 | `bridge/` | 桥接适配层，每个生态一个薄映射 |
 | `state/` | 运行时产物：共享知识库、提案、棘轮快照 |
 
@@ -38,12 +38,13 @@ agent_created: true
 ## 统一契约
 
 - `llm`：只有 `SKILL.md`，框架交接路径给 agent 自行执行（最原样，零改动）。
-- `native`：提供 `handler.py` 实现 `describe / can_handle / invoke / health`（更快更确定）。不愿改就用 llm 模式。
+- `native`：提供 `handler.py` 实现 `describe / can_handle / invoke / health`（更快更确定）。**注意：`handler.py` 经 `exec_module` 原样执行，等于任意本地代码执行——只注册你信任的 skill**。可用 `Suite(allow_native=False)` 关闭原生执行（关闭后匹配到 native skill 直接拒绝，不静默跑未知代码）。不愿改就用 llm 模式。
 
 ## 每次使用前
 
-1. `Suite.sync()` —— 比对上游并拉取更新，热更新路由表；远端未配置则安全跳过。
+1. `Suite.sync()` —— 比对上游并拉取更新，热更新路由表；远端未配置则安全跳过。拉取后内存 manifest 与路由表一并重载，绝不会用过期副本覆盖刚拉取的配置。
 2. `Suite.route(query)` —— 两段式召回（只读元数据，全量描述永不入 ctx）→ 裁决（priority↓ → scope 窄胜宽 → 兜底 llm）→ 四策略执行（直连 / 级联 / 管道 / 并行）。
+3. `Suite.discover()` —— 扫描 `skills/` 下未注册子 skill 并幂等登记（逐 skill 隔离，缺 SKILL.md 或异常不阻断其余）；把新丢进来的 skill 一键纳入路由表。
 
 ## 权限矩阵（先于一切进化动作）
 

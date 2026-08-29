@@ -25,7 +25,7 @@ skill-router-suite/
 ├── manifest.json         版本 + 总则 + 每 skill pin
 ├── core/                 通用内核：contract / registry / resolver / arbitrator / executor / router
 ├── evolution/            进化层：permissions / pipeline / distiller / store / growth / user_modeler / gate
-├── deploy/               更新获取层（只读）：integrity / remote / pull
+├── deploy/               更新获取层（只读）：integrity / remote / pull / connectivity
 ├── registry/skills.json  路由表（唯一事实源）
 ├── skills/               子 skill 原样目录（套件零写入）
 ├── bridge/               桥接适配层（Form C 的桥）
@@ -37,8 +37,9 @@ skill-router-suite/
 ## 快速开始
 
 ```bash
-python tests/test_suite.py           # 20/20 passed
-python tests/test_deploy_remote.py   # 3/3 passed
+python tests/test_suite.py           # 23/23 passed
+python tests/test_deploy_remote.py   # 4/4 passed
+python tests/test_connectivity.py    # 8/8 passed
 ```
 
 ```python
@@ -64,7 +65,7 @@ s.evolve()                        # 消费知识资产，做针对性变异
 
 ## 当前状态
 
-已实现：五层骨架、core 路由裁决（双模式 + 四策略）、evolution 蒸馏 / 成长 / 建模 / 守门、deploy 只读更新获取（版本查询 / 拉取 / 拉取后完整性校验）、复合版本；20/20 + 3/3 测试全绿。
+已实现：五层骨架、core 路由裁决（双模式 + 四策略）、evolution 蒸馏 / 成长 / 建模 / 守门、deploy 只读更新获取（版本查询 / 拉取 / 拉取后完整性校验）、复合版本；23/23 + 4/4 + 8/8 测试全绿。
 
 待定：初始 skill 内容、各生态桥接映射。
 

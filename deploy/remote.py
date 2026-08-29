@@ -1,10 +1,13 @@
 """远端适配（只读消费端）：Git 为分发真相源。只查询版本与拉取更新，绝不推送、绝不初始化本地仓库。"""
 
+import logging
 import os
 import subprocess
 from collections import namedtuple
 
 from deploy import connectivity
+
+log = logging.getLogger("skill-router-suite.remote")
 
 Result = namedtuple("Result", ["ok", "out", "err"])
 
@@ -76,6 +79,8 @@ class GitRemote:
         if self._is_network_error(result.err) and self.accelerator_url:
             # 全员拉取（source=all，不指定源/关键字/域名）→ 直接取云函数前 N 最快候选 → git 钉 IP 拉取；
             # 整体失败则重新拉取云函数最新 IP 再试（accelerator_retries 次）；仍败回退系统代理/正常 DNS。
+            # run_git_with_hosts 已把超时/异常转为失败 CompletedProcess，不再抛出。
+            log.warning("pull: network error, trying accelerator (%s retries)", retries)
             for _ in range(retries + 1):
                 hosts = connectivity.fetch_hosts(self.accelerator_url, self.accelerator_source)
                 cands = connectivity.top_candidates(hosts, n=3) if hosts else {}
@@ -86,6 +91,7 @@ class GitRemote:
                         return Result(True, pr.stdout, pr.stderr)
                 # 失败 → 下次循环重新拉取云函数最新候选
             # 加速器路径全败：回退系统代理/正常 DNS（git 默认出口，不清空代理）
+            log.warning("pull: accelerator path exhausted, falling back to system proxy/DNS")
             fb = self.run(["pull", "--ff-only", self.remote, self.branch])
             if fb.ok:
                 return fb
@@ -107,7 +113,7 @@ def from_manifest(root, manifest):
         branch=config.get("branch", "main"),
         remote_url=config.get("remote_url") or None,
         token_env=config.get("token_env") or None,
-        accelerator_url=config.get("accelerator_url") or connectivity.DEFAULT_ACCELERATOR,
+        accelerator_url=config.get("accelerator_url") or None,
         accelerator_source=config.get("accelerator_source", "ziyou"),
         accelerator_retries=config.get("accelerator_retries", 20),
     )
