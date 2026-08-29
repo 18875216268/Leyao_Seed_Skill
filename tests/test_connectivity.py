@@ -112,32 +112,35 @@ def test_fetch_hosts_failure_returns_empty():
     assert connectivity.fetch_hosts("http://127.0.0.1:1/nope", "all", timeout=2) == {}
 
 
-def test_select_usable_prefers_reachable_and_augments_critical():
-    # 云函数给的 IP 在本机可能不可达；本地自测应保留可达者，并为关键域名补本地 DNS 候选挑可用。
-    hosts = {"github.com": "1.2.3.4", "api.github.com": "5.6.7.8", "raw.githubusercontent.com": "9.9.9.9"}
+def test_select_usable_tests_sorts_and_trusts_on_failure():
+    # 候选来自云函数全员返回；本地三步：测试 → 排序 → 按序使用；全不可达回退信任云函数 IP。
+    hosts = {"github.com": "1.2.3.4", "api.github.com": "5.6.7.8"}
 
-    orig_probe = connectivity._probe_ip
-    orig_getaddrinfo = socket.getaddrinfo
+    orig = connectivity._probe_latency
 
     def fake_probe(ip, timeout=2.5):
-        return ip in ("1.2.3.4", "9.9.9.9", "10.10.10.10")  # 云函数 github/raw 可达；api 不可达但本地 DNS 候选可达
+        # github.com 可达(延迟小)，api.github.com 不可达
+        return {"1.2.3.4": 0.05}.get(ip)  # 5.6.7.8 → None（不可达）
 
-    def fake_getaddrinfo(host, port, proto=0, **kw):
-        if host == "api.github.com":
-            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.10.10.10", 0))]
-        return orig_getaddrinfo(host, port, proto=proto, **kw)
-
-    socket.getaddrinfo = fake_getaddrinfo
-    connectivity._probe_ip = fake_probe
+    connectivity._probe_latency = fake_probe
     try:
         out = connectivity.select_usable(hosts)
     finally:
-        connectivity._probe_ip = orig_probe
-        socket.getaddrinfo = orig_getaddrinfo
+        connectivity._probe_latency = orig
 
-    assert out["github.com"] == "1.2.3.4"        # 云函数 IP 本机可达 → 保留
-    assert out["raw.githubusercontent.com"] == "9.9.9.9"  # 可达 → 保留
-    assert out["api.github.com"] == "10.10.10.10"  # 云函数 IP 不可达 → 本地 DNS 候选可用 → 升级
+    assert out["github.com"] == "1.2.3.4"   # 可达 → 采用
+    assert out["api.github.com"] == "5.6.7.8"  # 不可达 → 回退信任云函数 IP
+
+
+def test_select_usable_all_unreachable_keeps_cloud_ips():
+    hosts = {"github.com": "1.2.3.4"}
+    orig = connectivity._probe_latency
+    connectivity._probe_latency = lambda ip, timeout=2.5: None
+    try:
+        out = connectivity.select_usable(hosts)
+    finally:
+        connectivity._probe_latency = orig
+    assert out == hosts  # 全不可达 → 原样信任云函数 IP，让 git 仍尝试
 
 
 

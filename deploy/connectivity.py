@@ -3,8 +3,8 @@
 职责边界（用户定义）：
 - 云函数【只提供可达的 GitHub IP】（hosts 行），不负责拉仓库。
 - 拉取仍由本地 git 完成；本层只是把云函数给的 IP 应用到 git 的网络路径上，使其能正确连到 github。
-- 作用域限定在单次 git 调用的本地 CONNECT 代理：把 github 相关域名钉到云函数返回的 IP，
-  SNI/TLS 照常校验（默认不关 sslVerify，第三方源 IP 若被投毒会因证书不匹配而失败，不会泄露凭据）。
+- 作用域限定在单次 git 调用的本地 CONNECT 代理：把 github 相关域名钉到云函数返回的 IP。
+- 流程三步：云函数全员返回 → 本地 TCP 443 自测 → 按延迟排序 → 取最快可达者使用。简单清晰。
 """
 
 import os
@@ -12,11 +12,11 @@ import re
 import socket
 import subprocess
 import threading
+import concurrent.futures
+import time
 
 DEFAULT_ACCELERATOR = "https://1317825751-jonkwhxmyb.ap-guangzhou.tencentscf.com"
 _HOST_LINE = re.compile(r"^(\d{1,3}(?:\.\d{1,3}){3})\s+(\S+)\s*$")
-_SCOPES = ("github.com", "githubusercontent.com", "githubassets.com",
-           "fastly.net", "githubapp.com", "amazonaws.com")
 
 
 def fetch_hosts(base_url=DEFAULT_ACCELERATOR, source="all", timeout=10, retries=2):
@@ -47,52 +47,34 @@ def _parse_hosts(text):
     return hosts
 
 
-def _probe_ip(ip, timeout=2.5):
+def _probe_latency(ip, timeout=2.5):
+    t0 = time.monotonic()
     try:
         s = socket.create_connection((ip, 443), timeout)
         s.close()
-        return True
+        return time.monotonic() - t0
     except Exception:
-        return False
+        return None
 
 
-# 本地需钉定的关键域名：git/clone 实际会连的。其余域名走代理正常 DNS 即可。
-_CRITICAL_DOMAINS = ("github.com", "api.github.com", "codeload.github.com",
-                     "raw.githubusercontent.com", "github.githubassets.com",
-                     "objects.githubusercontent.com")
+def select_usable(hosts, timeout=2.5):
+    """云函数全员返回后，本地三步：测试 → 排序 → 按序使用。
 
-
-def select_usable(hosts, critical=_CRITICAL_DOMAINS, timeout=2.5):
-    """本地自测 + 排序 + 选优：云函数给的是腾讯云视角的"最快"，本机网络未必认。
-
-    对关键域名，除云函数给的 IP 外，再补一次本地 DNS 解析拿更多候选，并行 TCP 443 探测，
-    挑本机真正可达者钉定；全不可达时回退信任云函数 IP（让 git 仍尝试）。非关键域名直接沿用云函数 IP。
+    对每个域名并行 TCP 443 测延迟，取最快可达者钉定；全不可达则回退信任云函数 IP（让 git 仍尝试）。
     """
-    import concurrent.futures
+    out = dict(hosts)
+    best = {}
 
-    cand = {}
-    for domain, ip in hosts.items():
-        lst = [ip]
-        if domain in critical:
-            try:
-                for r in socket.getaddrinfo(domain, 443, proto=socket.IPPROTO_TCP):
-                    a = r[4][0]
-                    if a not in lst:
-                        lst.append(a)
-            except Exception:
-                pass
-        cand[domain] = lst
+    def probe(item):
+        domain, ip = item
+        return domain, ip, _probe_latency(ip, timeout)
 
-    def pick(domain):
-        for ip in cand[domain]:
-            if _probe_ip(ip, timeout):
-                return domain, ip
-        return domain, hosts.get(domain)
-
-    out = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=32) as ex:
-        for domain, ip in ex.map(pick, list(cand.keys())):
-            out[domain] = ip
+        for domain, ip, lat in ex.map(probe, list(hosts.items())):
+            if lat is not None and (domain not in best or lat < best[domain][1]):
+                best[domain] = (ip, lat)
+    for domain, (ip, _) in best.items():
+        out[domain] = ip
     return out
 
 
