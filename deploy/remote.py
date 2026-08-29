@@ -4,6 +4,8 @@ import os
 import subprocess
 from collections import namedtuple
 
+from deploy import connectivity
+
 Result = namedtuple("Result", ["ok", "out", "err"])
 
 
@@ -17,12 +19,15 @@ class RemoteStatus:
 class GitRemote:
     """只读消费者。发布（建仓 / commit / push）属作者端职责，不在本类能力范围内。"""
 
-    def __init__(self, root, remote="origin", branch="main", remote_url=None, token_env=None):
+    def __init__(self, root, remote="origin", branch="main", remote_url=None, token_env=None,
+                 accelerator_url=None, accelerator_source="ziyou"):
         self.root = root
         self.remote = remote
         self.branch = branch
         self.remote_url = remote_url
         self.token_env = token_env
+        self.accelerator_url = accelerator_url
+        self.accelerator_source = accelerator_source
 
     def run(self, args):
         command = ["git"]
@@ -63,7 +68,23 @@ class GitRemote:
         return local != head
 
     def pull(self):
-        return self.run(["pull", "--ff-only", self.remote, self.branch])
+        result = self.run(["pull", "--ff-only", self.remote, self.branch])
+        if result.ok:
+            return result
+        if self._is_network_error(result.err) and self.accelerator_url:
+            hosts = connectivity.fetch_hosts(self.accelerator_url, self.accelerator_source)
+            if hosts:
+                ok, msg = connectivity.pull_via_api(self.root, self.remote_url or "", self.branch, hosts)
+                if ok:
+                    return Result(True, msg, "")
+        return result
+
+    @staticmethod
+    def _is_network_error(err):
+        err = (err or "").lower()
+        keys = ("could not resolve", "connection", "timed out", "timeout",
+                "failed to connect", "502", "503", "reset", "unreachable", "refused")
+        return any(k in err for k in keys)
 
 
 def from_manifest(root, manifest):
@@ -74,4 +95,6 @@ def from_manifest(root, manifest):
         branch=config.get("branch", "main"),
         remote_url=config.get("remote_url") or None,
         token_env=config.get("token_env") or None,
+        accelerator_url=config.get("accelerator_url") or connectivity.DEFAULT_ACCELERATOR,
+        accelerator_source=config.get("accelerator_source", "ziyou"),
     )
