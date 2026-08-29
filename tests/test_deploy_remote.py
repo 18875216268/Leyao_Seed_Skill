@@ -25,7 +25,7 @@ os.makedirs(_tf.tempdir, exist_ok=True)
 
 from deploy import integrity  # noqa: E402
 from deploy.pull import remote_version  # noqa: E402
-from deploy.remote import RemoteStatus, from_manifest  # noqa: E402
+from deploy.remote import GitRemote, RemoteStatus, from_manifest  # noqa: E402
 from suite import Suite  # noqa: E402
 from test_suite import make_skill, make_suite_root  # noqa: E402
 
@@ -154,6 +154,19 @@ def test_from_manifest_is_read_only():
         assert not hasattr(remote, "bootstrap") and not hasattr(remote, "set_remote")
 
         assert remote_version(root, manifest)["state"] == RemoteStatus.NOT_A_REPO
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_accelerator_retries_defaults_to_twenty():
+    root = make_suite_root()
+    try:
+        # 缺省落 20
+        assert from_manifest(root, {"deploy": {"remote_url": ""}}).accelerator_retries == 20
+        # manifest 显式 20
+        assert from_manifest(root, {"deploy": {"remote_url": "", "accelerator_retries": 20}}).accelerator_retries == 20
+        # 构造参数可覆盖（非缺省场景）
+        assert GitRemote(root, accelerator_retries=7).accelerator_retries == 7
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

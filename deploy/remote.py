@@ -20,7 +20,7 @@ class GitRemote:
     """只读消费者。发布（建仓 / commit / push）属作者端职责，不在本类能力范围内。"""
 
     def __init__(self, root, remote="origin", branch="main", remote_url=None, token_env=None,
-                 accelerator_url=None, accelerator_source="ziyou"):
+                 accelerator_url=None, accelerator_source="ziyou", accelerator_retries=20):
         self.root = root
         self.remote = remote
         self.branch = branch
@@ -28,6 +28,7 @@ class GitRemote:
         self.token_env = token_env
         self.accelerator_url = accelerator_url
         self.accelerator_source = accelerator_source
+        self.accelerator_retries = accelerator_retries
 
     def run(self, args):
         command = ["git"]
@@ -67,14 +68,15 @@ class GitRemote:
             return None
         return local != head
 
-    def pull(self, accelerator_retries=2):
+    def pull(self, accelerator_retries=None):
+        retries = self.accelerator_retries if accelerator_retries is None else accelerator_retries
         result = self.run(["pull", "--ff-only", self.remote, self.branch])
         if result.ok:
             return result
         if self._is_network_error(result.err) and self.accelerator_url:
             # 全员拉取（source=all，不指定源/关键字/域名）→ 直接取云函数前 N 最快候选 → git 钉 IP 拉取；
             # 整体失败则重新拉取云函数最新 IP 再试（accelerator_retries 次）；仍败回退系统代理/正常 DNS。
-            for _ in range(accelerator_retries + 1):
+            for _ in range(retries + 1):
                 hosts = connectivity.fetch_hosts(self.accelerator_url, self.accelerator_source)
                 cands = connectivity.top_candidates(hosts, n=3) if hosts else {}
                 if cands:
@@ -107,4 +109,5 @@ def from_manifest(root, manifest):
         token_env=config.get("token_env") or None,
         accelerator_url=config.get("accelerator_url") or connectivity.DEFAULT_ACCELERATOR,
         accelerator_source=config.get("accelerator_source", "ziyou"),
+        accelerator_retries=config.get("accelerator_retries", 20),
     )

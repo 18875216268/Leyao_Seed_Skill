@@ -516,6 +516,49 @@ def test_suite_end_to_end():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_is_installed_skill_location_detects_skills_dir():
+    tmp = make_suite_root()
+    parent = None
+    try:
+        # 开发/工作副本：父目录非 skills → 判定非系统级套件目录，不触发自动更新
+        assert Suite(tmp)._is_installed_skill_location() is False
+
+        # 置于 skills/ 下：判定为系统级套件目录
+        parent = tempfile.mkdtemp(prefix="skills-")
+        installed = os.path.join(parent, "skills", "skill-router-suite")
+        os.makedirs(os.path.join(installed, "registry"), exist_ok=True)
+        with open(os.path.join(installed, "registry", "skills.json"), "w", encoding="utf-8") as f:
+            json.dump([], f)
+        with open(os.path.join(installed, "manifest.json"), "w", encoding="utf-8") as f:
+            json.dump({"suite": "skill-router-suite", "version": "0.1.0", "skills": {}}, f)
+        assert Suite(installed)._is_installed_skill_location() is True
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+        if parent:
+            shutil.rmtree(parent, ignore_errors=True)
+
+
+def test_async_selfcheck_noop_when_not_installed():
+    tmp = make_suite_root()
+    try:
+        s = Suite(tmp)
+        # 非系统级套件目录：后台自检应直接 no-op——不触网、不抛错、不破坏既有路由表
+        s._async_selfcheck_and_sync()
+        assert s.registry is not None
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_schedule_background_sync_returns_without_blocking():
+    tmp = make_suite_root()
+    try:
+        s = Suite(tmp)
+        # 启动异步后台不应阻塞首用、不应触网（非系统级目录直接 no-op）
+        s.schedule_background_sync()
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main():
     tests = [(name, fn) for name, fn in sorted(globals().items()) if name.startswith("test_") and callable(fn)]
     results = []

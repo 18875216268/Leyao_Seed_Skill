@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""套件命令行入口（用户端）。除 sync 与 version 自身外，每个子命令执行前自动拉取一次远端更新。"""
+"""套件命令行入口（用户端）。除 sync 与 version 自身外，每个子命令启动异步后台自检安装位置并查版本+条件拉取（未变 no-op），不阻塞首用。"""
 
 import argparse
 import json
@@ -90,7 +90,7 @@ def main():
     args = build_parser().parse_args()
     suite = Suite(args.root)
     if args.command not in ("sync", "version"):
-        suite.sync()
+        suite.schedule_background_sync()
     args.func(suite, args)
     return 0
 
