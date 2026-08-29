@@ -605,9 +605,9 @@ def test_install_status_reports_not_installed_with_candidates():
     try:
         s = Suite(fake)
         st = s.install_status()
-        # 父目录非 skills → 未处于自启用目录；候选目标非空（用户级恒在列）
-        assert st["installed"] is False
-        assert st["recognized_skills_dir"] is None
+        # 父目录非 skills → 弱线索显示不像自启用目录；含引导（AI 核实，脚本不复制）；候选非空
+        assert st["looks_like_skills_dir"] is False
+        assert "guidance" in st and "不复制" in st["guidance"]
         assert any("skills" in c.replace("\\", "/") for c in st["candidates"])
     finally:
         shutil.rmtree(fake, ignore_errors=True)
@@ -622,51 +622,48 @@ def test_install_status_reports_installed_when_in_skills_dir():
         shutil.copytree(make_fake_suite_root(), root)
         s = Suite(root)
         st = s.install_status()
-        assert st["installed"] is True
-        assert os.path.abspath(st["recognized_skills_dir"]) == os.path.abspath(skills_dir)
+        # 仅弱线索：父目录命中 skills 命名；非权威，最终由 AI 核实
+        assert st["looks_like_skills_dir"] is True
+        assert os.path.abspath(st["parent_dir"]) == os.path.abspath(skills_dir)
+        assert "guidance" in st
     finally:
         shutil.rmtree(parent, ignore_errors=True)
 
 
-def test_install_copies_to_target_and_is_idempotent():
+def test_install_plan_returns_copy_action_for_fresh_target():
     fake = make_fake_suite_root()
-    target = tempfile.mkdtemp(prefix="inst-target-")
+    target = tempfile.mkdtemp(prefix="plan-target-")
     try:
         skills_dir = os.path.join(target, "skills")
         s = Suite(fake)
-        res = s.install(target=skills_dir)
-        assert res["ok"] is True and res["already"] is False
-        dest = res["path"]
-        assert os.path.exists(os.path.join(dest, "SKILL.md"))
-        assert os.path.exists(os.path.join(dest, "suite.py"))
-
-        # 二次调用：目标已存在 → 跳过覆盖（不破坏用户可能已修改的实例）
-        again = s.install(target=skills_dir)
-        assert again["ok"] is True and again["already"] is True
-
-        # 已在目标写入的标记不应被二次安装抹除（证明未覆盖）
-        sentinel = os.path.join(dest, "user_patch.txt")
-        with open(sentinel, "w", encoding="utf-8") as f:
-            f.write("kept")
-        s.install(target=skills_dir)
-        assert os.path.exists(sentinel)
+        plan = s.install_plan(target=skills_dir)
+        assert plan["source"] == fake
+        assert plan["destination"] == os.path.join(skills_dir, os.path.basename(fake.rstrip(os.sep)))
+        # 脚本不复制：执行前目标不存在，且建议动作为 copy
+        assert plan["exists"] is False
+        assert plan["recommended_action"] == "copy"
+        assert not os.path.exists(plan["destination"])
+        # 模拟 AI 复制后，再出计划应建议 skip（存在即不覆盖）
+        shutil.copytree(fake, plan["destination"])
+        again = s.install_plan(target=skills_dir)
+        assert again["exists"] is True and again["recommended_action"] == "skip"
     finally:
         shutil.rmtree(fake, ignore_errors=True)
         shutil.rmtree(target, ignore_errors=True)
 
 
-def test_install_defaults_to_user_level_target():
+def test_install_plan_defaults_to_user_level_target():
     fake = make_fake_suite_root()
     base = tempfile.mkdtemp(prefix="fake-home-")
     try:
         # 用 mock 把 ~ 指到临时基目录，避免污染真实 ~/.workbuddy/skills
         with mock.patch.object(os.path, "expanduser", return_value=base):
             s = Suite(fake)
-            res = s.install()
+            plan = s.install_plan()
         expected = os.path.join(base, ".workbuddy", "skills")
-        assert res["target"] == expected
-        assert res["path"].startswith(expected)
-        assert os.path.exists(os.path.join(res["path"], "SKILL.md"))
+        assert plan["destination"].startswith(expected)
+        assert plan["recommended_action"] in ("copy", "skip")
+        assert "guidance" in plan
     finally:
         shutil.rmtree(fake, ignore_errors=True)
         shutil.rmtree(base, ignore_errors=True)

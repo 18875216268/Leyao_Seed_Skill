@@ -51,8 +51,8 @@ def cmd_status(suite, args):
     dump(suite.install_status())
 
 
-def cmd_install(suite, args):
-    dump(suite.install(args.target))
+def cmd_install_plan(suite, args):
+    dump(suite.install_plan(args.target))
 
 
 def cmd_sync(suite, args):
@@ -86,11 +86,11 @@ def build_parser():
 
     sub.add_parser("evolve", help="消费知识资产做针对性变异").set_defaults(func=cmd_evolve)
     sub.add_parser("version", help="查询本地与远端版本").set_defaults(func=cmd_version)
-    sub.add_parser("status", help="判定是否已自启用及候选安装目录").set_defaults(func=cmd_status)
+    sub.add_parser("status", help="自启用线索+候选目录+引导（AI 核实目录）").set_defaults(func=cmd_status)
 
-    p_install = sub.add_parser("install", help="复制到 skills/ 自启用目录（默认用户级）")
-    p_install.add_argument("--target", default=None, help="目标 skills 目录，缺省为用户级 ~/.workbuddy/skills")
-    p_install.set_defaults(func=cmd_install)
+    p_plan = sub.add_parser("install-plan", help="输出复制计划（源/目标/是否已存在），不复制")
+    p_plan.add_argument("--target", default=None, help="目标 skills 目录，缺省为用户级 ~/.workbuddy/skills")
+    p_plan.set_defaults(func=cmd_install_plan)
 
     p_sync = sub.add_parser("sync", help="拉取远端更新并热更新路由表")
     p_sync.add_argument("--force", action="store_true")
@@ -102,7 +102,7 @@ def build_parser():
 def main():
     args = build_parser().parse_args()
     suite = Suite(args.root)
-    if args.command not in ("sync", "version", "status", "install"):
+    if args.command not in ("sync", "version", "status", "install-plan"):
         suite.schedule_background_sync()
     args.func(suite, args)
     return 0

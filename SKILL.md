@@ -72,14 +72,14 @@ agent_created: true
 
 ## 自启用（无需每次指定）
 
-skill 的常态是"技能"而非"套件"，但本套件自带 `SKILL.md`，因此只要置于某 agent 的 `skills/` 自启用目录，启动即被自动发现，无需在对话中指定。
+skill 的常态是"技能"而非"套件"，但本套件自带 `SKILL.md`，因此只要置于某 agent 的 skill 发现目录，启动即被自动发现，无需在对话中指定。
 
-- 用户级 `~/.workbuddy/skills/skill-router-suite/`：跨所有项目全局自启用（最稳）。
-- 项目级 `<项目>/.workbuddy/skills/skill-router-suite/`：仅当前项目自启用。
+- 常见约定：用户级 `~/.workbuddy/skills/skill-router-suite/`、项目级 `<项目>/.workbuddy/skills/skill-router-suite/`。**但目录命名因软件而异**（可能为 `plugins/`、`commands/`、`.agents/` 等），不能假设都叫 `skills`。
+- 是否自启用、装到哪个目录，由 **AI 依当前环境裁决**，脚本只给线索与引导、绝不复制文件、绝不写系统目录。
 
-**判定**：`Suite.install_status()` 返回 `installed`（当前是否已在 skills/ 目录）、`recognized_skills_dir`、`candidates`（候选目标）。
+**判定（线索）**：`Suite.install_status()` 返回 `current_root` / `parent_dir` / `looks_like_skills_dir`（仅弱线索：父目录是否命中常见 skills 命名，**非权威**）/ `candidates`（常见约定候选）/ `guidance`（AI 须核实候选确为当前 agent 的发现目录，否则查文档或询问用户）。
 
-**安装（AI 触发，不静默写系统目录）**：`Suite.install()` 默认装到用户级；传 `target` 装到项目级。目标已存在则跳过覆盖。AI 依当前环境启发式选目录后调用——这正是"让 AI 自行判断目录并安装"的落点：skill 给提示与可执行入口，不改写用户系统目录。
+**安装计划（AI 执行复制）**：`Suite.install_plan([target])` 返回 `source` / `destination` / `exists` / `recommended_action`（copy 或 skip），**不复制**。AI 据计划核实目录为当前 agent 的发现目录后，自行复制（如 `cp -r` 或文件工具），目标已存在时先确认是否保留用户改动实例。
 
 ## 入口
 
@@ -94,12 +94,12 @@ s.add_skill("pms", "user_drop")   # 三源之一：原样放入 → 派生 entry
 s.modify_skill("pms", {...})      # 改内容：生成提案，等用户授权
 s.learn(traces)                   # 轨迹蒸馏 + 用户建模
 s.evolve()                        # 消费知识资产做针对性变异
-s.install_status()                # 是否已自启用 + 候选目录
-s.install()                       # 装到用户级 skills/ 自启用（AI 触发）
-s.install(target="项目/.workbuddy/skills")  # 装到项目级
+s.install_status()                # 自启用线索 + 候选目录 + 引导（AI 核实目录）
+s.install_plan()                  # 复制计划（源/目标/是否已存在），不复制
+s.install_plan(target="项目/.workbuddy/skills")  # 指定目录的计划
 ```
 
-等价命令行（除 `sync`、`version`、`status`、`install` 外，每个子命令执行前自动拉取一次上游更新）：
+等价命令行（除 `sync`、`version`、`status`、`install-plan` 外，每个子命令执行前自动拉取一次上游更新）：
 
 ```bash
 python scripts/cli.py list
@@ -110,8 +110,8 @@ python scripts/cli.py learn obs/traces.json
 python scripts/cli.py evolve
 python scripts/cli.py version
 python scripts/cli.py status
-python scripts/cli.py install
-python scripts/cli.py install --target "项目/.workbuddy/skills"
+python scripts/cli.py install-plan
+python scripts/cli.py install-plan --target "项目/.workbuddy/skills"
 python scripts/cli.py sync --force
 ```
 
