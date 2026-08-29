@@ -72,8 +72,10 @@ class GitRemote:
         if result.ok:
             return result
         if self._is_network_error(result.err) and self.accelerator_url:
+            # 全员拉取（source=all，不指定源/关键字/域名）→ 本地自测排序选可用 → git 钉 IP 拉取
             hosts = connectivity.fetch_hosts(self.accelerator_url, self.accelerator_source)
             if hosts:
+                hosts = connectivity.select_usable(hosts)
                 pr = connectivity.run_git_with_hosts(
                     self.root, ["pull", "--ff-only", self.remote, self.branch], hosts)
                 if pr.returncode == 0:

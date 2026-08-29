@@ -47,6 +47,55 @@ def _parse_hosts(text):
     return hosts
 
 
+def _probe_ip(ip, timeout=2.5):
+    try:
+        s = socket.create_connection((ip, 443), timeout)
+        s.close()
+        return True
+    except Exception:
+        return False
+
+
+# 本地需钉定的关键域名：git/clone 实际会连的。其余域名走代理正常 DNS 即可。
+_CRITICAL_DOMAINS = ("github.com", "api.github.com", "codeload.github.com",
+                     "raw.githubusercontent.com", "github.githubassets.com",
+                     "objects.githubusercontent.com")
+
+
+def select_usable(hosts, critical=_CRITICAL_DOMAINS, timeout=2.5):
+    """本地自测 + 排序 + 选优：云函数给的是腾讯云视角的"最快"，本机网络未必认。
+
+    对关键域名，除云函数给的 IP 外，再补一次本地 DNS 解析拿更多候选，并行 TCP 443 探测，
+    挑本机真正可达者钉定；全不可达时回退信任云函数 IP（让 git 仍尝试）。非关键域名直接沿用云函数 IP。
+    """
+    import concurrent.futures
+
+    cand = {}
+    for domain, ip in hosts.items():
+        lst = [ip]
+        if domain in critical:
+            try:
+                for r in socket.getaddrinfo(domain, 443, proto=socket.IPPROTO_TCP):
+                    a = r[4][0]
+                    if a not in lst:
+                        lst.append(a)
+            except Exception:
+                pass
+        cand[domain] = lst
+
+    def pick(domain):
+        for ip in cand[domain]:
+            if _probe_ip(ip, timeout):
+                return domain, ip
+        return domain, hosts.get(domain)
+
+    out = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=32) as ex:
+        for domain, ip in ex.map(pick, list(cand.keys())):
+            out[domain] = ip
+    return out
+
+
 class IPProxy:
     """本地 CONNECT 代理：把 github 相关域名钉到云函数返回的 IP，其余走正常 DNS。
 

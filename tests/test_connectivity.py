@@ -112,6 +112,35 @@ def test_fetch_hosts_failure_returns_empty():
     assert connectivity.fetch_hosts("http://127.0.0.1:1/nope", "all", timeout=2) == {}
 
 
+def test_select_usable_prefers_reachable_and_augments_critical():
+    # 云函数给的 IP 在本机可能不可达；本地自测应保留可达者，并为关键域名补本地 DNS 候选挑可用。
+    hosts = {"github.com": "1.2.3.4", "api.github.com": "5.6.7.8", "raw.githubusercontent.com": "9.9.9.9"}
+
+    orig_probe = connectivity._probe_ip
+    orig_getaddrinfo = socket.getaddrinfo
+
+    def fake_probe(ip, timeout=2.5):
+        return ip in ("1.2.3.4", "9.9.9.9", "10.10.10.10")  # 云函数 github/raw 可达；api 不可达但本地 DNS 候选可达
+
+    def fake_getaddrinfo(host, port, proto=0, **kw):
+        if host == "api.github.com":
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.10.10.10", 0))]
+        return orig_getaddrinfo(host, port, proto=proto, **kw)
+
+    socket.getaddrinfo = fake_getaddrinfo
+    connectivity._probe_ip = fake_probe
+    try:
+        out = connectivity.select_usable(hosts)
+    finally:
+        connectivity._probe_ip = orig_probe
+        socket.getaddrinfo = orig_getaddrinfo
+
+    assert out["github.com"] == "1.2.3.4"        # 云函数 IP 本机可达 → 保留
+    assert out["raw.githubusercontent.com"] == "9.9.9.9"  # 可达 → 保留
+    assert out["api.github.com"] == "10.10.10.10"  # 云函数 IP 不可达 → 本地 DNS 候选可用 → 升级
+
+
+
 def main():
     tests = [(name, fn) for name, fn in sorted(globals().items()) if name.startswith("test_") and callable(fn)]
     results = []
