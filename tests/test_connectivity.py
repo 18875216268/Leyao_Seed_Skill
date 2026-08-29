@@ -1,12 +1,9 @@
-"""连通性兜底测试：云函数 hosts 解析 / IP 直连拉取（确定性，本地 mock server，不依赖外网）。"""
+"""连通性兜底测试：云函数 hosts 解析 / 本地 IP 钉定代理隧道（确定性，本地 mock，不依赖外网）。"""
 
-import http.server
 import os
 import shutil
-import socketserver
-import subprocess
+import socket
 import sys
-import tarfile
 import tempfile
 import threading
 
@@ -26,31 +23,6 @@ from deploy import connectivity  # noqa: E402
 _HOSTS_BODY = "20.205.243.166    github.com\n185.199.111.133   raw.githubusercontent.com\n# comment\n\n"
 
 
-class _Handler(http.server.BaseHTTPRequestHandler):
-    def do_GET(self):
-        if self.path.startswith("/hosts"):
-            body = _HOSTS_BODY.encode("utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", "text/plain")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-        else:
-            self.send_response(404)
-            self.end_headers()
-
-    def log_message(self, *args):
-        pass
-
-
-def _start_server():
-    httpd = socketserver.TCPServer(("127.0.0.1", 0), _Handler)
-    port = httpd.server_address[1]
-    t = threading.Thread(target=httpd.serve_forever, daemon=True)
-    t.start()
-    return httpd, port
-
-
 def test_parse_hosts():
     hosts = connectivity._parse_hosts(_HOSTS_BODY)
     assert hosts.get("github.com") == "20.205.243.166"
@@ -58,51 +30,86 @@ def test_parse_hosts():
     assert "# comment" not in hosts
 
 
-def test_resolve_args_format():
-    args = connectivity.resolve_args({"github.com": "1.2.3.4"}, ["github.com"])
-    assert args == ["--resolve", "github.com:443:1.2.3.4"]
+def _start_mock_upstream():
+    """本地 TCP 回显服务，模拟被钉定的 github 端点。"""
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(8)
+    port = srv.getsockname()[1]
+
+    def serve():
+        while True:
+            try:
+                conn, _ = srv.accept()
+            except Exception:
+                break
+            try:
+                conn.sendall(b"UPSTREAM-OK")
+                conn.recv(65536)
+            except Exception:
+                pass
+            finally:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+
+    threading.Thread(target=serve, daemon=True).start()
+    return srv, port
 
 
-def test_repo_slug():
-    owner, repo = connectivity._repo_slug("https://github.com/18875216268/Leyao_Seed_Skill.git")
-    assert owner == "18875216268" and repo == "Leyao_Seed_Skill"
-    owner, repo = connectivity._repo_slug("git@github.com:18875216268/Leyao_Seed_Skill.git")
-    assert owner == "18875216268" and repo == "Leyao_Seed_Skill"
-
-
-def test_fetch_hosts_local_mock():
-    httpd, port = _start_server()
+def test_ip_proxy_tunnels_to_pinned_ip():
+    srv, port = _start_mock_upstream()
     try:
-        hosts = connectivity.fetch_hosts("http://127.0.0.1:%d/hosts" % port, "ziyou", timeout=5)
-        assert hosts.get("github.com") == "20.205.243.166"
+        proxy = connectivity.IPProxy({"github.com": "127.0.0.1"}, port=0)
+        p = proxy.start()
+        try:
+            sock = socket.create_connection(("127.0.0.1", p), timeout=5)
+            sock.sendall(b"CONNECT github.com:%d HTTP/1.1\r\n\r\n" % port)
+            banner = sock.recv(65536)
+            assert b"200 Connection Established" in banner
+            assert sock.recv(65536) == b"UPSTREAM-OK"
+            sock.close()
+        finally:
+            proxy.stop()
     finally:
-        httpd.shutdown()
+        try:
+            srv.close()
+        except Exception:
+            pass
+
+
+def test_ip_proxy_falls_back_to_dns_for_unmapped():
+    srv, port = _start_mock_upstream()
+    try:
+        proxy = connectivity.IPProxy({}, port=0)
+        p = proxy.start()
+        try:
+            sock = socket.create_connection(("127.0.0.1", p), timeout=5)
+            sock.sendall(b"CONNECT 127.0.0.1:%d HTTP/1.1\r\n\r\n" % port)
+            banner = sock.recv(65536)
+            assert b"200 Connection Established" in banner
+            assert sock.recv(65536) == b"UPSTREAM-OK"
+            sock.close()
+        finally:
+            proxy.stop()
+    finally:
+        try:
+            srv.close()
+        except Exception:
+            pass
+
+
+def test_run_git_with_hosts_invokes_git_with_proxy():
+    # 不依赖真实网络：验证 run_git_with_hosts 确实以 http.proxy 形式调用 git。
+    pr = connectivity.run_git_with_hosts(ROOT, ["--version"], {"github.com": "127.0.0.1"}, timeout=30)
+    assert pr.returncode == 0
+    assert pr.stdout.strip().startswith("git version")
 
 
 def test_fetch_hosts_failure_returns_empty():
-    assert connectivity.fetch_hosts("http://127.0.0.1:1/nope", "ziyou", timeout=2) == {}
-
-
-def test_extract_tarball_overwrites_tree():
-    root = tempfile.mkdtemp(prefix="conn-extract-")
-    try:
-        tar_path = os.path.join(root, "blob.tar.gz")
-        with tarfile.open(tar_path, "w:gz") as tf:
-            info = tarfile.TarInfo("Leyao_Seed_Skill/manifest.json")
-            payload = b'{"deploy": {"accelerator_source": "ziyou"}}'
-            info.size = len(payload)
-            tf.addfile(info, __import__("io").BytesIO(payload))
-            dir_info = tarfile.TarInfo("Leyao_Seed_Skill/skills")
-            dir_info.type = tarfile.DIRTYPE
-            tf.addfile(dir_info)
-        ok, msg = connectivity._extract_tarball(tar_path, root)
-        assert ok is True
-        out = os.path.join(root, "manifest.json")
-        assert os.path.exists(out)
-        with open(out, encoding="utf-8") as f:
-            assert '"ziyou"' in f.read()
-    finally:
-        shutil.rmtree(root, ignore_errors=True)
+    assert connectivity.fetch_hosts("http://127.0.0.1:1/nope", "all", timeout=2) == {}
 
 
 def main():

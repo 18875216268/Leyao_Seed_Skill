@@ -45,9 +45,9 @@
     "remote_url": "https://github.com/18875216268/Leyao_Seed_Skill.git",
     "branch": "main",
     "accelerator_url": "https://1317825751-jonkwhxmyb.ap-guangzhou.tencentscf.com",
-    "accelerator_source": "ziyou",
+    "accelerator_source": "all",
     "api_fallback": true,
-    "note": "用户端只读消费：仅查询版本与拉取更新。遇网络问题时，经自建腾讯云函数(ziyou 源)获取可达 GitHub IP 并直连拉取(api tarball)；发布/推送属作者端职责，不在本套件能力内。"
+    "note": "用户端只读消费：仅查询版本与拉取更新。遇网络问题时，经自建腾讯云函数(全源:ziyou+第三方镜像)获取可达 GitHub IP，由本地 git 经一次性本地 CONNECT 代理钉 IP 直连拉取；云函数不拉仓库、只供 IP。发布/推送属作者端职责，不在本套件能力内。"
   },
   "skills": {}
 }

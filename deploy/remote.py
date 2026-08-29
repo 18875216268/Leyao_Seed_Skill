@@ -74,9 +74,10 @@ class GitRemote:
         if self._is_network_error(result.err) and self.accelerator_url:
             hosts = connectivity.fetch_hosts(self.accelerator_url, self.accelerator_source)
             if hosts:
-                ok, msg = connectivity.pull_via_api(self.root, self.remote_url or "", self.branch, hosts)
-                if ok:
-                    return Result(True, msg, "")
+                pr = connectivity.run_git_with_hosts(
+                    self.root, ["pull", "--ff-only", self.remote, self.branch], hosts)
+                if pr.returncode == 0:
+                    return Result(True, pr.stdout, pr.stderr)
         return result
 
     @staticmethod
