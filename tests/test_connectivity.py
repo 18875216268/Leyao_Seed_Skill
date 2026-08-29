@@ -25,9 +25,23 @@ _HOSTS_BODY = "20.205.243.166    github.com\n185.199.111.133   raw.githubusercon
 
 def test_parse_hosts():
     hosts = connectivity._parse_hosts(_HOSTS_BODY)
-    assert hosts.get("github.com") == "20.205.243.166"
-    assert hosts.get("raw.githubusercontent.com") == "185.199.111.133"
+    assert hosts.get("github.com") == ["20.205.243.166"]
+    assert hosts.get("raw.githubusercontent.com") == ["185.199.111.133"]
     assert "# comment" not in hosts
+
+
+def test_parse_hosts_multi():
+    body = "1.1.1.1  github.com\n2.2.2.2  github.com\n3.3.3.3  github.com\n"
+    hosts = connectivity._parse_hosts(body)
+    assert hosts["github.com"] == ["1.1.1.1", "2.2.2.2", "3.3.3.3"]
+
+
+def test_top_candidates_limits_per_domain():
+    hosts = {"github.com": ["1.1.1.1", "2.2.2.2", "3.3.3.3", "4.4.4.4"],
+             "api.github.com": ["9.9.9.9"]}
+    out = connectivity.top_candidates(hosts, n=3)
+    assert out["github.com"] == ["1.1.1.1", "2.2.2.2", "3.3.3.3"]
+    assert out["api.github.com"] == ["9.9.9.9"]
 
 
 def _start_mock_upstream():
@@ -62,7 +76,7 @@ def _start_mock_upstream():
 def test_ip_proxy_tunnels_to_pinned_ip():
     srv, port = _start_mock_upstream()
     try:
-        proxy = connectivity.IPProxy({"github.com": "127.0.0.1"}, port=0)
+        proxy = connectivity.IPProxy({"github.com": ["127.0.0.1"]}, port=0)
         p = proxy.start()
         try:
             sock = socket.create_connection(("127.0.0.1", p), timeout=5)
@@ -103,7 +117,7 @@ def test_ip_proxy_falls_back_to_dns_for_unmapped():
 
 def test_run_git_with_hosts_invokes_git_with_proxy():
     # 不依赖真实网络：验证 run_git_with_hosts 确实以 http.proxy 形式调用 git。
-    pr = connectivity.run_git_with_hosts(ROOT, ["--version"], {"github.com": "127.0.0.1"}, timeout=30)
+    pr = connectivity.run_git_with_hosts(ROOT, ["--version"], {"github.com": ["127.0.0.1"]}, timeout=30)
     assert pr.returncode == 0
     assert pr.stdout.strip().startswith("git version")
 
@@ -112,34 +126,26 @@ def test_fetch_hosts_failure_returns_empty():
     assert connectivity.fetch_hosts("http://127.0.0.1:1/nope", "all", timeout=2) == {}
 
 
-def test_select_usable_keeps_only_reachable():
-    # 候选来自云函数全员返回；本地三步：测试 → 排序 → 仅保留直连可达者。
-    hosts = {"github.com": "1.2.3.4", "api.github.com": "5.6.7.8"}
-
-    orig = connectivity._probe_latency
-
-    def fake_probe(ip, timeout=2.5):
-        # github.com 可达(延迟小)，api.github.com 不可达
-        return {"1.2.3.4": 0.05}.get(ip)  # 5.6.7.8 → None（不可达，不下钉）
-
-    connectivity._probe_latency = fake_probe
+def test_ip_proxy_fails_over_through_candidates():
+    # 第一候选不可达（TEST-NET-3 203.0.113.1，连接超时），第二候选指向本地 mock 上游 → 应按序 failover。
+    srv, port = _start_mock_upstream()
     try:
-        out = connectivity.select_usable(hosts)
+        proxy = connectivity.IPProxy({"github.com": ["203.0.113.1", "127.0.0.1"]}, port=0)
+        p = proxy.start()
+        try:
+            sock = socket.create_connection(("127.0.0.1", p), timeout=20)
+            sock.sendall(b"CONNECT github.com:%d HTTP/1.1\r\n\r\n" % port)
+            banner = sock.recv(65536)
+            assert b"200 Connection Established" in banner
+            assert sock.recv(65536) == b"UPSTREAM-OK"
+            sock.close()
+        finally:
+            proxy.stop()
     finally:
-        connectivity._probe_latency = orig
-
-    assert out == {"github.com": "1.2.3.4"}  # 仅保留可达者；不可达域名不钉，留给系统代理
-
-
-def test_select_usable_all_unreachable_returns_empty():
-    hosts = {"github.com": "1.2.3.4"}
-    orig = connectivity._probe_latency
-    connectivity._probe_latency = lambda ip, timeout=2.5: None
-    try:
-        out = connectivity.select_usable(hosts)
-    finally:
-        connectivity._probe_latency = orig
-    assert out == {}  # 全不可达 → 返回空，由调用方回退系统代理/正常 DNS
+        try:
+            srv.close()
+        except Exception:
+            pass
 
 
 

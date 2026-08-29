@@ -67,20 +67,23 @@ class GitRemote:
             return None
         return local != head
 
-    def pull(self):
+    def pull(self, accelerator_retries=2):
         result = self.run(["pull", "--ff-only", self.remote, self.branch])
         if result.ok:
             return result
         if self._is_network_error(result.err) and self.accelerator_url:
-            # 全员拉取（source=all，不指定源/关键字/域名）→ 本地自测排序选可用 → git 钉 IP 拉取
-            hosts = connectivity.fetch_hosts(self.accelerator_url, self.accelerator_source)
-            usable = connectivity.select_usable(hosts) if hosts else {}
-            if usable:
-                pr = connectivity.run_git_with_hosts(
-                    self.root, ["pull", "--ff-only", self.remote, self.branch], usable)
-                if pr.returncode == 0:
-                    return Result(True, pr.stdout, pr.stderr)
-            # 云函数 IP 本地直连全不可达：回退系统代理/正常 DNS（git 默认出口，不清空代理）
+            # 全员拉取（source=all，不指定源/关键字/域名）→ 直接取云函数前 N 最快候选 → git 钉 IP 拉取；
+            # 整体失败则重新拉取云函数最新 IP 再试（accelerator_retries 次）；仍败回退系统代理/正常 DNS。
+            for _ in range(accelerator_retries + 1):
+                hosts = connectivity.fetch_hosts(self.accelerator_url, self.accelerator_source)
+                cands = connectivity.top_candidates(hosts, n=3) if hosts else {}
+                if cands:
+                    pr = connectivity.run_git_with_hosts(
+                        self.root, ["pull", "--ff-only", self.remote, self.branch], cands)
+                    if pr.returncode == 0:
+                        return Result(True, pr.stdout, pr.stderr)
+                # 失败 → 下次循环重新拉取云函数最新候选
+            # 加速器路径全败：回退系统代理/正常 DNS（git 默认出口，不清空代理）
             fb = self.run(["pull", "--ff-only", self.remote, self.branch])
             if fb.ok:
                 return fb

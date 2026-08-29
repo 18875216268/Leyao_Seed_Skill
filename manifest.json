@@ -46,8 +46,9 @@
     "branch": "main",
     "accelerator_url": "https://1317825751-jonkwhxmyb.ap-guangzhou.tencentscf.com",
     "accelerator_source": "all",
+    "accelerator_top_n": 3,
     "api_fallback": true,
-    "note": "用户端只读消费：仅查询版本与拉取更新。遇网络问题时，经自建腾讯云函数(全员 source=all，不指定源/关键字/域名)获取所有候选 GitHub IP，本地三步(测试→排序→按序使用)钉定最快可达 IP，由 git 经一次性本地 CONNECT 代理直连拉取；云函数不拉仓库、只供 IP。发布/推送属作者端职责，不写入本套件。"
+    "note": "用户端只读消费：仅查询版本与拉取更新。遇网络问题时，经自建腾讯云函数(全员 source=all，不指定源/关键字/域名)获取已按延迟排序的候选 GitHub IP，skill 内不测试、直接每域取前 3 最快候选，由 git 经一次性本地 CONNECT 代理钉定拉取（单次调用内候选按序 failover）；整体失败则重新拉取云函数最新 IP 再试（默认重试 2 次），仍败回退系统代理/正常 DNS。云函数不拉仓库、只供 IP。发布/推送属作者端职责，不写入本套件。"
   },
   "skills": {}
 }

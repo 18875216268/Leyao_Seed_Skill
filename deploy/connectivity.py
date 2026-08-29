@@ -4,7 +4,7 @@
 - 云函数【只提供可达的 GitHub IP】（hosts 行），不负责拉仓库。
 - 拉取仍由本地 git 完成；本层只是把云函数给的 IP 应用到 git 的网络路径上，使其能正确连到 github。
 - 作用域限定在单次 git 调用的本地 CONNECT 代理：把 github 相关域名钉到云函数返回的 IP。
-- 流程三步：云函数全员返回 → 本地 TCP 443 自测 → 按延迟排序 → 取最快可达者使用。简单清晰。
+- 流程：云函数全员返回（已按延迟排序）→ 每域直接取前 N 个最快候选 → git 钉定；单次调用内候选按序 failover；整体失败则重新拉取云函数最新 IP 再试。不在 skill 内做本地网络测试，简单清晰。
 """
 
 import os
@@ -12,8 +12,6 @@ import re
 import socket
 import subprocess
 import threading
-import concurrent.futures
-import time
 
 DEFAULT_ACCELERATOR = "https://1317825751-jonkwhxmyb.ap-guangzhou.tencentscf.com"
 _HOST_LINE = re.compile(r"^(\d{1,3}(?:\.\d{1,3}){3})\s+(\S+)\s*$")
@@ -39,41 +37,18 @@ def fetch_hosts(base_url=DEFAULT_ACCELERATOR, source="all", timeout=10, retries=
 
 
 def _parse_hosts(text):
+    # 返回 {domain: [ip, ...]}，保持云函数给出的顺序（云函数已按延迟排序）。
     hosts = {}
     for line in text.splitlines():
         m = _HOST_LINE.match(line.strip())
         if m:
-            hosts[m.group(2)] = m.group(1)
+            hosts.setdefault(m.group(2), []).append(m.group(1))
     return hosts
 
 
-def _probe_latency(ip, timeout=2.5):
-    t0 = time.monotonic()
-    try:
-        s = socket.create_connection((ip, 443), timeout)
-        s.close()
-        return time.monotonic() - t0
-    except Exception:
-        return None
-
-
-def select_usable(hosts, timeout=2.5):
-    """云函数全员返回后，本地三步：测试 → 排序 → 按序使用。
-
-    并行 TCP 443 测延迟，仅保留本地直连可达的域名→IP（每域名取最快）。
-    不可达域名不下钉，留给正常 DNS / 系统代理兜底。
-    """
-    best = {}
-
-    def probe(item):
-        domain, ip = item
-        return domain, ip, _probe_latency(ip, timeout)
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=32) as ex:
-        for domain, ip, lat in ex.map(probe, list(hosts.items())):
-            if lat is not None and (domain not in best or lat < best[domain][1]):
-                best[domain] = (ip, lat)
-    return {domain: ip for domain, (ip, _) in best.items()}
+def top_candidates(hosts, n=3):
+    """云函数已按延迟排序返回每域候选；直接取前 n 个（不在 skill 内做本地测试）。"""
+    return {domain: ips[:n] for domain, ips in hosts.items() if ips}
 
 
 class IPProxy:
@@ -89,9 +64,9 @@ class IPProxy:
         self._thread = None
 
     def _resolve(self, host):
-        for domain, ip in self.hosts.items():
+        for domain, ips in self.hosts.items():
             if host == domain or host.endswith("." + domain):
-                return ip
+                return list(ips)
         return None
 
     def _handle(self, conn):
@@ -105,12 +80,20 @@ class IPProxy:
             _, target, _ = first.split()
             host, port = target.rsplit(":", 1)
             port = int(port)
-            ip = self._resolve(host)
-            try:
-                dest = socket.create_connection((ip, port) if ip else (host, port), timeout=12)
-            except Exception:
-                conn.close()
-                return
+            ips = self._resolve(host) or []
+            dest = None
+            for ip in ips:
+                try:
+                    dest = socket.create_connection((ip, port), timeout=12)
+                    break
+                except Exception:
+                    continue
+            if dest is None:
+                try:
+                    dest = socket.create_connection((host, port), timeout=12)
+                except Exception:
+                    conn.close()
+                    return
             conn.sendall(b"HTTP/1.1 200 Connection Established\r\n\r\n")
 
             def pipe(a, b):
