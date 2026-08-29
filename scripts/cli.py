@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""套件命令行入口（用户端）。除 sync 与 version 自身外，每个子命令启动异步后台自检安装位置并查版本+条件拉取（未变 no-op），不阻塞首用。"""
+"""套件命令行入口（用户端）。除 sync 与 version 自身外，每个子命令启动异步后台条件拉取（未变 no-op），不阻塞首用。"""
 
 import argparse
 import json
@@ -47,14 +47,6 @@ def cmd_version(suite, args):
     dump(suite.version())
 
 
-def cmd_status(suite, args):
-    dump(suite.install_status())
-
-
-def cmd_install_plan(suite, args):
-    dump(suite.install_plan(args.target))
-
-
 def cmd_sync(suite, args):
     dump(suite.sync(force=args.force))
 
@@ -86,11 +78,6 @@ def build_parser():
 
     sub.add_parser("evolve", help="消费知识资产做针对性变异").set_defaults(func=cmd_evolve)
     sub.add_parser("version", help="查询本地与远端版本").set_defaults(func=cmd_version)
-    sub.add_parser("status", help="自启用线索+候选目录+引导（AI 核实目录）").set_defaults(func=cmd_status)
-
-    p_plan = sub.add_parser("install-plan", help="输出复制计划（源/目标/是否已存在），不复制")
-    p_plan.add_argument("--target", default=None, help="目标 skills 目录，缺省为用户级 ~/.workbuddy/skills")
-    p_plan.set_defaults(func=cmd_install_plan)
 
     p_sync = sub.add_parser("sync", help="拉取远端更新并热更新路由表")
     p_sync.add_argument("--force", action="store_true")
@@ -102,7 +89,7 @@ def build_parser():
 def main():
     args = build_parser().parse_args()
     suite = Suite(args.root)
-    if args.command not in ("sync", "version", "status", "install-plan"):
+    if args.command not in ("sync", "version"):
         suite.schedule_background_sync()
     args.func(suite, args)
     return 0

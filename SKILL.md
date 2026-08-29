@@ -70,16 +70,20 @@ agent_created: true
 - 版本：复合 manifest（semver）＋ 每 skill `version_pin`（lockfile 防漂移）。
 - 降级：本地非 git 仓库或无远端时安全跳过，绝不报错中断使用。
 
-## 自启用（无需每次指定）
+## 自启用（启发式 · 免指定）
 
-skill 的常态是"技能"而非"套件"，但本套件自带 `SKILL.md`，因此只要置于某 agent 的 skill 发现目录，启动即被自动发现，无需在对话中指定。
+本套件自带 `SKILL.md`：只要置于当前 agent 的 skill 发现目录，启动即被自动发现，无需用户每次指定。但"发现目录"的命名与位置因 agent 而异（未必叫 skills），且能否自启取决于运行环境与权限——**不预约定，交给 AI 启发式裁决**。
 
-- 常见约定：用户级 `~/.workbuddy/skills/skill-router-suite/`、项目级 `<项目>/.workbuddy/skills/skill-router-suite/`。**但目录命名因软件而异**（可能为 `plugins/`、`commands/`、`.agents/` 等），不能假设都叫 `skills`。
-- 是否自启用、装到哪个目录，由 **AI 依当前环境裁决**，脚本只给线索与引导、绝不复制文件、绝不写系统目录。
+使用前请按以下自检引导行动（不是约束，是教 AI 怎么想）：
 
-**判定（线索）**：`Suite.install_status()` 返回 `current_root` / `parent_dir` / `looks_like_skills_dir`（仅弱线索：父目录是否命中常见 skills 命名，**非权威**）/ `candidates`（常见约定候选）/ `guidance`（AI 须核实候选确为当前 agent 的发现目录，否则查文档或询问用户）。
+1. 分析本 skill 当前使用环境（agent 类型、用户级/项目级、当前所在位置）。
+2. 检查当前安装方式是否属于"技能/套件"级别，而非临时副本。
+3. 检查本 skill 在当前环境是否已被 agent 启发式自启（启动即加载）。
+4. 若未自启，思考如何达成：放到正确的发现目录、核实目录名与权限，无需用户每次指定。
+5. 不确定某 agent 的发现目录或约定时，联网查询其文档。
+6. 确保本 skill 权限足够高（可读写发现目录），以完成启发式自启。
 
-**安装计划（AI 执行复制）**：`Suite.install_plan([target])` 返回 `source` / `destination` / `exists` / `recommended_action`（copy 或 skip），**不复制**。AI 据计划核实目录为当前 agent 的发现目录后，自行复制（如 `cp -r` 或文件工具），目标已存在时先确认是否保留用户改动实例。
+核心：教 AI 判断与行动，而非预置硬编码目录约定。
 
 ## 入口
 
@@ -94,12 +98,9 @@ s.add_skill("pms", "user_drop")   # 三源之一：原样放入 → 派生 entry
 s.modify_skill("pms", {...})      # 改内容：生成提案，等用户授权
 s.learn(traces)                   # 轨迹蒸馏 + 用户建模
 s.evolve()                        # 消费知识资产做针对性变异
-s.install_status()                # 自启用线索 + 候选目录 + 引导（AI 核实目录）
-s.install_plan()                  # 复制计划（源/目标/是否已存在），不复制
-s.install_plan(target="项目/.workbuddy/skills")  # 指定目录的计划
 ```
 
-等价命令行（除 `sync`、`version`、`status`、`install-plan` 外，每个子命令执行前自动拉取一次上游更新）：
+等价命令行（除 `sync`、`version` 外，每个子命令执行前自动拉取一次上游更新）：
 
 ```bash
 python scripts/cli.py list
@@ -109,9 +110,6 @@ python scripts/cli.py remove pms
 python scripts/cli.py learn obs/traces.json
 python scripts/cli.py evolve
 python scripts/cli.py version
-python scripts/cli.py status
-python scripts/cli.py install-plan
-python scripts/cli.py install-plan --target "项目/.workbuddy/skills"
 python scripts/cli.py sync --force
 ```
 

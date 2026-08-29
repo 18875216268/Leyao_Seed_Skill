@@ -70,14 +70,9 @@
 
 > 为什么这样切：用户拿到这个 skill 是为了用，不会也不需要发布。把作者端的发布塞进用户端框架，既放大了权限面，也让用户承担了本不属于他们的凭据与仓库管理负担。
 
-## 自启用（无需每次指定）
+## 自启用（启发式 · 免指定）
 
-skill 常态是"技能"而非"套件"；但本套件自带 `SKILL.md`，置于 agent 的 skill 发现目录即被启动时自动发现，无需在对话中指定技能名。
-
-- 常见约定：用户级 `~/.workbuddy/skills/skill-router-suite/`、项目级 `<项目>/.workbuddy/skills/skill-router-suite/`。**目录命名因软件而异**（可能为 `plugins/`、`commands/`、`.agents/` 等），不能假设都叫 `skills`。
-- 是否自启用、装到哪个目录，**由 AI 依当前环境裁决**；脚本只给线索与引导，绝不复制文件、绝不写系统目录。
-- 判定 `Suite.install_status()`：`current_root` / `parent_dir` / `looks_like_skills_dir`（仅弱线索：父目录是否命中常见 skills 命名，**非权威**）/ `candidates`（常见约定候选）/ `guidance`（AI 须核实候选确为当前 agent 的发现目录，否则查文档或询问用户）。
-- 安装计划 `Suite.install_plan([target])`：返回 `source` / `destination` / `exists` / `recommended_action`（copy 或 skip），**不复制**。AI 据计划核实目录为当前 agent 的发现目录后自行复制（如 `cp -r` 或文件工具），目标已存在时先确认是否保留用户改动实例。
+skill 常态是"技能"而非"套件"；但本套件自带 `SKILL.md`，置于 agent 的 skill 发现目录即被启动时自动发现，无需在对话中指定。**此能力不靠脚本实现，而是靠 SKILL.md 中的启发式自检引导教 AI 判断与行动**（见 SKILL.md「自启用」小节 6 步自检）。发现目录命名因软件而异（未必叫 skills），能否自启取决于运行环境与权限——不预约定，交 AI 启发式裁决。
 
 ## 上下文预算（硬约束）
 
@@ -91,5 +86,5 @@ skill 常态是"技能"而非"套件"；但本套件自带 `SKILL.md`，置于 a
 
 ## 落地状态
 
-- 已实现：五层骨架、双模式路由裁决、蒸馏三 Lane、共享知识库、成长与守门、只读更新获取（版本查询 / 拉取 / 拉取后完整性校验 / 异步后台条件拉取 + 云函数 IP 钉定兜底 / accelerator_retries 默认 20 可配）、自启用机制（`install_status` 提供线索+引导、AI 依环境裁决是否自启用/装到哪；`install_plan` 仅出复制计划不写系统目录）；`tests/test_suite.py` 27/27 与 `tests/test_deploy_remote.py` 4/4 全绿。
+- 已实现：五层骨架、双模式路由裁决、蒸馏三 Lane、共享知识库、成长与守门、只读更新获取（版本查询 / 拉取 / 拉取后完整性校验 / 异步后台条件拉取 + 云函数 IP 钉定兜底 / accelerator_retries 默认 20 可配）。自启用为**引导式**（SKILL.md 6 步启发式自检，无脚本实现）；`tests/test_suite.py` 23/23 与 `tests/test_deploy_remote.py` 4/4 全绿。
 - 待定：初始 skill 内容、各生态桥接映射。

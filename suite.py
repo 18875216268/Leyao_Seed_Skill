@@ -46,58 +46,6 @@ class Suite:
     def version(self):
         return remote_version(self.root, self.manifest, remote=from_manifest(self.root, self.manifest))
 
-    def install_status(self):
-        """启发式给 AI 提供自启用判定线索；是否自启用、装到哪由 AI 依当前环境裁决。
-        脚本不复制文件、不写系统目录（目录命名因软件而异，不能假设都叫 skills）。"""
-        root = self.root.rstrip(os.sep)
-        parent_dir = os.path.dirname(root)
-        parent_name = os.path.basename(parent_dir)
-        name = os.path.basename(root)
-        user_skills = os.path.join(os.path.expanduser("~"), ".workbuddy", "skills")
-        proj_skills = os.path.join(os.getcwd(), ".workbuddy", "skills")
-        # 弱线索：父目录是否命中常见 skills 命名约定；不同软件未必叫 skills，不可作权威依据
-        looks_like_skills_dir = parent_name == "skills"
-        candidates = []
-        if os.path.abspath(parent_dir) != os.path.abspath(user_skills):
-            candidates.append(user_skills)
-        if os.path.abspath(proj_skills) != os.path.abspath(user_skills) and \
-                os.path.abspath(parent_dir) != os.path.abspath(proj_skills):
-            candidates.append(proj_skills)
-        return {
-            "current_root": self.root,
-            "parent_dir": parent_dir,
-            "looks_like_skills_dir": looks_like_skills_dir,
-            "name": name,
-            "candidates": candidates,
-            "guidance": (
-                "脚本不复制文件、不写系统目录。是否自启用、装到哪个目录由 AI 依当前环境裁决："
-                "(1) 核实候选目录确为当前 agent 的 skill 发现目录——不同软件命名未必叫 skills"
-                "（可能为 plugins/commands/.agents 等），父目录命中 skills 仅为弱线索，非权威；(2) "
-                "若候选均不匹配，请查当前 agent 文档或询问用户，由 AI 把本套件置于正确的发现目录；"
-                "(3) 复制动作由 AI 执行（如 cp -r 或文件工具），目标已存在时先确认是否保留用户改动实例。"
-            ),
-        }
-
-    def install_plan(self, target=None):
-        """仅生成复制计划（源/目标/是否已存在/建议动作），不执行复制、不写系统目录。
-        AI 据返回的计划自行把 self.root 复制到 destination 下。"""
-        name = os.path.basename(self.root.rstrip(os.sep))
-        skills_dir = os.path.abspath(target) if target else os.path.join(
-            os.path.expanduser("~"), ".workbuddy", "skills")
-        destination = os.path.join(skills_dir, name)
-        exists = os.path.exists(destination)
-        return {
-            "source": self.root,
-            "destination": destination,
-            "exists": exists,
-            "recommended_action": "skip" if exists else "copy",
-            "guidance": (
-                "AI 执行：将 source 复制到 destination（如 cp -r 或文件工具）。"
-                "复制前核实 destination 的父目录确为当前 agent 的 skill 发现目录；"
-                "目标已存在时不要静默覆盖——先确认是否保留用户的改动，必要时先备份。"
-            ),
-        }
-
     def route(self, query, strategy="direct", fallback=None):
         return route_query(
             self.registry.enabled(),
