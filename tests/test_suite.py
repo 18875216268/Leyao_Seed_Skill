@@ -10,6 +10,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+# 测试密闭化：临时目录建在套件仓库的同级（非 git 仓库内），既避沙箱区外拦截，
+# 又避免 temp 目录被套件自身的 git 上下文污染，导致 NOT_A_REPO 断言失效。
+tempfile.tempdir = os.path.join(os.path.dirname(ROOT), ".suite_test_tmp")
+os.makedirs(tempfile.tempdir, exist_ok=True)
+
 from core import contract, executor  # noqa: E402
 from core.arbitrator import arbitrate  # noqa: E402
 from core.registry import Registry  # noqa: E402

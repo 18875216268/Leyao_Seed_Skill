@@ -16,6 +16,13 @@ for path in (ROOT, TESTS):
     if path not in sys.path:
         sys.path.insert(0, path)
 
+# 测试密闭化：临时目录建在套件仓库的同级（非 git 仓库内），既避沙箱区外拦截，
+# 又避免 temp 目录被套件自身的 git 上下文污染，导致 NOT_A_REPO 断言失效。
+import tempfile as _tf
+
+_tf.tempdir = os.path.join(os.path.dirname(ROOT), ".suite_test_tmp")
+os.makedirs(_tf.tempdir, exist_ok=True)
+
 from deploy import integrity  # noqa: E402
 from deploy.pull import remote_version  # noqa: E402
 from deploy.remote import RemoteStatus, from_manifest  # noqa: E402
