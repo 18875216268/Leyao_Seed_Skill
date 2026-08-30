@@ -4,7 +4,6 @@ import os
 import shutil
 import socket
 import sys
-import tempfile
 import threading
 
 TESTS = os.path.dirname(os.path.abspath(__file__))
@@ -13,10 +12,9 @@ for path in (ROOT, TESTS):
     if path not in sys.path:
         sys.path.insert(0, path)
 
-import tempfile as _tf
+from _harness import setup  # noqa: E402
 
-_tf.tempdir = os.path.join(os.path.dirname(ROOT), ".suite_test_tmp")
-os.makedirs(_tf.tempdir, exist_ok=True)
+setup()
 
 from deploy import connectivity  # noqa: E402
 

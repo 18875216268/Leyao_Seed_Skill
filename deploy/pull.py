@@ -5,7 +5,7 @@ import logging
 from deploy import integrity
 from deploy.remote import RemoteStatus, from_manifest
 
-log = logging.getLogger("skill-router-suite.pull")
+log = logging.getLogger("LeyaoSeedSkill.pull")
 
 
 def remote_version(root, manifest=None, remote=None):

@@ -3,6 +3,8 @@
 import json
 import os
 
+from core.atomic import write_json
+
 FILENAME = "manifest.json"
 
 
@@ -11,10 +13,13 @@ def path_for(root):
 
 
 def load_manifest(root):
-    with open(path_for(root), encoding="utf-8") as f:
+    path = path_for(root)
+    if not os.path.exists(path):
+        return {"suite": "LeyaoSeedSkill", "version": "0.0.0", "skills": {}}
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
 def save_manifest(root, manifest):
-    with open(path_for(root), "w", encoding="utf-8") as f:
-        json.dump(manifest, f, ensure_ascii=False, indent=2)
+    # 原子写：manifest 承载版本与每 skill 的 content-hash pin，损坏即失去防漂移能力。
+    write_json(path_for(root), manifest)

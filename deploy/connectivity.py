@@ -14,7 +14,7 @@ import socket
 import subprocess
 import threading
 
-log = logging.getLogger("skill-router-suite.connectivity")
+log = logging.getLogger("LeyaoSeedSkill.connectivity")
 
 DEFAULT_ACCELERATOR = "https://1317825751-jonkwhxmyb.ap-guangzhou.tencentscf.com"
 _HOST_LINE = re.compile(r"^(\d{1,3}(?:\.\d{1,3}){3})\s+(\S+)\s*$")

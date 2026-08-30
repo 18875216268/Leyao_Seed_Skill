@@ -3,6 +3,8 @@
 import json
 import os
 
+from core.atomic import write_json
+
 
 class Gate:
     def __init__(self, root, snapshot_dir=None):
@@ -18,17 +20,13 @@ class Gate:
                 self.scores = json.load(f)
 
     def save_scores(self):
-        directory = os.path.dirname(self.scores_path)
-        if directory:
-            os.makedirs(directory, exist_ok=True)
-        with open(self.scores_path, "w", encoding="utf-8") as f:
-            json.dump(self.scores, f, ensure_ascii=False, indent=2)
+        # 棘轮分数只升不降，一旦损坏就退回基线、等于丢失全部历史最优。
+        write_json(self.scores_path, self.scores)
 
     def snapshot(self, name, payload):
-        os.makedirs(self.snapshot_dir, exist_ok=True)
         path = os.path.join(self.snapshot_dir, name + ".json")
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
+        # 快照是回滚的唯一依据，必须是完整写入或完全不写。
+        write_json(path, payload)
         return path
 
     def restore(self, name):

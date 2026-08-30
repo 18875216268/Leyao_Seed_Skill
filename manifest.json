@@ -1,55 +1,17 @@
 {
-  "suite": "skill-router-suite",
-  "form": "FormC-generic-suite-plus-bridge",
-  "version": "0.1.0",
-  "spec": "Skill路由套件架构设计v1.0",
-  "principles": {
-    "dir_convention": {
-      "skills_dir": "skills",
-      "registry": "registry/skills.json",
-      "manifest": "manifest.json"
-    },
-    "as_is": {
-      "managed_dir": "skills",
-      "hash_algorithm": "sha256",
-      "suite_writes_into_managed_dir": false
-    },
-    "contract": {
-      "modes": [
-        "llm",
-        "native"
-      ],
-      "native_required": [
-        "describe",
-        "can_handle",
-        "invoke",
-        "health"
-      ]
-    },
-    "governance": {
-      "suite_scope": [
-        "route",
-        "dispatch",
-        "version",
-        "skill_add",
-        "skill_remove"
-      ],
-      "domain_knowledge_owner": "sub-skill-own-SEM",
-      "modify_skill_content": "requires-user-authorization"
-    }
-  },
+  "suite": "LeyaoSeedSkill",
+  "version": "1.0.0",
   "deploy": {
     "provider": "git",
     "mode": "read-only",
     "remote": "origin",
     "remote_url": "https://github.com/18875216268/Leyao_Seed_Skill.git",
     "branch": "main",
-    "accelerator_url": "https://1317825751-jonkwhxmyb.ap-guangzhou.tencentscf.com",
     "accelerator_source": "all",
     "accelerator_top_n": 3,
     "accelerator_retries": 20,
-    "api_fallback": true,
-    "note": "用户端只读消费：仅查询版本与拉取更新。遇网络问题时，经自建腾讯云函数(全员 source=all，不指定源/关键字/域名)获取已按延迟排序的候选 GitHub IP，skill 内不测试、直接每域取前 3 最快候选，由 git 经一次性本地 CONNECT 代理钉定拉取（单次调用内候选按序 failover）；整体失败则重新拉取云函数最新 IP 再试（最多重新拉取 20 次），仍败回退系统代理/正常 DNS。云函数不拉仓库、只供 IP。发布/推送属作者端职责，不写入本套件。"
+    "overall_deadline": 180.0,
+    "pull_timeout": 120.0
   },
   "skills": {}
 }

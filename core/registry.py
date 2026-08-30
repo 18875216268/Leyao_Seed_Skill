@@ -3,6 +3,7 @@
 import json
 import os
 
+from core.atomic import write_json
 from core.contract import normalize, validate
 
 
@@ -24,11 +25,8 @@ class Registry:
         self.entries = entries
 
     def save(self):
-        directory = os.path.dirname(self.path)
-        if directory:
-            os.makedirs(directory, exist_ok=True)
-        with open(self.path, "w", encoding="utf-8") as f:
-            json.dump(self.entries, f, ensure_ascii=False, indent=2)
+        # 原子写：路由表是唯一事实源，写一半崩溃留下半个 JSON 会让整个套件不可用。
+        write_json(self.path, self.entries)
 
     def upsert(self, entry):
         e = normalize(entry)

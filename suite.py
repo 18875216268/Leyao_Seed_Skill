@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 
 from core.manifest import load_manifest, save_manifest
 from core.registry import Registry
@@ -17,7 +18,7 @@ from evolution.permissions import ProposalStore
 from evolution.store import KnowledgeStore
 from evolution.user_modeler import UserModeler
 
-log = logging.getLogger("skill-router-suite")
+log = logging.getLogger("LeyaoSeedSkill")
 
 
 class Suite:
@@ -38,12 +39,23 @@ class Suite:
         )
         # 拉取后磁盘 manifest 已变：必须重载内存副本，否则后续 add_skill/save 会用过期副本覆盖刚拉取的配置。
         self.manifest = load_manifest(self.root)
+        # 上游可能提交了 registry / manifest / 文件系统三者不一致的状态（例如加了 entry
+        # 却忘了 pin）。拉取后对账一次，只留痕不阻断——阻断会让用户连已拉到的更新都用不上。
+        report = integrity.compatibility(self.manifest, self.registry.all(), self.root)
+        if not report["ok"]:
+            log.warning("sync: registry/manifest/filesystem 不一致: %s", report["problems"])
+            try:
+                from core.audit import record
+                record("sync_compatibility", root=self.root, problems=report["problems"])
+            except Exception:
+                pass
+        result["compatibility"] = report
         log.info("sync: %s", result.get("reason", "done"))
         return result
 
     def schedule_background_sync(self):
-        """启动异步后台：查远端版本并条件拉取（未变 no-op），不阻塞首用。
-        安装位置由运行时实际仓库状态启发式判定（非硬编码目录名）：非受管 git 套件仓库由 sync_before_use 内部 no-op。"""
+        """启动异步后台：查远端版本并条件拉取（未配置/无更新则 no-op，有更新则拉取），不阻塞首用。
+        安装位置由运行时实际仓库状态启发式判定（非硬编码目录名）：非受管 git 套件仓库由 sync_before_use 内部跳过。"""
         import threading
         threading.Thread(target=self._async_selfcheck_and_sync, daemon=True).start()
 
@@ -56,16 +68,35 @@ class Suite:
     def version(self):
         return remote_version(self.root, self.manifest, remote=from_manifest(self.root, self.manifest))
 
-    def route(self, query, strategy="direct", fallback=None):
-        return route_query(
+    def route(self, query, strategy="direct", fallback=None, trace_id=None):
+        # trace 贯穿：调用方可传入 trace_id 把多次调用串成一条链路；
+        # 不传则新建，并随结果透出，便于调用方接续后续调用。
+        from core.audit import new_trace
+        started = time.time()
+        tid = trace_id or new_trace()
+        result = route_query(
             self.registry.enabled(),
             query,
             strategy=strategy,
             experience=self.store.experience(),
+            usage=self.users.usage(),
             root=self.root,
             fallback=fallback,
             allow_native=self.allow_native,
+            trace_id=tid,
         )
+        try:
+            from core.audit import record
+            picked = None
+            if result.get("routed") == "direct":
+                picked = (result.get("result") or {}).get("skill_id")
+            record("route", root=self.root, trace_id=tid, query=query, strategy=strategy,
+                   routed=result.get("routed"), skill=picked,
+                   duration_ms=(time.time() - started) * 1000)
+        except Exception:
+            pass
+        result["trace_id"] = tid
+        return result
 
     def add_skill(self, skill_id, source, rel_path=None, overrides=None):
         entry = register(self.registry, self.manifest, skill_id, source, self.root, rel_path, overrides)
@@ -103,6 +134,18 @@ class Suite:
                 continue
             try:
                 self.add_skill(name, source)
+                try:
+                    from core.lint import lint_skill
+                    issues = lint_skill(skill_dir, root=self.root)
+                    if issues:
+                        log.warning("discover: lint %s: %s", name, [i.get("message") for i in issues])
+                        try:
+                            from core.audit import record
+                            record("discover_lint", root=self.root, skill=name, issues=issues)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
                 discovered.append((name, "registered", source))
             except Exception as exc:
                 log.warning("discover: skip %s: %s", name, exc)
@@ -134,6 +177,19 @@ class Suite:
             self.save()
             log.info("approve_proposal: executed %s for %s", proposal_id, skill_id)
         return proposal
+
+    def reject_proposal(self, proposal_id):
+        """关闭提案。
+
+        状态机必须有拒绝这个终态：只有 approved 的话，一条没人认领的提案会永远
+        悬在 pending，pending 列表随时间长成噪音，也就没人再看它了。
+        """
+        proposal = self.proposals.reject(proposal_id)
+        log.info("reject_proposal: closed %s", proposal_id)
+        return proposal
+
+    def pending_proposals(self):
+        return self.proposals.pending()
 
     def learn(self, traces):
         rules = self.growth.reflect(traces)

@@ -1,6 +1,4 @@
-import os
-import sys
+"""内核层：契约 / front-matter 解析 / 路由表 / 两段式召回 / 裁决 / 四策略执行 / 审计 / 原子写 / 质量门禁。
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
+依赖方向：本层只依赖标准库，不依赖 evolution / deploy 任何一层。
+"""

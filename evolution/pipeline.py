@@ -6,7 +6,7 @@ import os
 from deploy import integrity
 from evolution import distiller, permissions
 
-log = logging.getLogger("skill-router-suite.pipeline")
+log = logging.getLogger("LeyaoSeedSkill.pipeline")
 
 SOURCES = ("user_create", "user_drop", "remote_pull")
 
@@ -37,6 +37,7 @@ def unregister(registry, manifest, skill_id):
 
 
 def propose_modify(proposals, skill_id, changes):
+    """改子 skill 内容需用户授权：返回提案，等用户批准。"""
     try:
         permissions.guard("modify_skill_content", proposals, {"skill_id": skill_id, "changes": changes})
     except permissions.AuthorizationRequired as exc:
@@ -44,6 +45,7 @@ def propose_modify(proposals, skill_id, changes):
             "allowed": False,
             "action": "modify_skill_content",
             "skill_id": skill_id,
+            "rule": permissions.REQUIRES_AUTH,
             "proposal_id": exc.proposal_id,
         }
     return {"allowed": True, "action": "modify_skill_content", "skill_id": skill_id}

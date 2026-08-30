@@ -1,13 +1,11 @@
-# Skill 路由套件 · 架构
+# LeyaoSeedSkill · 架构
 
-## 形态 Form C
+## 定位
 
-**通用套件（独立可发布）＋ 桥接适配层**。核心通用、可单独开源；具体生态各挂一个薄 `bridge/<eco>/`，只做声明映射，不碰核心、不耦合。
+通用套件，**独立可发布**。核心不绑定任何具体生态：子 skill 是原样目录，路由表是外置元数据，
+生态差异只体现在子 skill 自己的 `SKILL.md` 里，不进内核。
 
-- 不是 A（纯独立 meta-skill 无桥接）：已有真实消费方，无桥接则集成需复制或分叉，破坏单一事实源。
-- 不是 B（嵌入某个生态模块）：牺牲通用与开源洁度，无法被其他生态复用。
-
-## 五层
+## 分层
 
 | 层 | 落点 | 职责 |
 | --- | --- | --- |
@@ -15,7 +13,12 @@
 | ② skill 包 | `skills/` + `registry/skills.json` | 子 skill 原样目录 + 路由表（唯一事实源）+ 裁决 |
 | ③ 进化层 | `evolution/` | 蒸馏（只读·生产者）→ 共享知识库 → 成长 / 建模 / 守门（读写·驱动者） |
 | ④ 更新获取层 | `deploy/` | 只读消费：完整性校验 / 远端适配 / 取版本 / 启动或按需拉取；网络异常时经自建云函数直连兜底 |
-| ⑤ 版本 | `manifest.json` | semver + 每 skill `version_pin`（lockfile 防漂移） |
+| ⑤ 版本 | `manifest.json` | semver + 每 skill `content_hash` / `version_pin`（lockfile 防漂移） |
+
+依赖方向单向：`evolution → core`、`deploy → core`、`core` 只依赖标准库。
+`evolution` 与 `deploy` 之间无环——过去 `parse_frontmatter` 被放在 `evolution/distiller.py`，
+导致 `deploy ↔ evolution` 双向依赖、且 `core` 反向依赖上层；把它提到 `core/frontmatter.py`
+后环自然消解。这是归类问题，不是需要兼容层的问题。
 
 ## 子 skill 原样与关联
 
@@ -28,7 +31,7 @@
 1. **廉价召回**：只读 `triggers` / `domain` / `negative_triggers` / `enabled` 等元数据。
 2. **精确排序**：命中数 + `priority` + `scope` 具体度 + 经验加权（route 加分、avoid 减分；`candidate` 状态不参与）。
 3. **裁决**：单命中直连；多命中取排序最优（排序已编码 priority↓ 与 scope 窄胜宽）；无命中兜底 llm。
-4. **四策略**：直连 / 级联兜底 / 管道编排（按 `depends` 拓扑排序）/ 并行扇出。
+4. **四策略**：直连 / 级联兜底 / 管道编排（按 `depends` 拓扑排序）/ 并行（请求 parallel 时按命中集并行执行，并列命中则全员并行，单命中则单点并行）。
 
 全量 skill 描述**永不**每 query 入上下文。
 
@@ -86,6 +89,6 @@ skill 常态是"技能"而非"套件"；但本套件自带 `SKILL.md`，置于 a
 
 ## 落地状态
 
-- 已实现：五层骨架、双模式路由裁决、蒸馏三 Lane、共享知识库、成长与守门、只读更新获取（版本查询 / 拉取 / 拉取后完整性校验 / 异步后台条件拉取 + 云函数 IP 钉定兜底 / accelerator_retries 默认 20 可配）。自启用为**引导式**（SKILL.md 6 步启发式自检，无脚本实现）；`tests/test_suite.py` 27/27、`tests/test_deploy_remote.py` 4/4、`tests/test_connectivity.py` 8/8 全绿。
-- 壳层健壮性加固（接收 skill 前就绪）：`sync()` 拉取后重载内存 manifest + 路由表，杜绝过期副本覆盖；`Suite.discover()` 幂等自动发现未注册 skill（逐 skill 隔离）；`register` 即闭合完整性 pin 链；`Suite.approve_proposal()` 闭环"提案 → 批准 → 执行"；原生 skill 执行受 `allow_native` 闸门（默认开，可关，文档明示 = 任意代码执行）；`accelerator_url` 改为 opt-in（manifest 不配则走系统代理/正常 DNS）；拉取超时/后台异常统一收敛为日志可观测，不再静默吞掉；子 skill front-matter `triggers` 必填、`domain` 改为可选（仅作次级召回词，缺省空列表不影响路由），用户丢最小 skill 零摩擦纳入。
-- 待定：初始 skill 内容、各生态桥接映射。
+- 已实现：分层骨架、双模式路由裁决、蒸馏三 Lane、共享知识库、成长与守门、只读更新获取（版本查询 / 拉取 / 拉取后完整性校验与三方对账 / 异步后台条件拉取 + 云函数 IP 钉定兜底 / `accelerator_retries` 默认 20 可配）。自启用为**引导式**（SKILL.md 6 步启发式自检，无脚本实现）。
+- 壳层健壮性：`sync()` 拉取后重载内存 manifest + 路由表，杜绝过期副本覆盖；`Suite.discover()` 幂等自动发现未注册 skill（逐 skill 隔离）；`register` 即闭合完整性 pin 链；`approve_proposal()` / `reject_proposal()` 闭合「提案 → 批准 / 拒绝」状态机；原生 skill 执行受 `allow_native` 闸门（默认开，可关，文档明示 = 任意代码执行）；`accelerator_url` 为 opt-in（manifest 不配则走系统代理/正常 DNS）；拉取超时/后台异常统一收敛为日志可观测，不再静默吞掉；子 skill front-matter `triggers` 必填、`domain` 可选（仅作次级召回词，缺省空列表不影响路由），用户丢最小 skill 零摩擦纳入。
+- 用户建模闭环：`learn()` 沉淀 `{skill_id: 次数}`，`route()` 每轮读它做小幅排序加成（上限 0.5）。只写不读的画像等于死数据，所以这条链路两端都接上了。

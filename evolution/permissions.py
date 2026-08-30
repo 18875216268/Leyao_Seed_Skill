@@ -5,6 +5,8 @@ import os
 import time
 import uuid
 
+from core.atomic import write_json
+
 AUTONOMOUS = "autonomous"
 REQUIRES_AUTH = "requires-authorization"
 
@@ -16,8 +18,6 @@ MATRIX = {
     "update_registry_entry": AUTONOMOUS,
     "trigger_deploy": AUTONOMOUS,
 }
-
-MANDATORY_AFTER = ("add_skill", "remove_skill", "modify_skill_content")
 
 
 def rule_for(action):
@@ -51,11 +51,8 @@ class ProposalStore:
             self.items = []
 
     def save(self):
-        directory = os.path.dirname(self.path)
-        if directory:
-            os.makedirs(directory, exist_ok=True)
-        with open(self.path, "w", encoding="utf-8") as f:
-            json.dump(self.items, f, ensure_ascii=False, indent=2)
+        # 提案是"改子 skill 需授权"这条边界的载体，写坏会丢失待授权项。
+        write_json(self.path, self.items)
 
     def propose(self, action, payload):
         item = {

@@ -2,8 +2,6 @@
 
 from core.resolver import scope_specificity
 
-FALLBACK_MODE = "llm"
-
 
 def arbitrate(ranked, allow_parallel=False, max_parallel=3):
     if not ranked:

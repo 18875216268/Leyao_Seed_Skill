@@ -1,6 +1,4 @@
-import os
-import sys
+"""自进化层：蒸馏（只读生产者）→ 共享知识库 → 成长（读写驱动者）→ 守门 / 权限 / 用户建模。
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
+依赖方向：依赖 core，不依赖 deploy。
+"""

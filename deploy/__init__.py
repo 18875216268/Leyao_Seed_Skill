@@ -1,6 +1,4 @@
-import os
-import sys
+"""部署层（用户端 · 只读）：完整性校验 / 远端适配 / 连通性 / 拉取更新。
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if ROOT not in sys.path:
-    sys.path.insert(0, ROOT)
+依赖方向：依赖 core，不依赖 evolution。
+"""

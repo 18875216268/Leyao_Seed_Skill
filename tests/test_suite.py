@@ -11,12 +11,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-# 测试密闭化：临时目录建在套件仓库的同级（非 git 仓库内），既避沙箱区外拦截，
-# 又避免 temp 目录被套件自身的 git 上下文污染，导致 NOT_A_REPO 断言失效。
-tempfile.tempdir = os.path.join(os.path.dirname(ROOT), ".suite_test_tmp")
-os.makedirs(tempfile.tempdir, exist_ok=True)
+from _harness import setup  # noqa: E402
+
+setup()
 
 from core import contract, executor  # noqa: E402
+from core import resolver  # noqa: E402
 from core.arbitrator import arbitrate  # noqa: E402
 from core.registry import Registry  # noqa: E402
 from core.resolver import resolve, scope_specificity  # noqa: E402
@@ -33,12 +33,12 @@ from suite import Suite  # noqa: E402
 
 def make_suite_root():
     tmp = tempfile.mkdtemp(prefix="skill-suite-")
-    for sub in ("registry", "skills", "state", "obs", "bridge"):
+    for sub in ("registry", "skills", "state"):
         os.makedirs(os.path.join(tmp, sub), exist_ok=True)
     with open(os.path.join(tmp, "registry", "skills.json"), "w", encoding="utf-8") as f:
         json.dump([], f)
     with open(os.path.join(tmp, "manifest.json"), "w", encoding="utf-8") as f:
-        json.dump({"suite": "skill-router-suite", "version": "0.1.0", "skills": {}}, f)
+        json.dump({"suite": "LeyaoSeedSkill", "version": "0.1.0", "skills": {}}, f)
     return tmp
 
 
@@ -129,7 +129,11 @@ def test_contract():
         {"id": "a", "name": "A", "domain": "pms", "triggers": ["报表"], "mode": "llm", "path": "skills/a", "priority": 1, "scope": "*"}
     )
     assert e["domain"] == ["pms"]
-    assert e["auth"] == "none" and e["enabled"] is True and e["version_pin"] == "0.0.0"
+    assert e["enabled"] is True and e["version_pin"] == "0.0.0"
+    # 死字段必须保持删除：auth / health 曾写在条目里却无人消费，
+    # 会让读注册表的一方（含 AI）误以为框架在跟踪鉴权要求与健康度。
+    assert "auth" not in e, "auth 是无人消费的死字段，不得重新引入"
+    assert "health" not in e, "health 条目字段是死字段（health() 作为 native 契约函数保留）"
     assert contract.validate(e) is True
     expect_raises(lambda: contract.validate({"id": "a"}), "missing fields")
     expect_raises(lambda: contract.validate({**e, "mode": "weird"}), "mode")
@@ -453,6 +457,52 @@ def test_integrity():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_integrity_reports_version_drift_as_diagnostic():
+    """version_pin 必须被真正消费：pin 时刷新，漂移时给出可读的版本变化。
+
+    版本漂移只是诊断，不改变 ok 结论——version 写在 SKILL.md 里已被 content_hash
+    覆盖，单独再判一次是重复检测。它的价值是让"改了什么"可读。
+    """
+    tmp = make_suite_root()
+    try:
+        make_skill(tmp, "rep", "name: 报表\nversion: 1.0.0\ntriggers: [报表]")
+        manifest = {"skills": {}}
+        integrity.pin(manifest, tmp, ["rep"])
+        assert manifest["skills"]["rep"]["version_pin"] == "1.0.0", manifest
+
+        # 改内容同时改版本：hash 漂移 + 版本诊断
+        path = os.path.join(tmp, "skills", "rep", "SKILL.md")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("---\nname: 报表\nversion: 2.0.0\ntriggers: [报表]\n---\n\n改过了\n")
+        report = integrity.verify(manifest, tmp)
+        assert report["ok"] is False and report["drift"]
+        assert report["version_drift"] == [{"skill": "rep", "expected": "1.0.0", "actual": "2.0.0"}], report
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_integrity_repin_refreshes_version_pin():
+    """复 pin 必须同步刷新版本号，否则 manifest 里留旧版本，漂移报告会误导。
+
+    approve_proposal 落地变更后就是走这条复 pin 路径。
+    """
+    tmp = make_suite_root()
+    try:
+        make_skill(tmp, "rep", "name: 报表\nversion: 1.0.0\ntriggers: [报表]")
+        manifest = {"skills": {}}
+        integrity.pin(manifest, tmp, ["rep"])
+        assert manifest["skills"]["rep"]["version_pin"] == "1.0.0"
+
+        path = os.path.join(tmp, "skills", "rep", "SKILL.md")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("---\nname: 报表\nversion: 1.5.0\ntriggers: [报表]\n---\n\n新版本\n")
+        integrity.pin(manifest, tmp, ["rep"])
+        assert manifest["skills"]["rep"]["version_pin"] == "1.5.0", manifest
+        assert integrity.verify(manifest, tmp)["ok"] is True
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def test_update_layer_is_read_only():
     tmp = make_suite_root()
     try:
@@ -506,7 +556,9 @@ def test_suite_end_to_end():
 
         s.learn([{"query": "跑一下报表导出", "routed_skill": "report", "success": False}] * 3)
         assert s.store.library_map()["skill_count"] == 2
-        assert s.users.familiarity() == "novice"
+        # 用户建模必须有出口：观察到 3 次 report，usage 就得记下来，
+        # 否则写进知识库的是死数据。
+        assert s.users.usage() == {"report": 3}
 
         verdict = s.evaluate("routing", [{"prompt": "查报表", "expect_contains": ["报表"]}], lambda q: "报表结果")
         assert verdict["kept"] is True and verdict["score"] == 1.0
@@ -554,7 +606,7 @@ def test_async_selfcheck_pulls_when_configured_repo_has_updates():
         with open(os.path.join(consumer, "registry", "skills.json"), "w", encoding="utf-8") as f:
             json.dump([], f)
         with open(os.path.join(consumer, "manifest.json"), "w", encoding="utf-8") as f:
-            json.dump({"suite": "skill-router-suite", "version": "0.1.0", "skills": {},
+            json.dump({"suite": "LeyaoSeedSkill", "version": "0.1.0", "skills": {},
                        "deploy": {"provider": "git", "mode": "read-only", "remote": "origin",
                                   "remote_url": upstream, "branch": "main"}}, f)
 
@@ -637,6 +689,147 @@ def test_approve_proposal_executes():
         proposal = s.approve_proposal(mod["proposal_id"])
         assert proposal["state"] == "approved"
         assert s.registry.get("rep")["description"] == "改写后的描述"
+        assert integrity.verify(s.manifest, tmp)["ok"] is True
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_reject_proposal_closes_the_loop():
+    """提案状态机必须有拒绝这个终态。
+
+    只有 approved 的话，一条没人认领的提案会永远悬在 pending，
+    pending 列表随时间长成噪音，最后没人再看它。
+    """
+    tmp = make_suite_root()
+    try:
+        make_skill(tmp, "rep", "name: 报表\ntriggers: [报表]")
+        s = Suite(tmp)
+        s.add_skill("rep", "user_drop")
+        mod = s.modify_skill("rep", {"description": "不该生效的改写"})
+        assert len(s.pending_proposals()) == 1
+
+        assert s.reject_proposal(mod["proposal_id"])["state"] == "rejected"
+        assert s.pending_proposals() == []
+        # 拒绝是终态：不得再被批准，也不得改动路由表。
+        assert s.registry.get("rep")["description"] != "不该生效的改写"
+        assert len(s.proposals.items) == 1
+        assert s.proposals.items[0]["state"] == "rejected"
+        # 持久化：换一个实例从磁盘重读，状态必须仍是 rejected。
+        # 少了 save() 时内存里是 rejected、磁盘上还挂着 pending，重启即回潮。
+        reloaded = permissions.ProposalStore(os.path.join(tmp, "state", "proposals.json"))
+        assert [i["id"] for i in reloaded.pending()] == [], reloaded.items
+        assert reloaded.get(mod["proposal_id"])["state"] == "rejected", reloaded.items
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_usage_boost_tilts_without_overriding_semantics():
+    """用户历史频次只能在同一档内调序，不能推翻语义更相关的结果。
+
+    上限定为 0.5，刻意小于一个 trigger 命中（2.0）。
+    """
+    entries = [
+        {"id": "used", "name": "used", "triggers": [], "domain": [], "description": "销售报表查询"},
+        {"id": "fresh", "name": "fresh", "triggers": ["促销毛利"], "domain": [], "description": ""},
+    ]
+    # 1) 零历史：语义胜出，与没有这个特性时完全一致。
+    top = resolve(entries, "促销毛利")[0]["entry"]["id"]
+    assert top == "fresh", top
+    # 2) 有历史但语义差距更大：used 只有 description 弱信号，仍不得反超。
+    top = resolve(entries, "促销毛利", usage={"used": 100})[0]["entry"]["id"]
+    assert top == "fresh", top
+    # 3) 同档内（都是 description 命中、score 相同）时，用得多的往前排。
+    #    零历史下并列项由 id 反向决定（sort reverse），所以基线顺序是 b 在 a 前；
+    #    给 a 更多历史后必须反超——这才证明加成真的进了排序。
+    ties = [
+        {"id": "a", "name": "a", "triggers": [], "domain": [], "description": "销售报表查询"},
+        {"id": "b", "name": "b", "triggers": [], "domain": [], "description": "销售报表查询"},
+    ]
+    assert [r["entry"]["id"] for r in resolve(ties, "销售报表")] == ["b", "a"]
+    assert [r["entry"]["id"] for r in resolve(ties, "销售报表", usage={"a": 20, "b": 1})] == ["a", "b"]
+
+
+def test_usage_boost_is_bounded():
+    """加成上限必须小于一个 trigger 命中，否则"用过"会压过"更相关"。"""
+    assert resolver.W_USAGE_SCALE < resolver.W_TRIGGER
+    entry = {"id": "a", "name": "a", "triggers": [], "domain": []}
+    assert resolver.usage_boost({"a": 999999}, entry) <= resolver.W_USAGE_SCALE
+    assert resolver.usage_boost({}, entry) == 0.0
+    assert resolver.usage_boost({"a": 0}, entry) == 0.0
+
+
+def test_sync_reports_compatibility_problems():
+    """拉取后必须做 registry / manifest / 文件系统三方对账。
+
+    上游完全可能提交不一致的状态（加了 entry 却忘了 pin），
+    用户端拉下来若不报，就会带着一份自相矛盾的配置继续跑。
+    """
+    tmp = make_suite_root()
+    try:
+        # 路由表里有、文件系统里没有：典型的"上游提交了 entry 却没带 skill 目录"。
+        report = integrity.compatibility(
+            {"skills": {}}, [{"id": "ghost", "name": "ghost", "mode": "llm", "path": "skills/ghost"}], tmp)
+        assert report["ok"] is False, report
+        assert "SKILL.md missing" in " ".join(p["reason"] for p in report["problems"]), report
+
+        # native 模式必须有 handler.py，否则执行层会在运行时才炸。
+        make_skill(tmp, "nat", "name: nat\nmode: native\ntriggers: [nat]")
+        report = integrity.compatibility(
+            {"skills": {}}, [{"id": "nat", "name": "nat", "mode": "native", "path": "skills/nat"}], tmp)
+        assert report["ok"] is False, report
+        assert "handler.py" in " ".join(p["reason"] for p in report["problems"]), report
+
+        # 三者一致时不得报警——否则对账本身就是噪音。
+        make_skill(tmp, "ok", "name: ok\ntriggers: [ok]")
+        report = integrity.compatibility(
+            {"skills": {"ok": {}}}, [{"id": "ok", "name": "ok", "mode": "llm", "path": "skills/ok"}], tmp)
+        assert report["ok"] is True, report
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_minimal_skill_end_to_end_smoke():
+    """最小 skill 的真实端到端冒烟：discover → route → 提案 → 批准 → 复 pin → 校验。
+
+    验收铁律：壳层"就绪"不能只看单测数字。真实用户丢进来的往往是最小的 skill
+    ——只有 name + description + triggers，没有 domain / version / scope / mode。
+    而单测样本几乎都带了这些字段，契约层的隐性强制项会因此漏测（历史上 domain
+    就曾强制非空，把所有只带 triggers 的最小 skill 挡在门外）。
+    """
+    tmp = make_suite_root()
+    try:
+        # 刻意只给官方规范要求的两个字段（name / description）+ 本套件要求的主召回词 triggers。
+        make_skill(
+            tmp,
+            "minimal",
+            "name: minimal\n"
+            "description: 当用户需要核对门店日结对账单、比对收银流水时使用\n"
+            "triggers: [对账, 日结]",
+        )
+        s = Suite(tmp)
+
+        actions = s.discover()
+        assert ("minimal", "registered", "user_drop") in actions, actions
+
+        entry = s.registry.get("minimal")
+        assert entry["domain"] == [], "domain 缺失必须注入空列表，而非强制非空"
+        assert entry["scope"] == "*" and entry["mode"] == "llm", entry
+        assert entry["version_pin"] == "0.0.0", "version 缺失必须有兜底"
+        assert entry["enabled"] is True
+
+        # 路由必须命中，且 trace 同时留下 route 与 skill.invoke
+        got = s.route("帮我核一下今天的日结对账")
+        assert got["routed"] == "direct", got
+        assert got["result"]["skill_id"] == "minimal", got
+        from core.audit import replay
+        kinds = [e["event"] for e in replay(got["trace_id"], root=tmp)]
+        assert kinds.count("route") == 1 and kinds.count("skill.invoke") == 1, kinds
+
+        # 提案 → 批准 → 执行：写回结构化字段并复 pin，完整性仍自洽
+        mod = s.modify_skill("minimal", {"description": "改写后的描述，用于验证批准链路"})
+        assert mod["allowed"] is False and mod["proposal_id"]
+        assert s.approve_proposal(mod["proposal_id"])["state"] == "approved"
+        assert s.registry.get("minimal")["description"].startswith("改写后的描述")
         assert integrity.verify(s.manifest, tmp)["ok"] is True
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

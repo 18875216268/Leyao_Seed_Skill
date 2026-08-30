@@ -1,10 +1,12 @@
-# skill-router-suite
+# LeyaoSeedSkill
 
 通用 skill 路由套件：声明式路由表（唯一事实源）＋ 子 skill 物理原样（零侵入）＋ 裁决 ＋ 进化层（蒸馏只读 / 成长读写分离）＋ 更新获取层（用户端只读）＋ 复合版本。
 
 > **职责边界**：本套件面向**使用者**，只消费不发布。建仓 / 提交 / 推送 / 发版属**作者端**职责，刻意不提供在框架内（`GitRemote` 无 `commit` / `push` / `bootstrap`，由测试断言锁死）。
 
-**形态 Form C** —— 通用套件（独立可发布）＋ 桥接适配层。核心通用、可单独开源；具体生态（leyao / Pms）各挂一个薄 `bridge/<eco>/`，只做声明映射，不碰核心、不耦合。
+**零依赖**——只用 Python 标准库，不引 numpy / pandas / sklearn / PyYAML。这是定位，不是偏好：套件要能被丢进任意环境直接跑起来。
+
+**给 agent 的操作手册是 `SKILL.md`**，本文件只是仓库说明，两者不重复。
 
 ## 架构
 
@@ -19,27 +21,30 @@
 ## 目录结构
 
 ```
-skill-router-suite/
-├── SKILL.md              给 agent 的操作手册
+LeyaoSeedSkill/
+├── SKILL.md              给 agent 的操作手册（唯一入口）
 ├── suite.py              门面：一次装配 路由/进化/部署/版本
 ├── manifest.json         版本 + 总则 + 每 skill pin
-├── core/                 通用内核：contract / registry / resolver / arbitrator / executor / router
-├── evolution/            进化层：permissions / pipeline / distiller / store / growth / user_modeler / gate
+├── core/                 内核：contract / frontmatter / registry / resolver
+│                               / arbitrator / executor / router / audit
+│                               / atomic / lint
+├── evolution/            进化层：permissions / pipeline / distiller / store
+│                               / growth / user_modeler / gate
 ├── deploy/               更新获取层（只读）：integrity / remote / pull / connectivity
 ├── registry/skills.json  路由表（唯一事实源）
 ├── skills/               子 skill 原样目录（套件零写入）
-├── bridge/               桥接适配层（Form C 的桥）
-├── obs/                  观测流（轨迹）
-├── state/                运行时：共享知识库 / 提案 / 棘轮快照
-└── tests/test_suite.py   全链路测试
+├── references/           api.md / architecture.md（按需加载，不进常驻上下文）
+├── scripts/cli.py        命令行入口
+├── state/                运行时：共享知识库 / 提案 / 棘轮快照 / 审计日志
+└── tests/                8 个测试文件，118 项
 ```
 
 ## 快速开始
 
 ```bash
-python tests/test_suite.py           # 27/27 passed
-python tests/test_deploy_remote.py   # 4/4 passed
-python tests/test_connectivity.py    # 8/8 passed
+python scripts/cli.py discover   # 扫描 skills/ 下未注册子 skill 并登记（幂等）
+python scripts/cli.py route "查一下销售报表"
+python scripts/cli.py list
 ```
 
 ```python
@@ -49,11 +54,31 @@ s = Suite()
 s.version()                       # 查询本地/上游版本（只读）
 s.sync()                          # 拉取上游更新并热更新路由表（未配置远端则安全跳过）
 s.route("查一下销售报表")          # 两段式召回 → 裁决 → 四策略执行
+s.discover()                      # 批量扫描 skills/ 下未注册子 skill
 s.add_skill("pms", "user_drop")   # 三源之一：原样放入 → 派生 entry → 刷新路由表
 s.modify_skill("pms", {...})      # 改内容：生成提案，等用户授权
 s.learn(traces)                   # 轨迹蒸馏 + 用户建模
 s.evolve()                        # 消费知识资产，做针对性变异
 ```
+
+跑测试：
+
+```bash
+python tests/test_suite.py            # 34
+python tests/test_spec_alignment.py   # 35
+python tests/test_audit_trace.py      #  9
+python tests/test_pull_deadline.py    # 16
+python tests/test_connectivity.py     #  8
+python tests/test_atomic_write.py     #  7
+python tests/test_deploy_remote.py    #  5
+python tests/test_performance.py      #  4
+```
+
+合计 **118 项，全绿为落地门槛**。每个文件自带 `main()`，不依赖 pytest。
+测试临时目录落在套件**同级**的 `.suite_test_tmp`，由 `tests/_harness.py` 自动回收 24 小时前的残留。
+
+> 跑测试会在套件目录内产生 `__pycache__`（已被 `.gitignore` 覆盖）。若要拷贝分发，
+> 先 `find . -name __pycache__ -type d -prune -exec rm -rf {} +`，清理后应为 44 个文件。
 
 ## 关键设计
 
@@ -62,11 +87,18 @@ s.evolve()                        # 消费知识资产，做针对性变异
 - **蒸馏 ≠ 成长**：蒸馏只读产出知识资产，成长读写消费并驱动修改，两者经共享知识库解耦。
 - **守门是代码硬闸**：棘轮只升不降、评估门量化、置信门控让 candidate 永不进生产路径。
 - **消费与发布分离**：用户端只取版本与拉取更新（`--ff-only`，绝不覆盖本地改动）；发布在框架外由作者端完成，边界由测试断言锁死。
+- **路由可审计**：每次调用产生 `route` + `skill.invoke` 两条事件挂同一 trace，落 `state/audit.log`（JSONL，5MB 轮转保留 3 份），字段对齐 OTel GenAI 语义约定。审计记成败、耗时与决策依据（`query` / `strategy` / `routed`），**绝不记 skill 返回内容**。
+- **改子 skill 需授权**：`modify_skill` 生成提案等待批准，不静默改写用户资产。
+
+## 自进化闭环
+
+丢入子 skill → `discover()` 扫描登记 → 蒸馏 front-matter 派生路由表条目 → 路由命中 →
+执行成败进审计 → `learn()` 蒸馏轨迹 → `evolve()` 消耗知识资产做针对性变异 →
+变更再次进审计。全过程可回放（`replay(trace_id)`），漂移可解释。
 
 ## 当前状态
 
-已实现：五层骨架、core 路由裁决（双模式 + 四策略）、evolution 蒸馏 / 成长 / 建模 / 守门、deploy 只读更新获取（版本查询 / 拉取 / 拉取后完整性校验）、复合版本；23/23 + 4/4 + 8/8 测试全绿。
+五层骨架完整，118 项测试全绿，套件 lint 自检 CLEAN。
 
-待定：初始 skill 内容、各生态桥接映射。
-
-参考：`../设计文档/Skill路由套件架构设计v1.0.md`
+- 完整 API 签名、lint 规则码全集、审计事件字段、deploy 配置键：`references/api.md`
+- 架构（分层、蒸馏与成长分离、非对称同步、上下文预算）：`references/architecture.md`

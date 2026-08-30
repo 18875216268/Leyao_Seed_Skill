@@ -3,5 +3,3 @@ __pycache__/
 
 state/*
 !state/.gitkeep
-obs/*
-!obs/.gitkeep

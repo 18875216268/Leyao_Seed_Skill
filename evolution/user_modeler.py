@@ -1,9 +1,13 @@
-"""用户建模：沉淀跨 skill 整体画像，回灌路由个性化与引导渐进揭示。与子 skill 自有 SEM 隔离。"""
-
-FAMILIARITY_THRESHOLDS = ((50, "expert"), (10, "familiar"))
+"""用户建模：沉淀跨 skill 的整体使用画像，回灌路由个性化。与子 skill 自有 SEM 隔离。"""
 
 
 class UserModeler:
+    """观察使用轨迹，产出 {skill_id: 次数} 供排序做小幅个性化加成。
+
+    只观察、不消费的话，写进知识库的就是死数据。所以 `usage()` 是本类的出口——
+    它由 `Suite.route` 每轮喂给 `core.resolver.usage_boost`。
+    """
+
     def __init__(self, store):
         self.store = store
 
@@ -11,7 +15,7 @@ class UserModeler:
         profile = self.store.user_model() or {}
         profile.setdefault("runs", 0)
         profile.setdefault("corrections", 0)
-        profile.setdefault("domains", {})
+        profile.setdefault("usage", {})
         profile.setdefault("overrides", {})
         for trace in traces:
             if not isinstance(trace, dict):
@@ -19,7 +23,7 @@ class UserModeler:
             profile["runs"] += 1
             routed = trace.get("routed_skill")
             if routed:
-                profile["domains"][routed] = profile["domains"].get(routed, 0) + 1
+                profile["usage"][routed] = profile["usage"].get(routed, 0) + 1
             override = trace.get("user_override")
             if override:
                 profile["corrections"] += 1
@@ -30,9 +34,6 @@ class UserModeler:
     def profile(self):
         return self.store.user_model() or {}
 
-    def familiarity(self):
-        runs = self.profile().get("runs", 0)
-        for threshold, label in FAMILIARITY_THRESHOLDS:
-            if runs >= threshold:
-                return label
-        return "novice"
+    def usage(self):
+        """各 skill 的历史使用次数。无历史时为空 dict，排序加成恒为 0。"""
+        return self.profile().get("usage") or {}

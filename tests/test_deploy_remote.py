@@ -16,12 +16,9 @@ for path in (ROOT, TESTS):
     if path not in sys.path:
         sys.path.insert(0, path)
 
-# 测试密闭化：临时目录建在套件仓库的同级（非 git 仓库内），既避沙箱区外拦截，
-# 又避免 temp 目录被套件自身的 git 上下文污染，导致 NOT_A_REPO 断言失效。
-import tempfile as _tf
+from _harness import setup  # noqa: E402
 
-_tf.tempdir = os.path.join(os.path.dirname(ROOT), ".suite_test_tmp")
-os.makedirs(_tf.tempdir, exist_ok=True)
+setup()
 
 from deploy import integrity  # noqa: E402
 from deploy.pull import remote_version  # noqa: E402
@@ -169,6 +166,37 @@ def test_accelerator_retries_defaults_to_twenty():
         assert GitRemote(root, accelerator_retries=7).accelerator_retries == 7
     finally:
         shutil.rmtree(root, ignore_errors=True)
+
+
+def test_every_cli_command_is_classified_for_background_sync():
+    """每条 CLI 子命令都必须被显式归类为「只读 / 变更 / 自带同步」三者之一。
+
+    守的是**完备性**而不是取值本身：registry 是整表覆盖写，后台 pull 会
+    `registry.load()` 覆盖内存副本，与变更命令并发时后写的一方抹掉对方的落盘结果。
+    漏归类的新命令若默认放行同步，就把自己暴露在这个写丢失窗口里。
+
+    用与 parser 实际子命令的**精确相等**来锁，新增/删除子命令都会立刻失败。
+    """
+    from scripts import cli
+
+    parser = cli.build_parser()
+    actual = None
+    for action in parser._actions:
+        if getattr(action, "dest", None) == "command":
+            actual = set(action.choices)
+    assert actual, "未从 parser 取到子命令列表"
+
+    classified = set(cli.CLASSIFIED_COMMANDS)
+    assert actual == classified, (
+        "CLI 子命令与归类不一致：未归类=%s 已废弃=%s" % (sorted(actual - classified),
+                                                    sorted(classified - actual)))
+
+    # 只读命令必须真能同步（防止为躲并发把同步一刀切关掉）
+    for cmd in cli.READ_ONLY_COMMANDS:
+        assert cli.should_background_sync(cmd) is True, cmd
+    # 变更命令必须串行（这是上面那条风险的正面断言）
+    for cmd in cli.MUTATING_COMMANDS + cli.SELF_SYNCING_COMMANDS:
+        assert cli.should_background_sync(cmd) is False, cmd
 
 
 def main():

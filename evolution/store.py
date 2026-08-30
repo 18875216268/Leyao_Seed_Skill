@@ -3,6 +3,8 @@
 import json
 import os
 
+from core.atomic import write_json
+
 PROMOTE_RULES = {
     "candidate": {"min_support": 3, "min_success_rate": 0.7, "to": "validated"},
     "validated": {"min_support": 6, "min_success_rate": 0.85, "to": "locked"},
@@ -27,11 +29,8 @@ class KnowledgeStore:
             self.data.setdefault(key, [] if key == "experience" else {})
 
     def save(self):
-        directory = os.path.dirname(self.path)
-        if directory:
-            os.makedirs(directory, exist_ok=True)
-        with open(self.path, "w", encoding="utf-8") as f:
-            json.dump(self.data, f, ensure_ascii=False, indent=2)
+        # 共享知识库由多个消费者共用，写入必须全有或全无。
+        write_json(self.path, self.data)
 
     def add_experience(self, rules):
         index = {r["id"]: r for r in self.data["experience"]}

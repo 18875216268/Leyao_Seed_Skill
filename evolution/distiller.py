@@ -4,52 +4,9 @@ import hashlib
 import os
 import re
 
+from core.frontmatter import parse_frontmatter
+
 TOKEN_RE = re.compile(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]+")
-
-FM_BOOL = {"true": True, "false": False}
-
-
-def _coerce(value):
-    v = str(value).strip()
-    if v.startswith("[") and v.endswith("]"):
-        inner = v[1:-1].strip()
-        if not inner:
-            return []
-        return [x.strip().strip("'\"") for x in inner.split(",")]
-    if v.lower() in FM_BOOL:
-        return FM_BOOL[v.lower()]
-    if re.fullmatch(r"-?\d+", v):
-        return int(v)
-    if re.fullmatch(r"-?\d+\.\d+", v):
-        return float(v)
-    return v.strip("'\"")
-
-
-def parse_frontmatter(text):
-    lines = str(text).splitlines()
-    if not lines or lines[0].strip() != "---":
-        return {}
-    data = {}
-    key = None
-    for line in lines[1:]:
-        if line.strip() == "---":
-            break
-        stripped = line.rstrip()
-        if not stripped.strip():
-            continue
-        if stripped.lstrip().startswith("- "):
-            if key is not None:
-                current = data.get(key)
-                if not isinstance(current, list):
-                    current = [] if current in (None, "") else [current]
-                    data[key] = current
-                data[key].append(stripped.lstrip()[2:].strip())
-            continue
-        if ":" in stripped and not stripped.startswith((" ", "\t")):
-            key, _, value = stripped.partition(":")
-            key = key.strip()
-            data[key] = _coerce(value)
-    return data
 
 
 def read_skill_md(root, rel_path):
@@ -70,8 +27,10 @@ def _preserve_manual(base, derived):
     return out
 
 
-def derive_entry(skill_id, root, rel_path=None, base=None):
-    rel = rel_path or os.path.join("skills", skill_id)
+def derive_entry(skill_id, root, rel_path=None,
+base=None):
+    # 始终用正斜杠，保证 registry 跨平台一致（Windows 上 os.path.join 会写反斜杠）。
+    rel = rel_path or ("skills/" + skill_id)
     fm = parse_frontmatter(read_skill_md(root, rel))
     mode = fm.get("mode")
     if mode not in ("llm", "native"):
@@ -83,7 +42,6 @@ def derive_entry(skill_id, root, rel_path=None, base=None):
         "triggers": fm.get("triggers") or [],
         "mode": mode,
         "path": rel,
-        "auth": fm.get("auth") or "none",
         "priority": fm.get("priority", 0),
         "scope": fm.get("scope") or "*",
         "version_pin": str(fm.get("version") or "0.0.0"),
@@ -94,9 +52,12 @@ def derive_entry(skill_id, root, rel_path=None, base=None):
     }
     if base:
         entry = _preserve_manual(base, entry)
-    if not entry["triggers"]:
+    # 可召回性门禁与 contract.validate 一致：triggers 或 description 有一个即可召回。
+    # 仅当两者皆空才要求 AI 从 body 做一次性提取（evidence-anchored）。
+    if not entry["triggers"] and not entry["description"]:
         raise ValueError(
-            "skill %s: frontmatter has no triggers; AI one-shot extraction from body required (evidence-anchored)" % skill_id
+            "skill %s: frontmatter has no triggers and no description; "
+            "AI one-shot extraction from body required (evidence-anchored)" % skill_id
         )
     return entry
 
