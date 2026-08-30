@@ -40,11 +40,21 @@ def cmd_discover(suite, args):
 
 
 def cmd_add(suite, args):
+    """增删都需用户授权：这里只产出提案，真正登记发生在 `approve`。
+
+    不要把返回值包成 `{"added": ...}` 之类——那会让人误以为已经写进去了。
+    直接吐出提案原文（含 `allowed` 与 `proposal_id`）才是诚实的。
+    """
     dump(suite.add_skill(args.skill_id, args.source))
 
 
 def cmd_remove(suite, args):
-    dump({"removed": suite.remove_skill(args.skill_id)})
+    """同上：只产出提案。
+
+    旧实现返回 `{"removed": bool}`，在 remove_skill 改为提案制后会把"待批准"包装成
+    "已移除"，是与实际状态相反的误导。直接吐提案原文。
+    """
+    dump(suite.remove_skill(args.skill_id))
 
 
 def cmd_learn(suite, args):
@@ -92,12 +102,12 @@ def build_parser():
     p_discover.add_argument("--source", default="user_drop", choices=SOURCES)
     p_discover.set_defaults(func=cmd_discover)
 
-    p_add = sub.add_parser("add", help="注册单个子 skill（按 id，不做扫描）")
+    p_add = sub.add_parser("add", help="申请注册子 skill（按 id，不做扫描）：生成待授权提案，需 approve 后落地")
     p_add.add_argument("skill_id")
     p_add.add_argument("--source", default="user_drop", choices=SOURCES)
     p_add.set_defaults(func=cmd_add)
 
-    p_remove = sub.add_parser("remove", help="移除子 skill")
+    p_remove = sub.add_parser("remove", help="申请移除子 skill：生成待授权提案，需 approve 后落地")
     p_remove.add_argument("skill_id")
     p_remove.set_defaults(func=cmd_remove)
 

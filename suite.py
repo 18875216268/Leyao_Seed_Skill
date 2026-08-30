@@ -13,7 +13,7 @@ from deploy.remote import from_manifest
 from evolution import distiller
 from evolution.gate import Gate, run_eval
 from evolution.growth import GrowthEngine
-from evolution.pipeline import propose_modify, register, unregister
+from evolution.pipeline import propose_add, propose_modify, propose_remove, register, unregister
 from evolution.permissions import ProposalStore
 from evolution.store import KnowledgeStore
 from evolution.user_modeler import UserModeler
@@ -98,16 +98,38 @@ class Suite:
         result["trace_id"] = tid
         return result
 
-    def add_skill(self, skill_id, source, rel_path=None, overrides=None):
+    def _register_now(self, skill_id, source, rel_path=None, overrides=None):
+        """绕过授权门的登记。仅两处可用：discover() 与批准后的执行。
+
+        discover() 扫的是用户**自己放进** skills/ 的目录，放入即授权，再确认一次是重复且
+        打断自动化；批准后的执行则授权已完成，不该再问第二遍。
+        """
         entry = register(self.registry, self.manifest, skill_id, source, self.root, rel_path, overrides)
         self.save()
         return entry
 
-    def remove_skill(self, skill_id):
+    def _unregister_now(self, skill_id):
+        """绕过授权门的移除。同 `_register_now`：只给批准后的执行用。"""
         removed = unregister(self.registry, self.manifest, skill_id)
         if removed:
             self.save()
         return removed
+
+    def add_skill(self, skill_id, source, rel_path=None, overrides=None):
+        """登记子 skill —— 需用户授权。
+
+        返回提案 dict（`allowed=False` + `proposal_id`）；真正写入发生在
+        `approve_proposal()`。这样 AI 无法静默往用户套件里塞东西。
+        """
+        return propose_add(self.proposals, skill_id, source, rel_path, overrides)
+
+    def remove_skill(self, skill_id):
+        """移除子 skill —— 需用户授权。
+
+        返回提案 dict；真正删除发生在 `approve_proposal()`。删除会让某些 query 的
+        承接方凭空消失，属于对外部可见行为的变更，与改内容同级。
+        """
+        return propose_remove(self.proposals, skill_id)
 
     def modify_skill(self, skill_id, changes):
         return propose_modify(self.proposals, skill_id, changes)
@@ -133,7 +155,8 @@ class Suite:
                 discovered.append((name, "skipped", "no SKILL.md"))
                 continue
             try:
-                self.add_skill(name, source)
+                # 不经授权门：用户把目录放进 skills/ 本身就是授权，再确认一次是重复。
+                self._register_now(name, source)
                 try:
                     from core.lint import lint_skill
                     issues = lint_skill(skill_dir, root=self.root)
@@ -155,8 +178,15 @@ class Suite:
     def approve_proposal(self, proposal_id):
         """批准已授权的提案并落到路由表（闭合 提案 → 批准 → 执行 循环）。
 
-        仅 modify_skill_content 有执行语义：批准后依据当前 SKILL.md 重派生 entry（保留 manual_overrides），
-        并把提案中的结构化字段变更写回路由表，再复 pin 完整性 + 落盘。其余 action 仅置为 approved。
+        有执行语义的 action：
+        - `modify_skill_content`：依据当前 SKILL.md 重派生 entry（保留 manual_overrides），
+          并把提案中的结构化字段变更写回路由表，再复 pin 完整性 + 落盘。
+        - `add_skill`：用提案里带齐的参数执行登记（source / rel_path / overrides 都从 payload 取，
+          因为批准可能发生在另一个进程，调用栈已不在）。
+        - `remove_skill`：从路由表与 manifest 摘除。skill 不存在时报错而非静默成功——
+          批准一个"删空气"的提案通常意味着 id 写错了，静默通过会掩盖问题。
+
+        其余 action 仅置为 approved。
         """
         proposal = self.proposals.approve(proposal_id)
         action = proposal["action"]
@@ -176,6 +206,21 @@ class Suite:
             integrity.pin(self.manifest, self.root, [skill_id])
             self.save()
             log.info("approve_proposal: executed %s for %s", proposal_id, skill_id)
+        elif action == "add_skill":
+            skill_id = payload.get("skill_id")
+            if not skill_id:
+                raise ValueError("proposal %s missing skill_id" % proposal_id)
+            self._register_now(skill_id, payload.get("source"),
+                               payload.get("rel_path"), payload.get("overrides"))
+            log.info("approve_proposal: executed %s (add %s)", proposal_id, skill_id)
+        elif action == "remove_skill":
+            skill_id = payload.get("skill_id")
+            if not skill_id:
+                raise ValueError("proposal %s missing skill_id" % proposal_id)
+            if self.registry.get(skill_id) is None:
+                raise KeyError("skill not registered: %s" % skill_id)
+            self._unregister_now(skill_id)
+            log.info("approve_proposal: executed %s (remove %s)", proposal_id, skill_id)
         return proposal
 
     def reject_proposal(self, proposal_id):

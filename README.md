@@ -36,7 +36,7 @@ LeyaoSeedSkill/
 ├── references/           api.md / architecture.md（按需加载，不进常驻上下文）
 ├── scripts/cli.py        命令行入口
 ├── state/                运行时：共享知识库 / 提案 / 棘轮快照 / 审计日志
-└── tests/                8 个测试文件，119 项
+└── tests/                8 个测试文件，121 项
 ```
 
 ## 快速开始
@@ -55,8 +55,10 @@ s.version()                       # 查询本地/上游版本（只读）
 s.sync()                          # 拉取上游更新并热更新路由表（未配置远端则安全跳过）
 s.route("查一下销售报表")          # 两段式召回 → 裁决 → 四策略执行
 s.discover()                      # 批量扫描 skills/ 下未注册子 skill
-s.add_skill("pms", "user_drop")   # 三源之一：原样放入 → 派生 entry → 刷新路由表
-s.modify_skill("pms", {...})      # 改内容：生成提案，等用户授权
+s.add_skill("pms", "user_drop")   # 增：只返回提案，批准后由 approve_proposal 落地
+s.modify_skill("pms", {...})      # 改：只返回提案，等用户授权
+s.remove_skill("pms")             # 删：只返回提案，等用户授权
+s.approve_proposal("prop-xxx")    # 批准后落地（add 登记 / remove 摘除 / modify 重派生）
 s.learn(traces)                   # 轨迹蒸馏 + 用户建模
 s.evolve()                        # 消费知识资产，做针对性变异
 ```
@@ -64,7 +66,7 @@ s.evolve()                        # 消费知识资产，做针对性变异
 跑测试：
 
 ```bash
-python tests/test_suite.py            # 35
+python tests/test_suite.py            # 37
 python tests/test_spec_alignment.py   # 35
 python tests/test_audit_trace.py      #  9
 python tests/test_pull_deadline.py    # 16
@@ -74,7 +76,7 @@ python tests/test_deploy_remote.py    #  5
 python tests/test_performance.py      #  4
 ```
 
-合计 **119 项，全绿为落地门槛**。每个文件自带 `main()`，不依赖 pytest。
+合计 **121 项，全绿为落地门槛**。每个文件自带 `main()`，不依赖 pytest。
 测试临时目录落在套件**同级**的 `.suite_test_tmp`，由 `tests/_harness.py` 自动回收 24 小时前的残留。
 
 > 跑测试会在套件目录内产生 `__pycache__`（已被 `.gitignore` 覆盖）。若要拷贝分发，
@@ -88,7 +90,7 @@ python tests/test_performance.py      #  4
 - **守门是代码硬闸**：棘轮只升不降、评估门量化、置信门控让 candidate 永不进生产路径。
 - **消费与发布分离**：用户端只取版本与拉取更新（`--ff-only`，绝不覆盖本地改动）；发布在框架外由作者端完成，边界由测试断言锁死。
 - **路由可审计**：每次调用产生 `route` + `skill.invoke` 两条事件挂同一 trace，落 `state/audit.log`（JSONL，5MB 轮转保留 3 份），字段对齐 OTel GenAI 语义约定。审计记成败、耗时与决策依据（`query` / `strategy` / `routed`），**绝不记 skill 返回内容**。
-- **改子 skill 需授权**：`modify_skill` 生成提案等待批准，不静默改写用户资产。
+- **增删与改子 skill 都需授权**：`add_skill` / `remove_skill` / `modify_skill` 一律只生成提案等待批准，不静默增删改用户资产。唯一豁免是 `discover()`——用户把目录放进 `skills/` 本身就是授权。
 
 ## 自进化闭环
 
@@ -98,7 +100,7 @@ python tests/test_performance.py      #  4
 
 ## 当前状态
 
-五层骨架完整，119 项测试全绿，套件 lint 自检 CLEAN。
+五层骨架完整，121 项测试全绿，套件 lint 自检 CLEAN。
 
 - 完整 API 签名、lint 规则码全集、审计事件字段、deploy 配置键：`references/api.md`
 - 架构（分层、蒸馏与成长分离、非对称同步、上下文预算）：`references/architecture.md`

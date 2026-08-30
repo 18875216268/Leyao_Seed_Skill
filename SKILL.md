@@ -120,9 +120,18 @@ domain: []           # 可选：次级召回词（如 ["报表","销售"]）
 | 操作 | 权限 |
 | --- | --- |
 | 读子 skill | 自主 |
-| 增 / 删子 skill | 自主 |
+| 增 / 删子 skill | **需用户授权**，提案 → 批准 / 拒绝 → 执行 |
 | 改子 skill 内容 | **需用户授权**，提案 → 批准 / 拒绝 → 执行 |
 | 更新路由表 entry | 自主（变更后必须） |
+| 触发部署 | 自主 |
+
+事实源是 `evolution/permissions.py::MATRIX`。
+
+为什么增删也要授权：静默加一条，用户不知道套件里多了什么、会被哪些 query 命中；
+静默删一条，等于让某些 query 的承接方凭空消失。两者与"改内容"同属对外部可见行为的变更。
+
+唯一豁免是 `discover()`：它扫的是用户**自己放进** `skills/` 的目录，放入即授权，
+再要一次确认是重复且打断自动化的。要守的是 AI 程序化调用 `add_skill` / `remove_skill`。
 
 提案是状态机，`pending` 有两个终态：`approved`（批准并落地）与 `rejected`（关闭）。
 只有批准没有拒绝的话，没人认领的提案会一直悬着，pending 列表最终变成噪音。
@@ -278,12 +287,12 @@ s.sync(force=True)                     # 忽略"已有更新"判断，强制拉�
 s.discover()                           # 扫描 skills/ 下未注册 skill 并幂等登记
 s.route("查一下销售报表")                # 两段式路由 + 裁决 + 执行，返回带 trace_id
 s.route("查一下销售报表", strategy="cascade", trace_id=tid)   # 换策略 / 串链路
-s.add_skill("pms", "user_drop")        # 三源之一：原样放入 → 派生 entry → 刷路由表
-s.modify_skill("pms", {...})           # 改内容：生成提案，等用户授权
+s.add_skill("pms", "user_drop")        # 增：只返回提案（allowed=False + proposal_id），不写入
+s.modify_skill("pms", {...})           # 改：只返回提案，不写入
+s.remove_skill("pms")                  # 删：只返回提案，不写入
 s.pending_proposals()                  # 列出待授权提案
-s.approve_proposal("prop-xxx")         # 批准后落地：重派生 entry + 写回变更 + 复 pin + 落盘
+s.approve_proposal("prop-xxx")         # 批准后落地：add 登记 / remove 摘除 / modify 重派生 + 复 pin + 落盘
 s.reject_proposal("prop-xxx")          # 拒绝并关闭提案
-s.remove_skill("pms")                  # 注销并落盘
 s.learn(traces)                        # 轨迹蒸馏 + 用户建模
 s.evolve()                             # 消费知识资产做针对性变异（变异带 evidence）
 s.evaluate("pms", test_prompts, runner)  # 跑评估门，棘轮判定 keep / rollback
@@ -314,10 +323,10 @@ python scripts/cli.py sync --force
 
 ## 验收
 
-8 个测试文件，共 119 项，**全绿为落地门槛**。改动任何一层后请全跑：
+8 个测试文件，共 121 项，**全绿为落地门槛**。改动任何一层后请全跑：
 
 ```bash
-python tests/test_suite.py            # 35 内核：契约/路由表/召回与归一化/裁决/执行/蒸馏/成长/权限/完整性/提案闭环/经验规则作用域边界/端到端
+python tests/test_suite.py            # 37 内核：契约/路由表/召回与归一化/裁决/执行/蒸馏/成长/权限/完整性/提案闭环/经验规则作用域边界/增删需授权与提案边界/端到端
 python tests/test_spec_alignment.py   # 35 官方规范兼容性、front-matter 解析、召回缓存、临时区回收边界、lint 安全扫描（含套件自检）
 python tests/test_audit_trace.py      #  9 trace 贯穿、执行留痕、成长留痕、轮转、tail 与 replay
 python tests/test_pull_deadline.py    # 16 pull 的 deadline 治理与熔断

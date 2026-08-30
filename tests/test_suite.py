@@ -401,17 +401,108 @@ def test_permissions():
     tmp = make_suite_root()
     try:
         store = permissions.ProposalStore(os.path.join(tmp, "state", "proposals.json"))
-        for action in ("read_skill", "add_skill", "remove_skill", "update_registry_entry", "trigger_deploy"):
+        # 自主动作：只读与框架自运维，不该打断任何人
+        for action in ("read_skill", "update_registry_entry", "trigger_deploy"):
             assert permissions.guard(action)["allowed"] is True
-        try:
-            permissions.guard("modify_skill_content", store, {"skill_id": "a"})
-            raise AssertionError("modify must require authorization")
-        except permissions.AuthorizationRequired as exc:
-            pid = exc.proposal_id
-        assert len(store.pending()) == 1
-        assert store.approve(pid)["state"] == "approved"
+        # 改写用户资产的三类动作一律需授权：改内容、增条目、删条目
+        for action in ("add_skill", "remove_skill", "modify_skill_content"):
+            try:
+                permissions.guard(action, store, {"skill_id": "a"})
+                raise AssertionError("%s must require authorization" % action)
+            except permissions.AuthorizationRequired as exc:
+                assert exc.proposal_id, "%s 未产出提案" % action
+        assert len(store.pending()) == 3
+        for item in store.pending():
+            assert store.approve(item["id"])["state"] == "approved"
         assert store.pending() == []
         expect_raises(lambda: permissions.guard("unknown_action"), "unknown action")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_add_and_remove_require_user_authorization():
+    """增删子 skill 与改内容同级，都需用户授权；discover 是唯一豁免。
+
+    为什么增删也要守：
+        静默加一条，用户不知道自己套件里多了什么、会被哪些 query 命中；静默删一条，
+        等于让某些 query 的承接方凭空消失。两者与"改内容"同属对外部可见行为的变更。
+
+    为什么 discover 豁免：
+        它扫的是用户**自己放进** skills/ 的目录。把文件放进去这个动作本身就是授权，
+        再要一次确认是重复且打断自动化的。真正要守的是 AI 程序化调用增删。
+
+    为什么必须断言"未经批准不得写入"而不只是"返回了提案"：
+        只断言返回提案，无法区分"真的拦住了"与"写进去了但顺手也给了个提案 id"。
+        后者同样让前面的断言通过，却完全没守住边界。
+    """
+    tmp = make_suite_root()
+    try:
+        make_skill(tmp, "rep", "name: 报表\ndomain: [pms]\ntriggers: [报表]\nversion: 1.0.0")
+        s = Suite(tmp)
+
+        # 1) discover 不受授权门约束：放入即授权，且不产生待办提案
+        assert [a for _, a, _ in s.discover()] == ["registered"]
+        assert s.registry.get("rep") is not None
+        assert s.pending_proposals() == []
+
+        # 2) add_skill 只产出提案，绝不直接写入
+        make_skill(tmp, "extra", "name: 附加\ndomain: [pms]\ntriggers: [附加]\nversion: 1.0.0")
+        prop = s.add_skill("extra", "user_drop")
+        assert prop["allowed"] is False and prop["action"] == "add_skill" and prop["proposal_id"], (
+            "add_skill 必须拦下并产出提案，实际返回 %r" % (prop,))
+        assert s.registry.get("extra") is None, "未经批准不得写入路由表"
+
+        # 3) 批准后真正登记，且 source 等参数确实从 payload 取回（批准可能跨进程）
+        assert s.approve_proposal(prop["proposal_id"])["state"] == "approved"
+        assert s.registry.get("extra") is not None, (
+            "批准 add 提案后必须真的登记进路由表——只改提案状态不执行的批准等于死循环，"
+            "用户点了同意却什么都没发生")
+        assert s.manifest["skills"]["extra"]["source"] == "user_drop", (
+            "source 必须从 payload 取回并落盘，批准可能发生在另一个进程，调用栈早已不在，"
+            "实际 manifest=%r" % (s.manifest["skills"].get("extra"),))
+        assert integrity.verify(s.manifest, tmp)["ok"] is True, (
+            "登记后必须复 pin 完整性，否则刚拉进来的 skill 立即处于未 pin 状态")
+
+        # 4) remove_skill 同样只产出提案，未经批准不得删除
+        rm = s.remove_skill("rep")
+        # 先判类型再取值：绕过门的实现会直接返回 bool，用 isinstance 才不会
+        # 退化成一句无关的 TypeError，而是明确说出"没拦住"。
+        assert isinstance(rm, dict) and rm.get("allowed") is False and rm.get("action") == "remove_skill", (
+            "remove_skill 必须拦下并产出提案，实际返回 %r" % (rm,))
+        assert s.registry.get("rep") is not None, "未经批准不得删除"
+        assert s.approve_proposal(rm["proposal_id"])["state"] == "approved"
+        assert s.registry.get("rep") is None, (
+            "批准 remove 提案后必须真的从路由表摘除，仅置 approved 不执行等于批准无效")
+        assert "rep" not in s.manifest["skills"], (
+            "删除必须同时清路由表与 manifest，只清一处会造成 registry/manifest 不一致")
+
+        # 5) 拒绝则一切不变
+        rm2 = s.remove_skill("extra")
+        s.reject_proposal(rm2["proposal_id"])
+        assert s.registry.get("extra") is not None
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_remove_proposal_edge_cases():
+    """删提案的两个边界：source 非法当场拒；删不存在的 skill 在批准时报错而非静默成功。
+
+    source 为何要当场拒：它来自调用方入参，与提案是否批准无关，拖到批准时才报错
+    会让用户面对一条注定失败的提案却不知道为什么。
+
+    删空气为何在批准时报错而非静默通过：批准一个"删不存在的东西"的提案，
+    通常意味着 id 写错了。静默成功会掩盖这个错误，让它看起来像正常删除。
+    """
+    tmp = make_suite_root()
+    try:
+        make_skill(tmp, "rep", "name: 报表\ndomain: [pms]\ntriggers: [报表]\nversion: 1.0.0")
+        s = Suite(tmp)
+        s.discover()
+
+        expect_raises(lambda: s.add_skill("bad", "not_a_source"), "source must be one of")
+
+        orphan = s.proposals.propose("remove_skill", {"skill_id": "ghost"})
+        expect_raises(lambda: s.approve_proposal(orphan["id"]), "skill not registered")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -590,8 +681,9 @@ def test_suite_end_to_end():
         )
         s = Suite(tmp)
         assert s.sync()["pulled"] is False
-        s.add_skill("report", "user_drop")
-        s.add_skill("login", "user_drop")
+        # 用 discover 而非 add_skill 做前置登记：用户丢入目录即授权，
+        # discover 是不经授权门的正规路径（add_skill 自 v2.1 起需用户批准）。
+        s.discover()
         assert len(s.registry.all()) == 2 and set(s.manifest["skills"]) == {"report", "login"}
 
         assert s.route("查一下销售报表")["result"]["skill"] == "report"
@@ -730,7 +822,7 @@ def test_approve_proposal_executes():
     try:
         make_skill(tmp, "rep", "name: 报表\ndomain: [pms]\ntriggers: [报表]\nversion: 1.0.0")
         s = Suite(tmp)
-        s.add_skill("rep", "user_drop")
+        s.discover()
         mod = s.modify_skill("rep", {"description": "改写后的描述"})
         assert mod["allowed"] is False and mod["proposal_id"]
         # 批准应执行：重派生 entry + 写回结构化字段 + 复 pin
@@ -752,7 +844,7 @@ def test_reject_proposal_closes_the_loop():
     try:
         make_skill(tmp, "rep", "name: 报表\ntriggers: [报表]")
         s = Suite(tmp)
-        s.add_skill("rep", "user_drop")
+        s.discover()
         mod = s.modify_skill("rep", {"description": "不该生效的改写"})
         assert len(s.pending_proposals()) == 1
 

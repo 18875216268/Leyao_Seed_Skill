@@ -80,7 +80,8 @@ def test_consumer_pulls_upstream_update():
         author = build_author_root(upstream)
         make_skill(author, "report", "name: 报表\ndomain: [pms]\ntriggers: [报表]\nversion: 1.0.0")
         s_author = Suite(author)
-        s_author.add_skill("report", "user_drop")
+        # 用户丢入目录即授权：discover 是不经授权门的正规登记路径
+        s_author.discover()
         integrity.pin(s_author.manifest, author)
         s_author.save()
         author_publish(author)
@@ -94,7 +95,7 @@ def test_consumer_pulls_upstream_update():
         assert s.sync()["pulled"] is False
 
         make_skill(author, "login", "name: 登录\ndomain: [pms]\ntriggers: [登录]\nversion: 1.0.0")
-        s_author.add_skill("login", "user_drop")
+        s_author.discover()
         integrity.pin(s_author.manifest, author)
         s_author.save()
         author_publish(author, "chore: add login skill")
@@ -117,7 +118,8 @@ def test_integrity_drift_reported_after_pull():
         author = build_author_root(upstream)
         make_skill(author, "report", "name: 报表\ndomain: [pms]\ntriggers: [报表]\nversion: 1.0.0")
         s_author = Suite(author)
-        s_author.add_skill("report", "user_drop")
+        # 用户丢入目录即授权：discover 是不经授权门的正规登记路径
+        s_author.discover()
         integrity.pin(s_author.manifest, author)
         s_author.save()
         author_publish(author)

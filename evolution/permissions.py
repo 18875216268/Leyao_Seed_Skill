@@ -1,4 +1,15 @@
-"""权限矩阵：读/增删子 skill 自主，改子 skill 内容需用户授权，刷路由表与触发部署自主。"""
+"""权限矩阵：读子 skill / 刷路由表 / 触发部署自主；增删子 skill 与改子 skill 内容需用户授权。
+
+为什么增删也要授权：
+    路由表是用户资产。静默加一条，用户不知道自己的套件里多了什么、会被什么 query 命中；
+    静默删一条，等于让某个 query 的承接方凭空消失。两者与"改内容"属同一性质——
+    都是对外部可见行为的变更，只是方向不同。
+
+为什么 discover() 不受此约束：
+    它是扫描用户**自己放进** `skills/` 的目录。把文件放进去这个动作本身就是授权，
+    再要一次确认是重复且打断自动化的。因此 discover 走 `Suite._register_now` 内部路径，
+    不经过 guard。真正需要守的是 AI 程序化调用 `add_skill` / `remove_skill`。
+"""
 
 import json
 import os
@@ -12,8 +23,8 @@ REQUIRES_AUTH = "requires-authorization"
 
 MATRIX = {
     "read_skill": AUTONOMOUS,
-    "add_skill": AUTONOMOUS,
-    "remove_skill": AUTONOMOUS,
+    "add_skill": REQUIRES_AUTH,
+    "remove_skill": REQUIRES_AUTH,
     "modify_skill_content": REQUIRES_AUTH,
     "update_registry_entry": AUTONOMOUS,
     "trigger_deploy": AUTONOMOUS,

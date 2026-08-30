@@ -13,12 +13,12 @@
 | `sync` | `sync(force=False)` | 拉取上游更新并热更新路由表。拉取后**重载内存 manifest**（否则后续 `add_skill`/`save` 会用过期副本覆盖刚拉取的配置），再跑 `integrity.compatibility()` 做 registry / manifest / 文件系统三方对账，结果附在返回值的 `compatibility` 键上并留审计（只留痕、不阻断）。远端未配置则安全 no-op |
 | `discover` | `discover(source="user_drop")` | 扫描 `skills/` 下未注册子 skill 并幂等登记。逐 skill try/except 隔离，单个失败不阻断其余。返回 `[(skill_id, action, detail)]`，`action ∈ registered / skipped / error`。登记后自动跑 lint（只记录不阻断） |
 | `route` | `route(query, strategy="direct", fallback=None, trace_id=None)` | 两段式召回 → 裁决 → 执行。返回 dict 带 `trace_id`；传入 `trace_id` 可把多次调用串成一条链路 |
-| `add_skill` | `add_skill(skill_id, source, rel_path=None, overrides=None)` | `source ∈ user_create / user_drop / remote_pull`（见 `evolution/pipeline.py::SOURCES`，传错抛 `ValueError`）。原样放入 → 派生 entry → 刷路由表 |
+| `add_skill` | `add_skill(skill_id, source, rel_path=None, overrides=None)` | **需用户授权。只生成提案，不落地**。返回 `{"allowed": False, "action": "add_skill", "proposal_id": ...}`；`allowed=True` 仅表示无需授权（当前配置下不会发生）。`source ∈ user_create / user_drop / remote_pull`（见 `evolution/pipeline.py::SOURCES`，传错**当场**抛 `ValueError`，不进提案）。批准后由 `approve_proposal` 用 payload 里的参数执行登记——参数全部从 payload 取，因为批准可能发生在另一个进程，调用栈早已不在 |
 | `modify_skill` | `modify_skill(skill_id, changes)` | **只生成提案，不落地**。必须经 `approve_proposal` 才生效 |
-| `approve_proposal` | `approve_proposal(proposal_id)` | 闭环 提案 → 批准 → 执行。对 `modify_skill_content`：依据当前 SKILL.md 重派生 entry（保留 `manual_overrides`）→ 写回结构化变更 → 复 pin 完整性 → 落盘。其他 action 仅置为 `approved` |
+| `approve_proposal` | `approve_proposal(proposal_id)` | 闭环 提案 → 批准 → 执行。对 `modify_skill_content`：依据当前 SKILL.md 重派生 entry（保留 `manual_overrides`）→ 写回结构化变更 → 复 pin 完整性 → 落盘。对 `add_skill`：用 payload 参数登记并复 pin。对 `remove_skill`：从路由表与 manifest 摘除；**skill 不存在时抛 `KeyError` 而非静默成功**——批准一个"删空气"的提案通常意味着 id 写错了。其他 action 仅置为 `approved` |
 | `reject_proposal` | `reject_proposal(proposal_id)` | 把提案置为 `rejected` 并落盘。这是状态机的另一个终态——只有 approved 的话，没人认领的提案会永远悬在 pending，pending 列表最终变成噪音 |
 | `pending_proposals` | `pending_proposals()` | 列出所有 `state == "pending"` 的提案 |
-| `remove_skill` | `remove_skill(skill_id)` | 注销（同时移除 integrity entry）并落盘。返回是否确有移除 |
+| `remove_skill` | `remove_skill(skill_id)` | **需用户授权。只生成提案，不落地**，返回 `{"allowed": False, "action": "remove_skill", "proposal_id": ...}`。提出时**不校验** skill 是否存在——提案与批准之间状态可能变化，且"删一个不存在的东西"在批准时明确报错，比提前拒绝更好排查。批准后真正注销（同时移除 integrity entry）并落盘 |
 | `learn` | `learn(traces)` | 轨迹蒸馏产出规则 + 用户建模观察 |
 | `evolve` | `evolve()` | `growth.apply(growth.evolve())`。每条变异带 `evidence`（`source`/`rule_id`/`support`/`success_rate`/`state`），同一轮共享一个 `trace_id` |
 
@@ -374,7 +374,7 @@ python scripts/cli.py sync --force
 
 | 文件 | 项数 | 覆盖 |
 | --- | --- | --- |
-| `tests/test_suite.py` | 35 | 契约 / 路由表 / 两段式召回与归一化 / 裁决 / 四策略执行 / 蒸馏 / 成长 / 权限与提案闭环 / 完整性（含 version 漂移）/ 用户建模加成 / 三方一致性对账 / **经验规则作用域边界（只调序不救活零召回）** / 端到端（含最小 skill 冒烟） |
+| `tests/test_suite.py` | 37 | 契约 / 路由表 / 两段式召回与归一化 / 裁决 / 四策略执行 / 蒸馏 / 成长 / 权限与提案闭环 / 完整性（含 version 漂移）/ 用户建模加成 / 三方一致性对账 / **经验规则作用域边界（只调序不救活零召回）** / **增删需用户授权与提案边界（含 discover 豁免）** / 端到端（含最小 skill 冒烟） |
 | `tests/test_deploy_remote.py` | 5 | 部署层只读边界、上游拉取、漂移上报、CLI 后台同步归类完备性 |
 | `tests/test_connectivity.py` | 8 | hosts 解析、IP 钉定通道、failover |
 | `tests/test_spec_alignment.py` | 35 | 官方规范兼容性、front-matter 解析（嵌套 / 注释）、召回归一化与缓存、临时区回收边界、lint 安全扫描（含相对路径不误报）、套件自检（能力声明可读性 / 危险声明不失效） |
@@ -382,7 +382,7 @@ python scripts/cli.py sync --force
 | `tests/test_audit_trace.py` | 9 | trace 贯穿、执行成败留痕、不记返回内容、成长留痕、轮转、tail 与 replay |
 | `tests/test_pull_deadline.py` | 16 | pull 的 deadline 治理、full jitter、熔断、回退决策 |
 | `tests/test_atomic_write.py` | 7 | 原子写：失败不留半截 JSON、不留临时文件 |
-| **合计** | **119** | 8 文件全绿为落地门槛 |
+| **合计** | **121** | 8 文件全绿为落地门槛 |
 
 每个文件可独立运行（`python tests/xxx.py`），自带 `main()` 汇总，不依赖 pytest。
 
