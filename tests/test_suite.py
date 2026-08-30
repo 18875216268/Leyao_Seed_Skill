@@ -180,6 +180,54 @@ def test_resolver_two_stage():
     assert resolve(base, "查一下今年报表", experience=avoid)[0]["entry"]["id"] == "wide"
 
 
+def test_experience_scope_is_ranking_only():
+    """经验规则只在「已召回的候选」内调序，救不活零召回。
+
+    为什么必须锁死这条边界：
+        一旦 `recall()` 开始接受经验数据，"你以前手动选过它"就能把一个语义上毫不相干的
+        skill 硬推进候选集——历史偏好就此推翻语义相关性，套件「宁可 fallback 也不错召」
+        的底层取舍随之失效，且这种错召极难归因。
+
+    为什么同一条测试里要先验证"规则确实活着"：
+        零召回返回 [] 有两种解释：规则被消费了但无处施加，或规则压根没生效。只断言空
+        结果的话后者会假绿——规则被静默丢弃时，结果同样是空的。所以先用多候选场景证明
+        规则确实被 `rank` 消费，再证明它在零召回下依然无能为力。
+
+    为什么还要断言"排序确实变了"：
+        若目标 skill 恰好已排第一，规则生效与否看不出差别，整条测试会退化成恒真断言
+        （本套件设计时踩过这个坑）。`plain != tilted` 就是防这点的。
+    """
+    def _rule(pattern, target, state="locked"):
+        return {"id": "r-%s" % target, "kind": "route", "pattern": pattern,
+                "target": target, "state": state, "support": 6, "success_rate": 1.0}
+
+    sales = entry("sales-report", ["报表", "销售报表"])
+    stock = entry("stock-check", ["报表", "库存报表"])
+    base = [sales, stock]
+
+    # 1) 多候选场景下规则确实被消费：先证明它活着，后面的空结果才有解释力。
+    assert resolver.recall(base, "看一下报表") != [], "夹具失效：本应召回两个候选"
+    plain = [r["entry"]["id"] for r in resolve(base, "看一下报表")]
+    tilted = [r["entry"]["id"] for r in resolve(base, "看一下报表", experience=[_rule(["报表"], "sales-report")])]
+    assert plain != tilted, "规则未改变排序，后续零召回断言将退化为恒真（假绿风险）"
+    assert tilted[0] == "sales-report", "经验规则应把目标 skill 顶到首位，实际 %r" % (tilted,)
+
+    # 2) 零召回场景：query 与任何 trigger 都不匹配。
+    assert resolver.recall(base, "看一下业绩") == [], "夹具失效：本应零召回"
+
+    # 3) 规则确实命中了这个 query（boost 非 0），却仍然救不活——这才是有牙齿的断言。
+    assert resolver.experience_boost(
+        [_rule(["业绩"], "sales-report")], sales,
+        "看一下业绩".lower(), resolver.norm("看一下业绩")) > 0
+    rescued = resolve(base, "看一下业绩", experience=[_rule(["业绩"], "sales-report")])
+    assert rescued == [], ("经验规则不得救活零召回：一旦 recall 接受经验数据，历史偏好就能推翻"
+                           "语义相关性，实际召回了 %r" % ([r["entry"]["id"] for r in rescued],))
+
+    # 4) 晋升门槛：candidate 规则永不进生产，排序不得因此改变。
+    assert [r["entry"]["id"] for r in resolve(base, "看一下报表",
+            experience=[_rule(["报表"], "sales-report", state="candidate")])] == plain
+
+
 def test_arbitrator():
     assert arbitrate([])[0] == "fallback"
     tied = resolve([entry("a", ["报表"], priority=5, scope="pms.*"), entry("b", ["报表"], priority=5, scope="pms.*")], "查报表")

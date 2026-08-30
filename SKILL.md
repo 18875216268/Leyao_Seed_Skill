@@ -73,6 +73,16 @@ agent_created: true
    `discover` 是批量扫描；`add <id>` 是按 id 注册单个，两者不重复。
 3. 之后 `Suite.route(query)` 就能命中它；命中后按 `mode` 执行。
 4. 用得越多，轨迹蒸馏出的经验规则与用户使用频次会反过来影响排序。
+
+   **注意经验规则的作用边界**：它只在**已召回的候选集合内**调整排序（`experience_boost`
+   作用于 `rank` 阶段，`recall` 不接受经验数据），**不会把零召回的 skill 补进候选**。
+   也就是说，召回能力取决于子 skill 自己 `triggers` / `description` 写得好不好；
+   经验只能在"已经召回到若干个"之间挑更合适的那个。
+
+   这条边界是刻意的——宁可 fallback 也不错召。它带来一个后果：某个词（例如"业绩"）
+   如果**任何**子 skill 的元数据里都没写，那么即使用户反复手动改派给它十次，
+   系统也学不会。遇到这种情况，正解是**把该词补进对应子 skill 的 `triggers` 或
+   `description`**（走 `modify_skill → approve_proposal`），而不是指望蒸馏。
 5. 若将来子 skill 的 `SKILL.md` 被改动，`Suite.sync()` 与 `integrity.verify()`
    会报内容漂移；要改内容必须走 `modify_skill → approve_proposal`。
 
@@ -304,10 +314,10 @@ python scripts/cli.py sync --force
 
 ## 验收
 
-8 个测试文件，共 118 项，**全绿为落地门槛**。改动任何一层后请全跑：
+8 个测试文件，共 119 项，**全绿为落地门槛**。改动任何一层后请全跑：
 
 ```bash
-python tests/test_suite.py            # 34 内核：契约/路由表/召回与归一化/裁决/执行/蒸馏/成长/权限/完整性/提案闭环/端到端
+python tests/test_suite.py            # 35 内核：契约/路由表/召回与归一化/裁决/执行/蒸馏/成长/权限/完整性/提案闭环/经验规则作用域边界/端到端
 python tests/test_spec_alignment.py   # 35 官方规范兼容性、front-matter 解析、召回缓存、临时区回收边界、lint 安全扫描（含套件自检）
 python tests/test_audit_trace.py      #  9 trace 贯穿、执行留痕、成长留痕、轮转、tail 与 replay
 python tests/test_pull_deadline.py    # 16 pull 的 deadline 治理与熔断
@@ -325,7 +335,7 @@ python tests/test_performance.py      #  4 真并发、超时隔离、整体预�
 **把整个目录拷贝分发**，先删掉再拷——否则会把本机 Python 版本的字节码一起带给对方：
 
 ```bash
-find . -name __pycache__ -type d -prune -exec rm -rf {} +   # 清理后应为 44 个文件
+find . -name __pycache__ -type d -prune -exec rm -rf {} +   # 清理后应为 45 个文件
 ```
 
 ## 参考

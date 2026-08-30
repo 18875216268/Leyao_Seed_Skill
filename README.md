@@ -36,7 +36,7 @@ LeyaoSeedSkill/
 ├── references/           api.md / architecture.md（按需加载，不进常驻上下文）
 ├── scripts/cli.py        命令行入口
 ├── state/                运行时：共享知识库 / 提案 / 棘轮快照 / 审计日志
-└── tests/                8 个测试文件，118 项
+└── tests/                8 个测试文件，119 项
 ```
 
 ## 快速开始
@@ -64,7 +64,7 @@ s.evolve()                        # 消费知识资产，做针对性变异
 跑测试：
 
 ```bash
-python tests/test_suite.py            # 34
+python tests/test_suite.py            # 35
 python tests/test_spec_alignment.py   # 35
 python tests/test_audit_trace.py      #  9
 python tests/test_pull_deadline.py    # 16
@@ -74,11 +74,11 @@ python tests/test_deploy_remote.py    #  5
 python tests/test_performance.py      #  4
 ```
 
-合计 **118 项，全绿为落地门槛**。每个文件自带 `main()`，不依赖 pytest。
+合计 **119 项，全绿为落地门槛**。每个文件自带 `main()`，不依赖 pytest。
 测试临时目录落在套件**同级**的 `.suite_test_tmp`，由 `tests/_harness.py` 自动回收 24 小时前的残留。
 
 > 跑测试会在套件目录内产生 `__pycache__`（已被 `.gitignore` 覆盖）。若要拷贝分发，
-> 先 `find . -name __pycache__ -type d -prune -exec rm -rf {} +`，清理后应为 44 个文件。
+> 先 `find . -name __pycache__ -type d -prune -exec rm -rf {} +`，清理后应为 45 个文件。
 
 ## 关键设计
 
@@ -98,7 +98,7 @@ python tests/test_performance.py      #  4
 
 ## 当前状态
 
-五层骨架完整，118 项测试全绿，套件 lint 自检 CLEAN。
+五层骨架完整，119 项测试全绿，套件 lint 自检 CLEAN。
 
 - 完整 API 签名、lint 规则码全集、审计事件字段、deploy 配置键：`references/api.md`
 - 架构（分层、蒸馏与成长分离、非对称同步、上下文预算）：`references/architecture.md`

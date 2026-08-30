@@ -21,6 +21,34 @@
 | `remove_skill` | `remove_skill(skill_id)` | 注销（同时移除 integrity entry）并落盘。返回是否确有移除 |
 | `learn` | `learn(traces)` | 轨迹蒸馏产出规则 + 用户建模观察 |
 | `evolve` | `evolve()` | `growth.apply(growth.evolve())`。每条变异带 `evidence`（`source`/`rule_id`/`support`/`success_rate`/`state`），同一轮共享一个 `trace_id` |
+
+#### 经验规则的两条通道与作用域（易误解，务必分清）
+
+`learn()` 蒸馏出的规则有两类，走**完全不同**的通道：
+
+| kind | 触发方式 | 消费位置 | 作用域 |
+| --- | --- | --- | --- |
+| `route`（`user_override` 轨迹） | 用户反复把某类 query 改派给某 skill | `rank` 阶段的 `experience_boost` | **只在已召回的候选内加分调序** |
+| `avoid`（`success=False` 轨迹） | 某 skill 在某模式下反复失败 | `evolve()` → 写回路由表 `negative_triggers` | 落地为排除词，后续 `recall` 阶段直接过滤 |
+
+**关键边界**：`evolve()` 只消费 `avoid` 与 `library_map.conflicts`，**不消费 `route`**——
+`route` 规则不会被写进路由表，只在每次 `route()` 时经 `experience` 参数实时影响排序。
+
+因此 `route` 规则**救不活零召回的 query**：`recall(entries, query)` 不接受经验数据，
+若某 query 一个候选都没召回，再强的 `route` 规则也无用武之地（宁可 fallback 也不错召）。
+
+实测（两 skill 的 trigger 分别为 `销售报表` / `库存报表`）：
+- 多候选：`rank` 无规则 → `[stock-check, sales-report]`；带 `route` 规则 target=`sales-report` → `[sales-report, stock-check]`（**排序确实被改变**）
+- 零召回：query `看一下业绩` 召回为 `[]`；带规则后仍为 `[]`（**救不活**）
+
+**推论**：若某个词在任何子 skill 的 `triggers` / `description` 里都不存在，
+那么无论用户手动改派多少次，系统都学不会。正解是把该词补进对应子 skill 的元数据
+（走 `modify_skill → approve_proposal`），而不是依赖蒸馏。
+
+规则晋升门槛（`evolution/store.py::PROMOTE_RULES`）：
+`candidate → validated` 需 `support ≥ 3` 且 `success_rate ≥ 0.7`；
+`validated → locked` 需 `support ≥ 6` 且 `success_rate ≥ 0.85`。
+只有 `validated` / `locked`（`CONSUMABLE_STATES`）会被消费，`candidate` 永不进生产路径。
 | `evaluate` | `evaluate(name, test_prompts, runner, payload=None)` | 跑 `run_eval` 得分 → 交棘轮 `keep_or_rollback`。返回 verdict 并附 `score` |
 | `schedule_background_sync` | `schedule_background_sync()` | 起 daemon 线程查远端版本并条件拉取，不阻塞首用。安装位置由运行时真实仓库状态启发式判定，非硬编码目录名 |
 | `save` | `save()` | 显式落盘路由表 |
@@ -346,7 +374,7 @@ python scripts/cli.py sync --force
 
 | 文件 | 项数 | 覆盖 |
 | --- | --- | --- |
-| `tests/test_suite.py` | 34 | 契约 / 路由表 / 两段式召回与归一化 / 裁决 / 四策略执行 / 蒸馏 / 成长 / 权限与提案闭环 / 完整性（含 version 漂移）/ 用户建模加成 / 三方一致性对账 / 端到端（含最小 skill 冒烟） |
+| `tests/test_suite.py` | 35 | 契约 / 路由表 / 两段式召回与归一化 / 裁决 / 四策略执行 / 蒸馏 / 成长 / 权限与提案闭环 / 完整性（含 version 漂移）/ 用户建模加成 / 三方一致性对账 / **经验规则作用域边界（只调序不救活零召回）** / 端到端（含最小 skill 冒烟） |
 | `tests/test_deploy_remote.py` | 5 | 部署层只读边界、上游拉取、漂移上报、CLI 后台同步归类完备性 |
 | `tests/test_connectivity.py` | 8 | hosts 解析、IP 钉定通道、failover |
 | `tests/test_spec_alignment.py` | 35 | 官方规范兼容性、front-matter 解析（嵌套 / 注释）、召回归一化与缓存、临时区回收边界、lint 安全扫描（含相对路径不误报）、套件自检（能力声明可读性 / 危险声明不失效） |
@@ -354,7 +382,7 @@ python scripts/cli.py sync --force
 | `tests/test_audit_trace.py` | 9 | trace 贯穿、执行成败留痕、不记返回内容、成长留痕、轮转、tail 与 replay |
 | `tests/test_pull_deadline.py` | 16 | pull 的 deadline 治理、full jitter、熔断、回退决策 |
 | `tests/test_atomic_write.py` | 7 | 原子写：失败不留半截 JSON、不留临时文件 |
-| **合计** | **118** | 8 文件全绿为落地门槛 |
+| **合计** | **119** | 8 文件全绿为落地门槛 |
 
 每个文件可独立运行（`python tests/xxx.py`），自带 `main()` 汇总，不依赖 pytest。
 
