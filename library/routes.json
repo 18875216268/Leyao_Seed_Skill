@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "updated": "2026-09-10",
+  "nodes": [
+    {
+      "id": "i7c4z1",
+      "type": "Skill?",
+      "title": "观远BI-乐药查询",
+      "mount": "library/assets/i7c4z1/",
+      "description": "有任何业务数据需求时！可使用此资产。仅适用于查询当前前一天的数据，不适用实时查询当天数据！可自定义聚合。",
+      "source": "C:\\Users\\zhixiaobo\\Desktop\\skill制作v904\\归档\\skill\\Bi_智能取数_login_v1.02"
+    }
+  ]
+}

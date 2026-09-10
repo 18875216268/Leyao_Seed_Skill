@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>资产管理台</title>
+  <link rel="stylesheet" href="/static/style.css?v=25">
+</head>
+<body>
+
+  <!-- 上部：标题 -->
+  <div class="hero">
+    <div class="hero-logo">资产<span>の</span>管理（･∀･）</div>
+  </div>
+
+  <!-- 上部：搜索 + 类型筛选 -->
+  <div class="search-bar">
+    <div class="search-inner">
+      <div class="search-input-wrap">
+        <input type="text" class="search-input" id="search-input" placeholder="搜索名称 / ID / 描述 / 路径..." autocomplete="off">
+        <button class="search-clear" id="search-clear" title="清除">×</button>
+      </div>
+      <div class="dropdown" id="dropdown">
+        <div class="dropdown-trigger" id="dropdown-trigger">全部类型</div>
+        <div class="dropdown-list" id="dropdown-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 下部：卡片区域（唯一滚动区） -->
+  <div class="content">
+    <div id="result-count" class="result-count"></div>
+    <section id="folder"></section>
+  </div>
+
+  <!-- 右下角悬浮按钮（SVG 图标，蓝底白图标，统一样式） -->
+  <div id="fab">
+    <button class="fab" data-act="render" title="重绘 ROUTES.md" aria-label="重绘 ROUTES.md">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    </button>
+    <button class="fab" data-act="refresh" title="刷新" aria-label="刷新">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    </button>
+    <button class="fab" data-act="new" title="新建卡片" aria-label="新建卡片">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+  </div>
+
+  <!-- 描述弹层 -->
+  <div id="desc-pop" class="hidden"></div>
+
+  <!-- 编辑弹窗 -->
+  <div id="edit-modal" class="modal hidden">
+    <div class="card stack">
+      <div class="modal-head">
+        <div class="modal-title" id="edit-title">编辑卡片</div>
+        <button class="modal-close" onclick="closeEdit()" title="关闭">×</button>
+      </div>
+      <div class="modal-body">
+        <label>1. 关联资产</label>
+        <div class="parent-pick">
+          <input id="e-source" class="parent-input" placeholder="点击选择要关联的资产文件夹…" autocomplete="off" spellcheck="false">
+          <button type="button" class="pick-btn" onclick="pickSource()">选择</button>
+        </div>
+
+        <label>2. 位置</label>
+        <div class="parent-pick">
+          <input id="e-parent-path" class="parent-input" placeholder="点击选择候选，或直接输入路径…" autocomplete="off" spellcheck="false">
+          <button type="button" class="pick-btn" onclick="pickFolderNative()">选择</button>
+          <div id="e-parent-drop" class="parent-drop hidden"></div>
+        </div>
+
+        <label>3. 类型</label>
+        <div class="type-pick">
+          <input id="e-type" placeholder="输入或选择类型…" autocomplete="off" spellcheck="false">
+          <div id="e-type-drop" class="parent-drop hidden"></div>
+        </div>
+
+        <label>4. 名称</label>
+        <input id="e-title" placeholder="卡片名称">
+
+        <label>5. 描述</label>
+        <textarea id="e-desc" placeholder="这个卡片是做什么的…"></textarea>
+
+        <div id="e-msg" class="msg"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="primary" id="e-save" onclick="saveEdit()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 删除确认弹窗（与编辑弹窗同款布局） -->
+  <div id="confirm-modal" class="modal hidden">
+    <div class="card stack confirm-card">
+      <div class="modal-head">
+        <div class="modal-title">删除卡片</div>
+        <button class="modal-close" onclick="closeConfirm()" title="关闭">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="confirm-text">删除当前资产及其子资产？</p>
+        <label class="chk hidden" id="confirm-purge-wrap">
+          <input type="checkbox" id="confirm-purge"> 同时删除其资产文件夹
+        </label>
+      </div>
+      <div class="modal-foot">
+        <button class="del" id="confirm-ok">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/static/app.js?v=42"></script>
+</body>
+</html>

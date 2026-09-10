@@ -1,0 +1,1787 @@
+{
+  "catalogVersion": 4,
+  "source": "gongn/yunying/config.js + gongn/yunying/zx/pz/sj.js",
+  "filterOrder": [
+    "m9783f8136104467aae363d3",
+    "d07a25ed6817d42a98f4747a",
+    "ee97e898a34434fd0ba17be9",
+    "u308da1e08a3843af8c17f8f",
+    "d9e4ee1942f5747babcc7cee",
+    "qdcc22aa399934e0b80209ff",
+    "ra8865866e3f0420d84a3628",
+    "o77289361d4514b42a6c73c9",
+    "eda7d7112113e4879b4d6fdc",
+    "oe30aa7b5f0424f8791873ce",
+    "d0c349f33cf574513b2fd071",
+    "c4b94d5e3cc3145ce8c905d1",
+    "ff17ebcf885dd4f74aaf80dd",
+    "cec3399458be84b7e870088b",
+    "p0f0623b3d4494ab4b39753f",
+    "h6ce185ff8f7e43bdb01efd9",
+    "k4d71cbc2995e4c1aa6970c3",
+    "pdfaa321c5e2c452fbe34c7b",
+    "f8aa3c202c1794b76bfd3195",
+    "nbe03890ec2f44aac88fbc08"
+  ],
+  "dimensions": [
+    {
+      "key": "PSDJsLbUyxFsFWMYBbnyQstm",
+      "fdId": "u9c320c996de34c62a6c8a59_month",
+      "name": "月",
+      "fdType": "SUB_DATE",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "parentFdName": "出库月份",
+      "granularity": "MONTH",
+      "displayName": "出库月份（月）"
+    },
+    {
+      "key": "nebZXyfTkXXEVuOZOzmokaMJ",
+      "fdId": "t4115ca5bb1574cb39287216",
+      "name": "出库日期",
+      "fdType": "DATE",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "出库日期"
+    },
+    {
+      "key": "wrwhWXLeUwhBWFhDZLVGXhSN",
+      "fdId": "h8052c3c2934345ac89563ab_month",
+      "name": "月",
+      "fdType": "SUB_DATE",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "parentFdName": "支付日期",
+      "granularity": "MONTH",
+      "displayName": "支付日期（月）"
+    },
+    {
+      "key": "KgSJkfeCHnsgTuPDWfvbkxVA",
+      "fdId": "h8052c3c2934345ac89563ab",
+      "name": "支付日期",
+      "fdType": "DATE",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "支付日期"
+    },
+    {
+      "key": "VIQBHtqVjElTkfjQWlxHBehE",
+      "fdId": "kf4b0a843f64d484086e91a1",
+      "name": "星期几（支付日期）",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "星期几（支付日期）"
+    },
+    {
+      "key": "xrrNIpvllWUonPupwLQJTQbr",
+      "fdId": "p757056ca0f984bf39e128c6",
+      "name": "子公司id",
+      "fdType": "LONG",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "子公司id"
+    },
+    {
+      "key": "AoCWJTGYHIMAlVjHdmQDAxvA",
+      "fdId": "od5ddc53f7c1f43cdbfbad4d",
+      "name": "子公司名称",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "子公司名称"
+    },
+    {
+      "key": "NfiGMgLTzdvZDxlovIiJsOOu",
+      "fdId": "u1934cedb5f94443a8d33ae3",
+      "name": "仓库名称",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "仓库名称"
+    },
+    {
+      "key": "OyYtFDOisBITxSKjVjWSubeP",
+      "fdId": "e2cf19230839641debd5516c",
+      "name": "ERP商品编码",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "ERP商品编码"
+    },
+    {
+      "key": "pUGjhtVZnCrOcuDutxUPfGrb",
+      "fdId": "s63da26b1d9c640259217497",
+      "name": "乐药编码",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "乐药编码"
+    },
+    {
+      "key": "PdemEhVGWWVuuAFpgHsMAKLl",
+      "fdId": "r6a9b98caaff54edfb9ae4d3",
+      "name": "药师帮ID",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "药品id"
+    },
+    {
+      "key": "nshtppqevKuYHxJZFpOHCEym",
+      "fdId": "v913152f850b44c0ca563192",
+      "name": "spuid",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "spuid"
+    },
+    {
+      "key": "tmCLNLQCDhwqTJwZRfnESkEE",
+      "fdId": "jdd2df11bcea94082bab3dfa",
+      "name": "商品名称",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "商品名称"
+    },
+    {
+      "key": "asTCfdSzyWvGkoEldnoneeQm",
+      "fdId": "ma4ad10caafdb4342b9e5f5b",
+      "name": "商品规格",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "商品规格"
+    },
+    {
+      "key": "yIZeIhasdqpJddkkxaqYHLfi",
+      "fdId": "p97492d8c64864cc49db76d7",
+      "name": "商品类别",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "商品类别"
+    },
+    {
+      "key": "ONIGZmMTyCNQNkDASmjEuzaQ",
+      "fdId": "c5afbe9cdeb3e4d44ac6c4f3",
+      "name": "处方分类",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "处方分类"
+    },
+    {
+      "key": "RocAwvPJuPeVvbTknMGlhWlA",
+      "fdId": "g665985680ddb4becbae2e46",
+      "name": "采购大类",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "采购大类"
+    },
+    {
+      "key": "rUiitlKECAtJKaTgaUjKokxK",
+      "fdId": "mc8391daa76a844588bf0198",
+      "name": "采购亚类",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "采购亚类"
+    },
+    {
+      "key": "VTEYlTfYYEUuobkupyuNGVBc",
+      "fdId": "xb08ccd71cf2a4961bc4ae6c",
+      "name": "采购小类",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "采购小类"
+    },
+    {
+      "key": "UCpSNMIJctBYpajnWHuLuoup",
+      "fdId": "o68030b095bc74362b0838d0",
+      "name": "通用名",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "通用名"
+    },
+    {
+      "key": "WwapcrXKYORANIceFyqtAlpc",
+      "fdId": "j15ca66a3dde4417fac8af6e",
+      "name": "厂牌",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "厂牌"
+    },
+    {
+      "key": "VtbxAQTRBDreUYJVKktMXgFE",
+      "fdId": "ifca606d9e98e4450920afea",
+      "name": "品种负责人",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "品种负责人"
+    },
+    {
+      "key": "NjdJllrkvnlMJQzPIaWjGtMV",
+      "fdId": "je5c9188fb5714cd09a0b42f",
+      "name": "运营负责人",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "运营负责人"
+    },
+    {
+      "key": "TdYzgkqhELBaxWcuexMJNAKb",
+      "fdId": "sf0cca238e787449cad15b17",
+      "name": "业务类型",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "业务类型"
+    },
+    {
+      "key": "DdUfbaRkSgOyamSAtCUhdwCk",
+      "fdId": "i5767918168f841918af08ec",
+      "name": "省内外",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "省内外"
+    },
+    {
+      "key": "VvQxwkapDEmDRGopJnDSCURa",
+      "fdId": "c1ebaa172cc47477d80820ad",
+      "name": "环数标签",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "环数标签"
+    },
+    {
+      "key": "kpBvjBmOrPLRVOnrFluUjmWW",
+      "fdId": "p3cac7f687a804497b74b98b",
+      "name": "省份",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "省份"
+    },
+    {
+      "key": "vtrzVOkZbHUHuhoEpdEEtyNJ",
+      "fdId": "becf6177142c2477fa93f47a",
+      "name": "城市",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "城市"
+    },
+    {
+      "key": "huloDALOhQpsuBQtdOuJWrVH",
+      "fdId": "xdd37bafd66dd4aa6962d12d",
+      "name": "区new",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "区"
+    },
+    {
+      "key": "AULUENbiGegNPXdpxgurtahG",
+      "fdId": "e5f8c7f2d4dee47139e62902",
+      "name": "药店id",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "药店id"
+    },
+    {
+      "key": "HYhQxLBKupmzcwJoBitbIRaH",
+      "fdId": "j0599925ad3024ff9bcadfdb",
+      "name": "客户编码",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "客户编码"
+    },
+    {
+      "key": "DswHsZkXRxmIBTfEpcGGrXsT",
+      "fdId": "i1929f755ea9a4ad2942eb94",
+      "name": "客户名称",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "客户名称"
+    },
+    {
+      "key": "VlKWJbltPoDprCUbPQapqzTG",
+      "fdId": "v03b35fb5461345fd8a900be",
+      "name": "客户类型",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "客户类型"
+    },
+    {
+      "key": "RKIbRTTMjCivBldiwxqLAokv",
+      "fdId": "hdfe2943a3bc943a2a70e026",
+      "name": "活动id",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "活动id"
+    },
+    {
+      "key": "nGGMtosIiODYyXwlKlNftgeE",
+      "fdId": "pc31754e7fd7a40739f30521",
+      "name": "活动类型",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "活动类型"
+    },
+    {
+      "key": "lriZOfaOtYYPktbgZWLCDvNP",
+      "fdId": "wb6d6af5af1484268af905d2",
+      "name": "单据类型",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "单据类型"
+    },
+    {
+      "key": "TylsahITlBCxeHSEoFaROkdY",
+      "fdId": "jf0f485704d9546f0a06c154",
+      "name": "批次",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "批次"
+    },
+    {
+      "key": "yhGbbSMTPLpoGMpIWPdwYgYZ",
+      "fdId": "t8b132044e40943bc8c714e8",
+      "name": "批号",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "批号"
+    },
+    {
+      "key": "IkDvQfIXZoxVSzQKDmsXfpDh",
+      "fdId": "a0870ebde255e47e6a43b289",
+      "name": "快递公司",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "快递公司"
+    },
+    {
+      "key": "AMtIkRGiIhpAguETEvXCMeeM",
+      "fdId": "e3cd3d2c2a2b94b19bdf9b21",
+      "name": "快递单号",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "运单号"
+    },
+    {
+      "key": "YUiopSFKLOyeNGyvfWidnMEP",
+      "fdId": "f8bac224742f84cc88d6f260",
+      "name": "出库单号",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "出库单号"
+    },
+    {
+      "key": "yXxqRdBaSIfcekUJLxZNAxCf",
+      "fdId": "u7dbde1e10e1c409a8154c48",
+      "name": "销售开票单号",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "销售开票单号"
+    },
+    {
+      "key": "zJVeJWOsvQCsGHCmSTVWjUBP",
+      "fdId": "p762160baf41342a6ae07f72",
+      "name": "药师帮单号",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "药师帮单号"
+    },
+    {
+      "key": "lUpjpZsVQHCPxWantspYZgbV",
+      "fdId": "h904257877f094e3caa1cd17",
+      "name": "是否3K",
+      "fdType": "INT",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "是否3K"
+    },
+    {
+      "key": "rulmFqaRAokhofvclHYKdTGN",
+      "fdId": "d1985e29e8b23417cb49ebbd",
+      "name": "是否5W",
+      "fdType": "INT",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "是否5W"
+    },
+    {
+      "key": "XfJrYnPBcAhLLkDWtvpbPoOD",
+      "fdId": "w439d007433d745a6a1f3b72",
+      "name": "是否3K5W",
+      "fdType": "DOUBLE",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "是否3K5W"
+    },
+    {
+      "key": "ZpayISLWNEumIwUciTwXFHOa",
+      "fdId": "qe7ee34400ec64713a829fef",
+      "name": "l标签",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "l标签"
+    },
+    {
+      "key": "brlTzLUaxadIxredTkotriFq",
+      "fdId": "kf6e72effaae7461b90fdd90",
+      "name": "自动化运营标签",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "自动化运营标签"
+    },
+    {
+      "key": "rVXHgIYPNAQKYeiIRRiGUJhm",
+      "fdId": "d7f27a52688be4f1ebd14e4b",
+      "name": "省内排名",
+      "fdType": "STRING",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "省内排名"
+    },
+    {
+      "key": "ibfGVLSShkbWGplfuMJjVkih",
+      "fdId": "t4115ca5bb1574cb39287216_week",
+      "name": "周",
+      "fdType": "SUB_DATE",
+      "baseFdType": "DATE",
+      "metaType": "DIM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "level": "dataset",
+      "annotation": "",
+      "parentFdName": "出库日期",
+      "granularity": "WEEK",
+      "displayName": "出库日期（周）"
+    }
+  ],
+  "metrics": [
+    {
+      "key": "VGfVfarkNvRsSwAMIsYSqMSA",
+      "fdId": "j0e16b46f641d4dfa9dd7a3c",
+      "name": "含税金额",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "aggrType": "SUM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "含税金额"
+    },
+    {
+      "key": "WEqpSMNKbyJQVSDiTTwjWJaf",
+      "fdId": "mc2f8b25eae18461288dd87b",
+      "name": "不含税金额",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "aggrType": "SUM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "alias": "不含税金额",
+      "displayName": "不含税金额"
+    },
+    {
+      "key": "mMMEKOJLXPyjlXjmfgAvltOr",
+      "fdId": "n573b564d00ca419bbec9bbd",
+      "name": "销售数量",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "SUM",
+      "displayName": "销售数量"
+    },
+    {
+      "key": "zwsliJYMNdBRYyeqQWWoxJDE",
+      "fdId": "kd9cc9b350a6e485c8003ec0",
+      "name": "含税p1毛利额",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "SUM",
+      "displayName": "含税p1毛利额"
+    },
+    {
+      "key": "pDdTnkYVcZdkIfPDmINydkJU",
+      "fdId": "r1ff2dd59e5bb49a7897a24b",
+      "name": "不含税p1毛利额",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "SUM",
+      "displayName": "不含税p1毛利额"
+    },
+    {
+      "key": "luGxYuozpExWlYkCXQXVjLji",
+      "fdId": "q6c08a5957234441bb19d1ab",
+      "name": "含税p4毛利额",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "SUM",
+      "displayName": "含税p4毛利额"
+    },
+    {
+      "key": "nRkRweEApEZBxNIAJijgHbpL",
+      "fdId": "cb81635b7a3d54f838627583",
+      "name": "不含税p4毛利额",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "SUM",
+      "displayName": "不含税p4毛利额"
+    },
+    {
+      "key": "OpGrNIZXYravRaucxUYolsxa",
+      "fdId": "b6a8d0fbcaf50486ba930e32",
+      "name": "含税实收毛利额",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "SUM",
+      "displayName": "含税实收毛利额"
+    },
+    {
+      "key": "tbFUpGYDfQgCNOAGOGOycEPr",
+      "fdId": "lf5d533599ba74cd8946e7f7",
+      "name": "不含税实收毛利额",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "SUM",
+      "displayName": "不含税实收毛利额"
+    },
+    {
+      "key": "wPGfHWZqVaPDXtKAeCaxhXTc",
+      "fdId": "va2632995c49346e5aa246de",
+      "name": "不含税仓库人工费",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "SUM",
+      "displayName": "不含税仓库人工费"
+    },
+    {
+      "key": "yujkvdbZlDahssKWseSZNelh",
+      "fdId": "q5fc6287a3a794ec586dae58",
+      "name": "含税配送费",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "SUM",
+      "displayName": "含税配送费"
+    },
+    {
+      "key": "TugIiphQmoZPiIjMyHTWFzoh",
+      "fdId": "na0cfa42d3261427683379f9",
+      "name": "不含税配送费",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "SUM",
+      "displayName": "不含税配送费"
+    },
+    {
+      "key": "qPiEndoCGZChAlvDXDtFTGVN",
+      "fdId": "t9d07f5009c6a4527bdf0b98",
+      "name": "不含税平台费",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "SUM",
+      "displayName": "不含税平台费"
+    },
+    {
+      "key": "RdsWrXUFddlBMbDbjlKNhbFa",
+      "fdId": "obaa2da21d1744e4a9d4765f",
+      "name": "优惠金额",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "SUM",
+      "displayName": "优惠金额"
+    },
+    {
+      "key": "dCXrTSwxSFgjuudIGvkrFpbL",
+      "fdId": "c0ba10fa8ddb44775aaa305e",
+      "name": "不含税边际利润",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "aggrType": "SUM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "不含税边际利润"
+    },
+    {
+      "key": "VxljwkzPcfXfZBZXqJwwqHbB",
+      "fdId": "wf551b20e6bba4a03a214005",
+      "name": "不含税P4毛利率",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": true,
+      "calculationType": "aggregation",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "formula": "sum([不含税p4毛利额])/sum([不含税金额])",
+      "displayName": "不含税P4毛利率"
+    },
+    {
+      "key": "KDPMilUbvhnnHNlxfDTUbpXt",
+      "fdId": "mb6f3f3f8785f4b2dab1acaa",
+      "name": "不含税人工费率",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": true,
+      "calculationType": "aggregation",
+      "baseFdType": "DOUBLE",
+      "formula": "sum([不含税仓库人工费])/sum([不含税金额])",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "不含税人工费率"
+    },
+    {
+      "key": "OIarCNLfRiLjFWUrCaXVZAfg",
+      "fdId": "nde764f4ca9fa498f8d0aafe",
+      "name": "不含税配送费率",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": true,
+      "calculationType": "aggregation",
+      "baseFdType": "DOUBLE",
+      "formula": "sum([不含税配送费])/sum([不含税金额])",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "不含税配送费率"
+    },
+    {
+      "key": "YmZUVTlZsQnmqxtGRrPIyWdF",
+      "fdId": "t088430c70d1647efbefcdcb",
+      "name": "不含税平台费率",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": true,
+      "calculationType": "aggregation",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "formula": "sum([不含税平台费])/sum([不含税金额])",
+      "displayName": "不含税平台费率"
+    },
+    {
+      "key": "NeQtrSldSbFoGeUThoaGzANr",
+      "fdId": "f1f06f56a7015406a821e343",
+      "name": "不含税边际利润率",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": true,
+      "calculationType": "aggregation",
+      "baseFdType": "DOUBLE",
+      "formula": "sum([不含税边际利润])/sum([不含税金额])",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "不含税边际利润率"
+    },
+    {
+      "key": "TLhdnxmnTcISGHJtGaPULWbN",
+      "fdId": "i1929f755ea9a4ad2942eb94",
+      "name": "客户名称",
+      "fdType": "STRING",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "STRING",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "CNT_DISTINCT",
+      "alias": "客户数",
+      "displayName": "客户数"
+    },
+    {
+      "key": "oSgYeaAMILyOjXVEeANjDiju",
+      "fdId": "e2cf19230839641debd5516c",
+      "name": "ERP商品编码",
+      "fdType": "STRING",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "STRING",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "CNT_DISTINCT",
+      "alias": "商品编码去重计数",
+      "displayName": "商品编码去重计数"
+    },
+    {
+      "key": "XcfyBmbUftdlEaCMHYeVySqX",
+      "fdId": "v913152f850b44c0ca563192",
+      "name": "spuid",
+      "fdType": "STRING",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "STRING",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "CNT_DISTINCT",
+      "alias": "spuid去重计数",
+      "displayName": "spuid去重计数"
+    },
+    {
+      "key": "VPdHsUUxAqqOMSUhYhZBpqoj",
+      "fdId": "t4115ca5bb1574cb39287216",
+      "name": "出库日期",
+      "fdType": "DATE",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DATE",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "CNT_DISTINCT",
+      "alias": "出库日期去重计数",
+      "displayName": "出库日期去重计数"
+    },
+    {
+      "key": "qrqyQsbChrvmJwvShumuNqTc",
+      "fdId": "h8052c3c2934345ac89563ab",
+      "name": "支付日期",
+      "fdType": "DATE",
+      "metaType": "METRIC",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DATE",
+      "level": "dataset",
+      "annotation": "",
+      "aggrType": "CNT_DISTINCT",
+      "alias": "支付日期去重计数",
+      "displayName": "支付日期去重计数"
+    },
+    {
+      "key": "ufXgOfzeQaHfvypADiagxKAG",
+      "fdId": "jf41259a9fcc049e1af636a4",
+      "name": "条目单价",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": true,
+      "calculationType": "aggregation",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "formula": "sum([不含税金额])/count(case when [单据类型] = '销售出库单' then 1 end)",
+      "displayName": "条目单价"
+    },
+    {
+      "key": "qUPCyqSIhrbkDfnQBOXFIjOR",
+      "fdId": "i4c8e16bb05e346c38328e76",
+      "name": "5W金额",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": true,
+      "calculationType": "aggregation",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "5W金额"
+    },
+    {
+      "key": "UXTKnMszNjUJqndWdvUwiUsH",
+      "fdId": "t010f25e5f1c642658345c62",
+      "name": "L1金额",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": true,
+      "calculationType": "aggregation",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "L1金额"
+    },
+    {
+      "key": "RIVIxMtocpTnCOTPgIRlUGsQ",
+      "fdId": "ba980edc07260445aac58795",
+      "name": "L2金额",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": true,
+      "calculationType": "aggregation",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "L2金额"
+    },
+    {
+      "key": "BKqjEGxFmeZyRXeCwgbAAyuy",
+      "fdId": "mf548ce39a1a648f5a53b38b",
+      "name": "L3金额",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": true,
+      "calculationType": "aggregation",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "L3金额"
+    },
+    {
+      "key": "gLRyFmQKTrEGxHyOaSGYDPfs",
+      "fdId": "w3dd43c89b9074edbad2834b",
+      "name": "省内单三金额",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": true,
+      "calculationType": "aggregation",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "省内单三金额"
+    },
+    {
+      "key": "PFeNybLEOhoICbVkNQjWexnf",
+      "fdId": "aaf1902d6e4cf48ebb94af38",
+      "name": "促销补贴金额",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "aggrType": "SUM",
+      "isAggregated": false,
+      "calculationType": "normal",
+      "baseFdType": "DOUBLE",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "促销补贴金额"
+    },
+    {
+      "key": "utEvMRYKzntrCBSWzWNxExjg",
+      "fdId": "r98e27e57f70746b798a28a7",
+      "name": "出库条目数",
+      "fdType": "DOUBLE",
+      "metaType": "METRIC",
+      "isAggregated": true,
+      "calculationType": "aggregation",
+      "level": "dataset",
+      "annotation": "",
+      "displayName": "出库条目数"
+    }
+  ],
+  "selectors": [
+    {
+      "cdId": "m9783f8136104467aae363d3",
+      "name": "出库日期",
+      "selectorType": "TIME_MACRO",
+      "filterType": "BT",
+      "defaultValue": "本月到昨天",
+      "fields": [
+        {
+          "fdId": "t4115ca5bb1574cb39287216",
+          "name": "出库日期",
+          "fdType": "DATE",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "d07a25ed6817d42a98f4747a",
+      "name": "支付日期",
+      "selectorType": "TIME_MACRO",
+      "filterType": "BT",
+      "fields": [
+        {
+          "fdId": "h8052c3c2934345ac89563ab",
+          "name": "支付日期",
+          "fdType": "DATE",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "oe30aa7b5f0424f8791873ce",
+      "name": "省份-城市-区",
+      "selectorType": "TREE",
+      "filterType": "IN",
+      "content": {
+        "withPath": true
+      },
+      "fields": [
+        {
+          "fdId": "p3cac7f687a804497b74b98b",
+          "name": "省份",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        },
+        {
+          "fdId": "becf6177142c2477fa93f47a",
+          "name": "城市",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        },
+        {
+          "fdId": "g51b25e2d622a4984b686aaf",
+          "name": "区",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "settings": {
+        "asFilter": {
+          "columnMappings": [
+            {
+              "sourceField": {
+                "fdId": "p3cac7f687a804497b74b98b",
+                "name": "省份",
+                "dsId": "ebc37edf77c8540cdad40b62"
+              },
+              "targetFields": [
+                {
+                  "fdId": "p3cac7f687a804497b74b98b",
+                  "name": "省份",
+                  "dsId": "ebc37edf77c8540cdad40b62",
+                  "cdId": "v37695c5612944a7baa0c6fa"
+                }
+              ]
+            },
+            {
+              "sourceField": {
+                "fdId": "becf6177142c2477fa93f47a",
+                "name": "城市",
+                "dsId": "ebc37edf77c8540cdad40b62"
+              },
+              "targetFields": [
+                {
+                  "fdId": "becf6177142c2477fa93f47a",
+                  "name": "城市",
+                  "dsId": "ebc37edf77c8540cdad40b62",
+                  "cdId": "v37695c5612944a7baa0c6fa"
+                }
+              ]
+            },
+            {
+              "sourceField": {
+                "fdId": "g51b25e2d622a4984b686aaf",
+                "name": "区 ",
+                "dsId": "ebc37edf77c8540cdad40b62"
+              },
+              "targetFields": [
+                {
+                  "fdId": "xdd37bafd66dd4aa6962d12d",
+                  "name": "区new",
+                  "dsId": "ebc37edf77c8540cdad40b62",
+                  "cdId": "v37695c5612944a7baa0c6fa"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "enabledForMainQuery": true,
+      "aliases": [
+        "区域"
+      ]
+    },
+    {
+      "cdId": "u6359e3dc59334e7ca7db24d",
+      "name": "省内外",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "i5767918168f841918af08ec",
+          "name": "省内外",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "d9e4ee1942f5747babcc7cee",
+      "name": "客户类型",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "v03b35fb5461345fd8a900be",
+          "name": "客户类型",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "ee97e898a34434fd0ba17be9",
+      "name": "业务类型",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "sf0cca238e787449cad15b17",
+          "name": "业务类型",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "u308da1e08a3843af8c17f8f",
+      "name": "活动类型",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "pc31754e7fd7a40739f30521",
+          "name": "活动类型",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "uba63a7866c8748da8915ce0",
+      "name": "环数标签",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "c1ebaa172cc47477d80820ad",
+          "name": "环数标签",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "x73ba0e92f4f14e48ab8471b",
+      "name": "单据类型",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "wb6d6af5af1484268af905d2",
+          "name": "单据类型",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "l829dbf4a20044693ab88cc9",
+      "name": "子公司",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "od5ddc53f7c1f43cdbfbad4d",
+          "name": "子公司名称",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "qdcc22aa399934e0b80209ff",
+      "name": "ERP商品编码",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "e2cf19230839641debd5516c",
+          "name": "ERP商品编码",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "c92a864e61a1c4a0d8fa671d",
+      "name": "批次",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "jf0f485704d9546f0a06c154",
+          "name": "批次",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "ra8865866e3f0420d84a3628",
+      "name": "spuid",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "v913152f850b44c0ca563192",
+          "name": "spuid",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "r91aebc112bac4a30bb49813",
+      "name": "厂牌",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "j15ca66a3dde4417fac8af6e",
+          "name": "厂牌",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "o77289361d4514b42a6c73c9",
+      "name": "乐药编码",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "s63da26b1d9c640259217497",
+          "name": "乐药编码",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "dfca9dc1e9e0b4388ad28078",
+      "name": "仓库名称",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "u1934cedb5f94443a8d33ae3",
+          "name": "仓库名称",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "d0c349f33cf574513b2fd071",
+      "name": "商品名称",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "jdd2df11bcea94082bab3dfa",
+          "name": "商品名称",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "tb000c70893c04608b5a9a9a",
+      "name": "通用名",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "o68030b095bc74362b0838d0",
+          "name": "通用名",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "c4b94d5e3cc3145ce8c905d1",
+      "name": "药店id",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "e5f8c7f2d4dee47139e62902",
+          "name": "药店id",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "ff17ebcf885dd4f74aaf80dd",
+      "name": "客户编码",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "j0599925ad3024ff9bcadfdb",
+          "name": "客户编码",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "cec3399458be84b7e870088b",
+      "name": "客户名称",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "i1929f755ea9a4ad2942eb94",
+          "name": "客户名称",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "i9aee01e841f1466aaa0d8c9",
+      "name": "出库单号",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "f8bac224742f84cc88d6f260",
+          "name": "出库单号",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "p0f0623b3d4494ab4b39753f",
+      "name": "药师帮ID",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "r6a9b98caaff54edfb9ae4d3",
+          "name": "药师帮ID",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "t75b519e5998f4bc7bb4ea32",
+      "name": "活动id",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "hdfe2943a3bc943a2a70e026",
+          "name": "活动id",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "s9b1e01469fe04d9f92d8657",
+      "name": "星期几（支付日期）",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "qe8863e81ec634f6bae7cb03",
+          "name": "星期几（支付日期）",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "eda7d7112113e4879b4d6fdc",
+      "name": "省份",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "p3cac7f687a804497b74b98b",
+          "name": "省份",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "h6ce185ff8f7e43bdb01efd9",
+      "name": "是否3K",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "multiSelect": false,
+      "fields": [
+        {
+          "fdId": "h904257877f094e3caa1cd17",
+          "name": "是否3K",
+          "fdType": "INT",
+          "metaType": "METRIC"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "k4d71cbc2995e4c1aa6970c3",
+      "name": "是否5W",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "multiSelect": false,
+      "fields": [
+        {
+          "fdId": "d1985e29e8b23417cb49ebbd",
+          "name": "是否5W",
+          "fdType": "INT",
+          "metaType": "METRIC"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "pdfaa321c5e2c452fbe34c7b",
+      "name": "l标签",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "qe7ee34400ec64713a829fef",
+          "name": "l标签",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "f8aa3c202c1794b76bfd3195",
+      "name": "是否3K5W",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "multiSelect": false,
+      "fields": [
+        {
+          "fdId": "e77b68810201c4b299a0bd41",
+          "name": "是否3K5W",
+          "fdType": "DOUBLE",
+          "metaType": "METRIC"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "ce6e963438c7846598be0c90",
+      "name": "运单号",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "e3cd3d2c2a2b94b19bdf9b21",
+          "name": "快递单号",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "x8337edbee1cd4e6e9c40614",
+      "name": "快递公司",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "a0870ebde255e47e6a43b289",
+          "name": "快递公司",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "me777f798301d47098f5dc25",
+      "name": "销售开票单号",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "u7dbde1e10e1c409a8154c48",
+          "name": "销售开票单号",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "v422969979441400191de89d",
+      "name": "药师帮单号",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "p762160baf41342a6ae07f72",
+          "name": "药师帮单号",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "nbe03890ec2f44aac88fbc08",
+      "name": "自动化运营标签",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "kf6e72effaae7461b90fdd90",
+          "name": "自动化运营标签",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "a27ccf75ce54548eda95e5b1",
+      "name": "品种负责人",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "ifca606d9e98e4450920afea",
+          "name": "品种负责人",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "r17a48978432c4513b2f13a2",
+      "name": "运营负责人",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "je5c9188fb5714cd09a0b42f",
+          "name": "运营负责人",
+          "fdType": "STRING",
+          "metaType": "DIM"
+        }
+      ],
+      "enabledForMainQuery": true,
+      "aliases": []
+    },
+    {
+      "cdId": "ncc0919d2482d4b119e3441a",
+      "name": "是否促销补贴",
+      "selectorType": "DS_ELEMENTS",
+      "filterType": "IN",
+      "fields": [
+        {
+          "fdId": "bb3acd2f768264c0590f79e4",
+          "name": "是否促销补贴",
+          "fdType": "STRING",
+          "metaType": "DIM",
+          "formula": "case when [促销补贴金额] > 0 then '是' else '否' end      ",
+          "calculationType": "normal"
+        }
+      ],
+      "targetField": {
+        "fdId": "bb3acd2f768264c0590f79e4",
+        "name": "是否促销补贴",
+        "fdType": "STRING",
+        "metaType": "DIM",
+        "formula": "case when [促销补贴金额] > 0 then '是' else '否' end      ",
+        "calculationType": "normal"
+      },
+      "enabledForMainQuery": true,
+      "aliases": [],
+      "annotation": "待补业务口径（sync_fields 同步）",
+      "semantic": true
+    }
+  ]
+}

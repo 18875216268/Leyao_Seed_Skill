@@ -1,0 +1,41 @@
+{
+  "skill": "leyao-seed-core",
+  "iteration": 3,
+  "note": "迭代 2（修正后全量重跑）+ 迭代 3（官方「更严格的泛化检验」：8 条全新查询，从未参与调参）。合计 28 条 × 3 次 = 84 次独立判定，全部符合预期。",
+  "history": [
+    {"iteration": 1, "set": "20 条基线", "overall": 0.9, "train": 0.833, "validation": 1.0, "positives": "10/10", "negatives": "8/10", "failures": ["n3", "n6"],
+     "action": "过触发对策（官方）：加具体性 + 说明该技能不做什么 + 厘清与相邻能力的边界；未使用失败 query 原词"},
+    {"iteration": 2, "set": "20 条基线（全量重跑）", "overall": 1.0, "train": 1.0, "validation": 1.0, "positives": "10/10", "negatives": "10/10", "failures": []},
+    {"iteration": 3, "set": "8 条全新查询（泛化检验）", "overall": 1.0, "positives": "4/4", "negatives": "4/4", "failures": []}
+  ],
+  "invocations": [
+    {"id": "p1", "run": 1, "triggered": true}, {"id": "p1", "run": 2, "triggered": true}, {"id": "p1", "run": 3, "triggered": true},
+    {"id": "p2", "run": 1, "triggered": true}, {"id": "p2", "run": 2, "triggered": true}, {"id": "p2", "run": 3, "triggered": true},
+    {"id": "p3", "run": 1, "triggered": true}, {"id": "p3", "run": 2, "triggered": true}, {"id": "p3", "run": 3, "triggered": true},
+    {"id": "p4", "run": 1, "triggered": true}, {"id": "p4", "run": 2, "triggered": true}, {"id": "p4", "run": 3, "triggered": true},
+    {"id": "p5", "run": 1, "triggered": true}, {"id": "p5", "run": 2, "triggered": true}, {"id": "p5", "run": 3, "triggered": true},
+    {"id": "p6", "run": 1, "triggered": true}, {"id": "p6", "run": 2, "triggered": true}, {"id": "p6", "run": 3, "triggered": true},
+    {"id": "p7", "run": 1, "triggered": true}, {"id": "p7", "run": 2, "triggered": true}, {"id": "p7", "run": 3, "triggered": true},
+    {"id": "p8", "run": 1, "triggered": true}, {"id": "p8", "run": 2, "triggered": true}, {"id": "p8", "run": 3, "triggered": true},
+    {"id": "p9", "run": 1, "triggered": true}, {"id": "p9", "run": 2, "triggered": true}, {"id": "p9", "run": 3, "triggered": true},
+    {"id": "p10", "run": 1, "triggered": true}, {"id": "p10", "run": 2, "triggered": true}, {"id": "p10", "run": 3, "triggered": true},
+    {"id": "n1", "run": 1, "triggered": false}, {"id": "n1", "run": 2, "triggered": false}, {"id": "n1", "run": 3, "triggered": false},
+    {"id": "n2", "run": 1, "triggered": false}, {"id": "n2", "run": 2, "triggered": false}, {"id": "n2", "run": 3, "triggered": false},
+    {"id": "n3", "run": 1, "triggered": false}, {"id": "n3", "run": 2, "triggered": false}, {"id": "n3", "run": 3, "triggered": false},
+    {"id": "n4", "run": 1, "triggered": false}, {"id": "n4", "run": 2, "triggered": false}, {"id": "n4", "run": 3, "triggered": false},
+    {"id": "n5", "run": 1, "triggered": false}, {"id": "n5", "run": 2, "triggered": false}, {"id": "n5", "run": 3, "triggered": false},
+    {"id": "n6", "run": 1, "triggered": false}, {"id": "n6", "run": 2, "triggered": false}, {"id": "n6", "run": 3, "triggered": false},
+    {"id": "n7", "run": 1, "triggered": false}, {"id": "n7", "run": 2, "triggered": false}, {"id": "n7", "run": 3, "triggered": false},
+    {"id": "n8", "run": 1, "triggered": false}, {"id": "n8", "run": 2, "triggered": false}, {"id": "n8", "run": 3, "triggered": false},
+    {"id": "n9", "run": 1, "triggered": false}, {"id": "n9", "run": 2, "triggered": false}, {"id": "n9", "run": 3, "triggered": false},
+    {"id": "n10", "run": 1, "triggered": false}, {"id": "n10", "run": 2, "triggered": false}, {"id": "n10", "run": 3, "triggered": false},
+    {"id": "f-p1", "run": 1, "triggered": true}, {"id": "f-p1", "run": 2, "triggered": true}, {"id": "f-p1", "run": 3, "triggered": true},
+    {"id": "f-p2", "run": 1, "triggered": true}, {"id": "f-p2", "run": 2, "triggered": true}, {"id": "f-p2", "run": 3, "triggered": true},
+    {"id": "f-p3", "run": 1, "triggered": true}, {"id": "f-p3", "run": 2, "triggered": true}, {"id": "f-p3", "run": 3, "triggered": true},
+    {"id": "f-p4", "run": 1, "triggered": true}, {"id": "f-p4", "run": 2, "triggered": true}, {"id": "f-p4", "run": 3, "triggered": true},
+    {"id": "f-n1", "run": 1, "triggered": false}, {"id": "f-n1", "run": 2, "triggered": false}, {"id": "f-n1", "run": 3, "triggered": false},
+    {"id": "f-n2", "run": 1, "triggered": false}, {"id": "f-n2", "run": 2, "triggered": false}, {"id": "f-n2", "run": 3, "triggered": false},
+    {"id": "f-n3", "run": 1, "triggered": false}, {"id": "f-n3", "run": 2, "triggered": false}, {"id": "f-n3", "run": 3, "triggered": false},
+    {"id": "f-n4", "run": 1, "triggered": false}, {"id": "f-n4", "run": 2, "triggered": false}, {"id": "f-n4", "run": 3, "triggered": false}
+  ]
+}

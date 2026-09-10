@@ -1,0 +1,38 @@
+{
+  "profileVersion": 1,
+  "profileId": "leyopharm-bi-operations",
+  "biBase": "https://bi.leyopharm.com",
+  "pageId": "a71ab51244ebd4a9296aa4de",
+  "cardId": "v37695c5612944a7baa0c6fa",
+  "datasetId": "ebc37edf77c8540cdad40b62",
+  "cardName": "自助查询结果-每天9点前更新至昨天数据",
+  "headers": {
+    "x-dom-id": "Z3VhbmJp",
+    "raw-backend-response": "TRUE",
+    "cache-control": "no-cache",
+    "Accept": "application/json"
+  },
+  "defaultDateFilter": {
+    "name": "出库日期",
+    "sourceCdId": "m9783f8136104467aae363d3",
+    "macroName": "本月到昨天"
+  },
+  "columnFields": [
+    {
+      "name": "度量名",
+      "metaType": "MPH",
+      "key": "uozZlpKtFkgCEzfBmCMTIPkE"
+    }
+  ],
+  "timeouts": {
+    "connectSeconds": 10,
+    "readSeconds": 130
+  },
+  "limits": {
+    "maxPage": 10000,
+    "pageSize": 100,
+    "filterValues": 1000,
+    "filterTextCharacters": 20000,
+    "outputRows": 1000
+  }
+}
