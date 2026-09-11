@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "updated": "2026-09-10",
+  "thresholds": {
+    "min_support": 2,
+    "observation": 5,
+    "demote": 2,
+    "retire": 10,
+    "core_demote": 3
+  },
+  "auto_enable": {
+    "min_traces": 40,
+    "min_active_rules": 2,
+    "exploration": false,
+    "meta_mutation": false
+  },
+  "notes": "阈值模板（默认值）：读取时与用户区 data/meta.json 的变更集深合并（用户优先），变更集只存与模板不同的键——维护者改进默认值可惠及未改过的实例。阈值修改 = 元变异（需 meta_mutation 开启 + 批准 + 审计留痕）。auto_enable 由引擎在数据充足时自动翻转（traces>=min_traces 且 active+core>=min_active_rules），翻转必写 audit.log。"
+}

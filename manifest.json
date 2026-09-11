@@ -1,12 +1,13 @@
 {
   "name": "leyao-seed-core",
-  "version": "0.5.0",
-  "updated": "2026-09-10",
+  "version": "0.6.0",
+  "updated": "2026-09-11",
   "layers": [
     { "id": "main", "path": "SKILL.md", "role": "主文档（版本与层级导航）" },
     { "id": "processor", "path": "processor/", "role": "任务处理层（五步流程 + 实时控制）" },
-    { "id": "library", "path": "library/", "role": "资产管理层（总路由地图 + 资产根 library/assets/ + 资产管理台 library/admin/ + 任意可选资产 + L0经验沉淀）" },
-    { "id": "evolution", "path": "evolution/", "role": "自我进化层（五环自举：变择行证藏 + 元层自举；含运行时状态 evolution/state/ 与证环评分 evolution/tests/）" }
+    { "id": "library", "path": "library/", "role": "资产管理层（总路由地图 + 资产根 library/assets/ + 资产管理台 library/admin/ + 任意可选资产；L0 经验沉淀在用户区 .leyao-data/）" },
+    { "id": "evolution", "path": "evolution/", "role": "自我进化层（五环自举：变择行证藏 + 元层自举；含模板 evolution/templates/ 与证环评分 evolution/tests/；运行时状态在用户区 .leyao-data/）" },
+    { "id": "version", "path": "version/", "role": "版本维护层（会话首次：宿主常驻 + 版本检测与更新；准则与流程，落地经唯一落地器；版本记录在用户区 .leyao-data/）" }
   ],
-  "notes": "版本与层级清单的权威来源；层内文件清单见各层入口文档（processor/PROCESSOR.md · library/ROUTES.md · library/admin/README.md · evolution/EVOLUTION.md）。"
+  "notes": "版本与层级清单的权威来源；层内文件清单见各层入口文档（processor/PROCESSOR.md · library/ROUTES.md · library/admin/README.md · evolution/EVOLUTION.md · version/VERSION.md）。"
 }

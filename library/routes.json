@@ -1,14 +1,50 @@
 {
   "version": 2,
-  "updated": "2026-09-10",
+  "updated": "2026-09-11",
   "nodes": [
     {
+      "id": "74rmu1",
+      "type": "Skill包",
+      "title": "GitHub网络连通",
+      "mount": "library/assets/74rmu1/",
+      "description": "需要从GitHub获取资源且网络不通时，可以通过此技能连通网络！以对GitHub进行访问。若不可用，或者此技能落后，可重新从“www.majiabin.com/AI/github-accelerator.zip”下载并解压、安装此技能后使用！",
+      "source": "C:\\Users\\zhixiaobo\\Desktop\\github-accelerator"
+    },
+    {
+      "id": "p3nes3",
+      "type": "Skill包",
+      "title": "Pms-乐药查询",
+      "mount": "library/assets/p3nes3/",
+      "description": "有任何业务数据需求时！可使用此资产。适用于各类数据查询，出库数据、促销数据以及基础数据等，按内置板块参数筛选查询，实时性较强（实时性：促销毛利＞其它板块）。但无法自定义聚合、计算数据，具体见主文档。",
+      "source": "C:\\Users\\zhixiaobo\\Desktop\\skill制作v904\\归档\\skill\\Pms_智能取数_login_v1.8.0",
+      "children": [
+        {
+          "id": "psol5x",
+          "type": "Skill包",
+          "title": "Pms-促销毛利板块",
+          "mount": "library/assets/p3nes3/vendor/optimizers/Pms_促销毛利v1.08/psol5x/",
+          "description": "Pms-乐药查询/销毛利板块定向优化！当查询的数据涉及当天或某天实时数据（精确到时分秒）、品种分层数据查询时，可优先使用此板块。具体可查询：\n1.当天汇总数据，包括含税销售、P4毛利等；\n2.当天品种明细，即各个品种汇总数据，按品种统计；\n3.当天订单明细，按订单统计，有品种、有客户，最细粒度数据；\nPs：无法查询应收边际利润数据！\n此板块无法解决时，回退到父级路由！",
+          "source": "C:\\Users\\zhixiaobo\\Desktop\\skill制作v904\\归档\\skill\\Pms_智能取数_login_v1.8.0\\vendor\\optimizers\\Pms_促销毛利v1.08"
+        }
+      ]
+    },
+    {
       "id": "i7c4z1",
-      "type": "Skill?",
+      "type": "Skill包",
       "title": "观远BI-乐药查询",
       "mount": "library/assets/i7c4z1/",
-      "description": "有任何业务数据需求时！可使用此资产。仅适用于查询当前前一天的数据，不适用实时查询当天数据！可自定义聚合。",
-      "source": "C:\\Users\\zhixiaobo\\Desktop\\skill制作v904\\归档\\skill\\Bi_智能取数_login_v1.02"
+      "description": "有任何业务数据需求时！可使用此资产。适用于各类数据查询，可自定义筛选、聚合、计算数据，但其数据只截止到前一天，时效性较滞后，具体见主文档。",
+      "source": "C:\\Users\\zhixiaobo\\Desktop\\skill制作v904\\归档\\skill\\Bi_智能取数_login_v1.02",
+      "children": [
+        {
+          "id": "h4dsa6",
+          "type": "Skill包",
+          "title": "BI-自助取数Ultra板块",
+          "mount": "library/assets/i7c4z1/vendor/optimizers/BI-出库统计Ultra查询v1.08/h4dsa6/",
+          "description": "出库统计！自定义筛选、聚合以及计算字段、指标等，万能取数端口，筛选支持批量传值，大部分取数场景适用。此板块无法解决时，回退到父级路由！",
+          "source": "C:\\Users\\zhixiaobo\\Desktop\\skill制作v904\\归档\\skill\\Bi_智能取数_login_v1.02\\vendor\\optimizers\\BI-出库统计Ultra查询v1.08"
+        }
+      ]
     }
   ]
 }

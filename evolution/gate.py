@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 import store
 
@@ -26,17 +27,24 @@ def run_checks() -> dict:
         return {"ok": False, "score": 0.0, "error": proc.stdout.decode("utf-8", "replace")[-200:]}
 
 
-def capture(paths: list) -> dict:
-    """读取当前内容（回滚依据，内存持有）。"""
-    return {str(p.relative_to(ROOT)): p.read_text(encoding="utf-8")
-            for p in paths if p.exists()}
+def capture(files: list) -> dict:
+    """读取当前内容（回滚依据，内存持有）：绝对路径键；文件不存在记 None（回滚时删除）。"""
+    snap = {}
+    for p in files:
+        snap[str(p)] = p.read_text(encoding="utf-8") if p.exists() else None
+    return snap
 
 
 def restore_files(before: dict) -> int:
-    for rel, content in before.items():
-        p = ROOT / rel
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(content, encoding="utf-8")
+    """精确回滚：有内容写回；None = 当时不存在 → 删除新建的文件。"""
+    for raw, content in before.items():
+        p = Path(raw)
+        if content is None:
+            if p.exists():
+                p.unlink()
+        else:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
     return len(before)
 
 

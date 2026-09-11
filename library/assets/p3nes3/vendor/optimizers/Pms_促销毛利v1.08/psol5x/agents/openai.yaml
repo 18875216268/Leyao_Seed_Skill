@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pms_促销毛利v1.08"
+  short_description: "按业务粒度查询、导出并专业解释 PMS 促销毛利数据"
+  default_prompt: "使用 $pms-cxml-v108 先确定返回数据、分组排序、筛选范围、完整性和交付形式，再通过筛选能力与返回字段能力的交集选择最粗充分粒度；默认查询，仅在必要时完整分页、导出或本地聚合。"

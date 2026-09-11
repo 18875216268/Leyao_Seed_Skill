@@ -1,6 +1,0 @@
-__pycache__/
-*.pyc
-.DS_Store
-# 运行时状态文件不入库（仅保留目录占位，供框架文档引用自洽）
-evolution/state/*
-!evolution/state/.gitkeep

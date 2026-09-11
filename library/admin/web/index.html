@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>资产管理台</title>
-  <link rel="stylesheet" href="/static/style.css?v=25">
+  <link rel="stylesheet" href="/static/style.css?v=28">
 </head>
 <body>
 
@@ -57,18 +57,19 @@
         <button class="modal-close" onclick="closeEdit()" title="关闭">×</button>
       </div>
       <div class="modal-body">
-        <label>1. 关联资产</label>
+        <label>1. 获取</label>
         <div class="parent-pick">
-          <input id="e-source" class="parent-input" placeholder="点击选择要关联的资产文件夹…" autocomplete="off" spellcheck="false">
+          <input id="e-source" class="parent-input" placeholder="复制源：本机完整路径，点击选择…" autocomplete="off" spellcheck="false">
           <button type="button" class="pick-btn" onclick="pickSource()">选择</button>
         </div>
 
-        <label>2. 位置</label>
+        <label>2. 位置（归属）</label>
         <div class="parent-pick">
-          <input id="e-parent-path" class="parent-input" placeholder="点击选择候选，或直接输入路径…" autocomplete="off" spellcheck="false">
+          <input id="e-parent-path" class="parent-input" placeholder="选卡片候选，或任意文件夹（可手输）…" autocomplete="off" spellcheck="false">
           <button type="button" class="pick-btn" onclick="pickFolderNative()">选择</button>
           <div id="e-parent-drop" class="parent-drop hidden"></div>
         </div>
+        <div id="e-belong-hint" class="belong-hint"></div>
 
         <label>3. 类型</label>
         <div class="type-pick">
@@ -81,8 +82,6 @@
 
         <label>5. 描述</label>
         <textarea id="e-desc" placeholder="这个卡片是做什么的…"></textarea>
-
-        <div id="e-msg" class="msg"></div>
       </div>
       <div class="modal-foot">
         <button class="primary" id="e-save" onclick="saveEdit()">保存</button>
@@ -109,8 +108,23 @@
     </div>
   </div>
 
-  <div id="toast" class="toast hidden"></div>
+  <!-- 孤儿资产处理弹窗 -->
+  <div id="orphan-modal" class="modal hidden">
+    <div class="card stack confirm-card">
+      <div class="modal-head">
+        <div class="modal-title">孤儿资产（未被任何卡片挂载）</div>
+        <button class="modal-close" onclick="closeOrphans()" title="关闭">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="confirm-text">可挂成一张卡片，或删除目录（仅限资产根内、未被挂载引用的目录；删除需再点一次确认）。</p>
+        <div id="orphan-list"></div>
+      </div>
+    </div>
+  </div>
 
-  <script src="/static/app.js?v=42"></script>
+  <!-- 通知消息容器（右上角；由 app.js 的通知模块维护） -->
+  <div id="toast-box" class="toast-box" aria-live="polite"></div>
+
+  <script src="/static/app.js?v=46"></script>
 </body>
 </html>

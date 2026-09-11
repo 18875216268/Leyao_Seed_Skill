@@ -5,15 +5,20 @@
 - 引擎（engine）持有唯一事实源 routes.json，并提供唯一写路径 commit 与节点规则；
   本文件只提供"HTTP 适配 + 资产搬运"，不复制引擎逻辑、不自行加锁落盘。
 - 资产根为 library/assets/（"主页"）；节点挂载一律落在其下。
+- 管理台语义「位置即归属」：归属由位置推导（engine.nearest_card 取最近一层卡片）；
+  改位置 = 搬移（卡片 + 资产目录，含子树联动：子卡片目录随走、其 mount 前缀同步改写）。
 - 写操作统一走引擎 `commit`（内含跨进程写锁 + 原子落盘 + 渲染 + 校验），与 CLI 并发安全共存。
 
 接口：
   GET    /api/tree                          路由树 + 类型登记表 + 契约问题 + 孤儿资产
-  POST   /api/node                          op=add|update（含关联复制/位置移动）
+  GET    /api/exists?path=<本机路径>          复制源存在性探测（打开编辑弹窗时用）
+  GET    /api/belong?mount=<挂载路径>         按位置求归属（最近一层卡片 id；空 = 主页顶层）
+  POST   /api/node                          op=add|update（归属由位置推导；含获取复制 / 位置搬移 / 子树联动）
   POST   /api/render                        重绘 ROUTES.md
   GET    /api/pick-folder                   探针（就绪检查）
   POST   /api/pick-folder                   调起本机原生文件夹对话框
   DELETE /api/node?id=<id>[&purge=1]        删除节点（purge=1 同时删除其资产目录）
+  DELETE /api/orphan?path=<挂载路径>         删除孤儿资产目录（限资产根内、未被挂载引用）
 """
 from __future__ import annotations
 
@@ -69,8 +74,8 @@ def _copy_into(source_abs: str, mount: str):
     return True, ""
 
 
-def _clear_dir(mount: str):
-    """清空挂载目录下的内容（保留目录本身）。"""
+def _clear_dir(mount: str, keep=frozenset()):
+    """清空挂载目录下的内容（保留目录本身；keep 指定的子项名跳过——用于保护子卡片目录）。"""
     if not mount:
         return
     try:
@@ -80,6 +85,8 @@ def _clear_dir(mount: str):
     if not p.exists() or not p.is_dir():
         return
     for child in list(p.iterdir()):
+        if child.name in keep:
+            continue
         try:
             if child.is_dir():
                 shutil.rmtree(child)
@@ -99,6 +106,26 @@ def _drop_if_empty(mount: str):
             p.rmdir()
     except Exception:  # noqa: BLE001
         pass
+
+
+def _drop_empty_parents(mount: str):
+    """从旧挂载目录起向上回收空目录（限资产根内）：清掉移动后遗留的中间层壳目录。"""
+    if not mount:
+        return
+    try:
+        p = safe_target(mount)
+    except ValueError:
+        return
+    root = ASSETS.resolve()
+    while p != root and root in p.resolve().parents:
+        if p.exists():
+            try:
+                if not p.is_dir() or any(p.iterdir()):
+                    break
+                p.rmdir()
+            except OSError:
+                break
+        p = p.parent
 
 
 def _has_assets(mount: str) -> bool:
@@ -134,23 +161,47 @@ def _same_path(a_abs: str, mount: str) -> bool:
 
 
 def _move_assets(old_mount: str, new_mount: str):
-    """把旧挂载目录下的资产移动到新挂载目录（同名冲突则跳过，最后清理空旧目录）。"""
+    """把旧挂载目录下的资产移动到新挂载目录（同名冲突则跳过，最后清理空旧目录）。
+
+    返回「因目标同名已存在而未搬走」的子项名集合（供子树 mount 改写避让）。
+    """
+    skipped = set()
     if not old_mount or not new_mount or old_mount == new_mount:
-        return
+        return skipped
     try:
         old = safe_target(old_mount)
         new = safe_target(new_mount)
     except ValueError:
-        return
+        return skipped
     if not old.exists() or not old.is_dir():
-        return
+        return skipped
     new.mkdir(parents=True, exist_ok=True)
     for child in list(old.iterdir()):
         dst = new / child.name
         if dst.exists():
+            skipped.add(child.name)
             continue
         shutil.move(str(child), str(dst))
     _drop_if_empty(old_mount)
+    return skipped
+
+
+def _descendants(node, old_mount: str):
+    """节点子树中位于旧位置内的子卡片：返回 [(节点, 相对路径, 首段名)]。
+
+    位置即归属 ⇒ 子卡片目录必在父卡片目录内；搬移 / 槽位重置 / mount 前缀改写三处共用。
+    """
+    old = engine.norm_mount(old_mount)
+    out = []
+    if not old:
+        return out
+    for sub, _ in engine.iter_nodes(node.get("children") or []):
+        m = engine.norm_mount(sub.get("mount"))
+        if m and engine.mount_under(m, old):
+            rel = m[len(old) + 1:]
+            if rel:
+                out.append((sub, rel, rel.split("/")[0]))
+    return out
 
 
 def _rmtree_long(path: Path):
@@ -218,44 +269,71 @@ def pick_folder(initial: str = "", mode: str = "dest"):
 
 # ---------- 业务：增 / 改 / 删 / 渲染 ----------
 
-def add_node(parent, id_, type_, title, mount, description=None, source=None):
+def add_node(id_, type_, title, mount, description=None, source=None):
+    """新增卡片：位置即归属（归属由位置推导）；获取 = 复制源复制；位置空 → 默认主页。"""
     node = {"id": id_, "type": (type_ or "").strip(), "title": title}
-    if mount:
-        node["mount"] = mount
+    m = (mount or "").strip() or engine.ASSETS_MOUNT + id_ + "/"
+    node["mount"] = m
     if description:
         node["description"] = description
     if source:
         node["source"] = source
 
     def mutate(data):
+        parent = engine.nearest_card(data, m)             # 位置即归属
         ok, msg = engine.node_check(data, parent, node)   # 先校验，再搬运资产
         if not ok:
             return False, msg
         if source:
-            ok, msg = _copy_into(source, mount or "")
+            ok, msg = _copy_into(source, m)
             if not ok:
                 return False, msg
+        else:
+            try:                                          # 占位：卡片槽位先就绪（无源可复制时）
+                safe_target(m).mkdir(parents=True, exist_ok=True)
+            except ValueError:
+                return False, f"挂载路径越界: {m}"
         return engine.node_add(data, parent, node)
 
     return engine.commit(mutate)
 
 
+def _parent_of(nodes, nid, pid=""):
+    """节点当前所在父 id（顶层为 ""）。"""
+    for n in nodes or []:
+        if n.get("id") == nid:
+            return pid
+        hit = _parent_of(n.get("children") or [], nid, n.get("id"))
+        if hit is not None:
+            return hit
+    return None
+
+
 def update_node(id_, title, mount, description=None, type_=None, source=None):
+    """位置即归属：归属由位置推导；改位置 = 搬移（含子树联动）；改获取 = 重置槽位为复制源。"""
     def mutate(data):
         n = engine.find(data, id_)
         if not n:
             return False, "节点不存在"
         old_mount = n.get("mount") or ""
         old_source = n.get("source") or ""
+        # 位置：缺省 = 不动；空值 = 默认主页（<资产根>/<卡片id>/）
+        new_mount = old_mount if mount is None else ((mount or "").strip() or engine.ASSETS_MOUNT + id_ + "/")
+        if engine.mount_under(new_mount, old_mount):
+            return False, "位置不能在本卡片自己的目录内（会自我嵌套）"
+        # ① 位置即归属：推导目标父（最近一层卡片）→ 变了就移树（含成环校验，失败整单放弃）
+        want_parent = engine.nearest_card(data, new_mount, exclude_id=id_) if new_mount else ""
+        if want_parent != (_parent_of(data.get("nodes"), id_) or ""):
+            ok, msg = engine.node_move(data, id_, want_parent)
+            if not ok:
+                return False, msg
+        # ② 字段写入
         if title:
             n["title"] = title
         if type_ is not None and str(type_).strip():
             n["type"] = str(type_).strip()
         if mount is not None:
-            if mount:
-                n["mount"] = mount
-            else:
-                n.pop("mount", None)
+            n["mount"] = new_mount
         if description is not None:
             if description:
                 n["description"] = description
@@ -266,31 +344,43 @@ def update_node(id_, title, mount, description=None, type_=None, source=None):
                 n["source"] = source
             else:
                 n.pop("source", None)
-
-        new_mount = n.get("mount") or ""
         new_source = n.get("source") or ""
         # 「来源 = 自身位置」不算改动（原位置丢失后回退显示的就是它自身，避免误清空）
         source_is_self = bool(new_source) and bool(old_mount) and _same_path(new_source, old_mount)
         source_changed = bool(new_source) and new_source != old_source and not source_is_self
-
-        if source_changed:
-            # 改关联资产 → 清空「现有位置」下的资产，再把新关联资产复制到目标位置
-            if old_mount and not _same_as_target(new_source, old_mount):
-                _clear_dir(old_mount)
-                if old_mount != new_mount:
-                    _drop_if_empty(old_mount)
-            if new_mount and not _same_as_target(new_source, new_mount):
+        mount_changed = engine.norm_mount(new_mount) != engine.norm_mount(old_mount)
+        kids = _descendants(n, old_mount)                     # 子卡片目录（搬移/重置/改写共用）
+        keep = {top for _, _, top in kids}
+        # ③ 资产搬运：改位置 = 移动（含子卡片目录）；改获取 = 重置槽位为复制源
+        if mount_changed:
+            moved = _has_assets(old_mount)
+            skipped = _move_assets(old_mount, new_mount) if moved else set()
+            if source_changed and not _same_as_target(new_source, new_mount):
+                _clear_dir(new_mount, keep)                   # 重置槽位：只清自己的旧内容，保留子卡片目录
                 ok, msg = _copy_into(new_source, new_mount)
                 if not ok:
                     return False, msg
-        elif new_mount and new_mount != old_mount:
-            # 改位置 → 移动原有资产到新位置；原位置没有资产才从关联资产复制
-            if _has_assets(old_mount):
-                _move_assets(old_mount, new_mount)
-            elif new_source:
-                ok, msg = _copy_into(new_source, new_mount)
+            elif not moved and new_source and not source_is_self:
+                ok, msg = _copy_into(new_source, new_mount)   # 原位置无资产 → 从复制源取
                 if not ok:
                     return False, msg
+            try:                                              # 槽位占位：挂载目录必须存在（防死链）
+                safe_target(new_mount).mkdir(parents=True, exist_ok=True)
+            except ValueError:
+                pass
+            # ④ 子树联动：子卡片 mount 前缀改写（未被搬走的跳过：目录仍在原处）
+            old_p, new_p = engine.norm_mount(old_mount), engine.norm_mount(new_mount)
+            if old_p and new_p:
+                for sub, rel, top in kids:
+                    if top in skipped:
+                        continue
+                    sub["mount"] = new_p + "/" + rel + "/"
+            _drop_empty_parents(old_mount)
+        elif source_changed and not _same_as_target(new_source, new_mount):
+            _clear_dir(old_mount, keep)                       # 重置槽位：只清自己的旧内容，保留子卡片目录
+            ok, msg = _copy_into(new_source, new_mount)
+            if not ok:
+                return False, msg
         return True, ""
 
     return engine.commit(mutate)
@@ -313,9 +403,35 @@ def remove_node(id_, purge: bool = False):
                         target.unlink()
                 except ValueError:
                     pass
+                _drop_empty_parents(mount)
         return True, ""
 
     return engine.commit(mutate)
+
+
+def remove_orphan(mount: str):
+    """删除孤儿资产目录：限资产根内、且当前未被任何卡片挂载引用（服务端双重复核）。"""
+    if not mount:
+        return False, "缺少 path"
+    try:
+        target = safe_target(mount)
+    except ValueError:
+        return False, "路径越界"
+    assets = ASSETS.resolve()
+    if not (target.resolve() == assets or assets in target.resolve().parents) or target.resolve() == assets:
+        return False, "只允许删除资产根 library/assets/ 内的目录"
+    used = set()
+    for n, _ in engine.iter_nodes(engine.load().get("nodes")):
+        m = (n.get("mount") or "").replace("\\", "/").rstrip("/")
+        if m:
+            used.add(m)
+    if mount.replace("\\", "/").rstrip("/") in used:
+        return False, "该目录正被卡片挂载引用，不能按孤儿删除"
+    if not target.is_dir():
+        return False, "目录不存在"
+    _rmtree_long(target)
+    _drop_empty_parents(mount)
+    return True, ""
 
 
 def do_render():
@@ -379,6 +495,17 @@ class Handler(BaseHTTPRequestHandler):
                 "issues": engine.validate(data, REPO_ROOT),
                 "orphans": engine.find_orphans(data),
             })
+        if u.path == "/api/exists":
+            qs = parse_qs(u.query)
+            p = (qs.get("path") or [""])[0]
+            try:
+                exists = bool(p) and Path(p).exists()
+            except OSError:
+                exists = False
+            return self._json({"ok": True, "exists": exists})
+        if u.path == "/api/belong":
+            qs = parse_qs(u.query)
+            return self._json({"ok": True, "id": engine.nearest_card(engine.load(), (qs.get("mount") or [""])[0])})
         if u.path == "/api/pick-folder":
             # 探针：确认接口已挂载（不弹窗）
             return self._json({"ok": True, "ready": True})
@@ -395,7 +522,7 @@ class Handler(BaseHTTPRequestHandler):
                                       body.get("description"), body.get("type"),
                                       body.get("source"))
             else:
-                ok, msg = add_node(body.get("parent", ""), body["id"], body["type"],
+                ok, msg = add_node(body["id"], body["type"],
                                    body.get("title", body["id"]),
                                    body.get("mount"),
                                    body.get("description"), body.get("source"))
@@ -417,6 +544,9 @@ class Handler(BaseHTTPRequestHandler):
             id_ = (qs.get("id") or [""])[0]
             purge = (qs.get("purge") or ["0"])[0] in ("1", "true", "yes")
             return self._json(_resp(*remove_node(id_, purge)))
+        if u.path == "/api/orphan":
+            qs = parse_qs(u.query)
+            return self._json(_resp(*remove_orphan((qs.get("path") or [""])[0])))
         return self._send(404, "not found")
 
     def log_message(self, *a):

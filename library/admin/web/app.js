@@ -32,12 +32,53 @@ async function api(path, opts) {
   const r = await fetch(path, opts || {});
   return r.json();
 }
-function toast(text) {
-  const t = document.getElementById("toast");
-  t.textContent = text;
-  t.classList.add("show");
-  clearTimeout(toast._t);
-  toast._t = setTimeout(() => t.classList.remove("show"), 2200);
+// ---------- 通知消息模块（右上角；右侧滑入 · 依次下移 · 依次右滑出；宽度随文字） ----------
+const NOTIFY_LIFE = { ok: 2600, info: 2600, warn: 5000, err: 5000 };
+const NOTIFY_MAX = 5;
+function notify(text, kind) {
+  if (!(kind in NOTIFY_LIFE)) kind = "info";
+  const box = document.getElementById("toast-box");
+  const alive = [...box.children].filter((el) => !el.dataset.leaving);
+  if (alive.length >= NOTIFY_MAX) dismissToast(alive[alive.length - 1]);   // 超限：先送走最旧一条
+  const el = document.createElement("div");
+  el.className = "toast " + kind;
+  el.textContent = text;
+  el.title = "点击关闭";
+  el.onclick = () => dismissToast(el);
+  const before = new Map();                      // FLIP：记下旧通知当前位置
+  [...box.children].forEach((c) => before.set(c, c.getBoundingClientRect().top));
+  box.prepend(el);                               // 新通知进顶部 → 旧通知依次下移
+  shiftBack(box, before);
+  void el.offsetWidth;                           // 让"界外"起始态先落地（比 rAF 稳，后台标签页也生效）
+  el.classList.add("show");                      // 从右侧边界滑入
+  el._timer = setTimeout(() => dismissToast(el), NOTIFY_LIFE[kind]);
+}
+function dismissToast(el) {
+  if (!el || el.dataset.leaving) return;
+  el.dataset.leaving = "1";
+  clearTimeout(el._timer);
+  el.classList.remove("show");                   // 向右滑出
+  setTimeout(() => {
+    const box = el.parentElement;
+    if (!box) return;
+    const before = new Map();
+    [...box.children].forEach((c) => before.set(c, c.getBoundingClientRect().top));
+    el.remove();                                 // 其余通知依次补位
+    shiftBack(box, before);
+  }, 320);
+}
+// FLIP 位移补偿：DOM 变更后用 transform 把元素"按回原位"，再释放过渡回真实位置
+function shiftBack(box, before) {
+  [...box.children].forEach((c) => {
+    if (!before.has(c)) return;
+    const dy = before.get(c) - c.getBoundingClientRect().top;
+    if (!dy) return;
+    c.style.transition = "none";
+    c.style.transform = "translateY(" + dy + "px)";
+    void c.offsetWidth;                          // 强制回流，确保起点生效
+    c.style.transition = "";
+    c.style.transform = "";
+  });
 }
 const ID_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
 function genId() {
@@ -200,7 +241,7 @@ function renderFolder() {
     warn.className = "rc-warn";
     warn.textContent = "⚠ " + orphans.length + " 个孤儿资产";
     warn.title = "未被任何卡片挂载引用：\n" + orphans.join("\n");
-    warn.onclick = () => toast("孤儿资产：" + orphans.join("、"));
+    warn.onclick = () => openOrphans();
     rc.appendChild(warn);
   }
 
@@ -211,7 +252,7 @@ function renderFolder() {
     dw.className = "rc-warn";
     dw.textContent = "⚠ " + issues.length + " 项契约问题";
     dw.title = issues.join("\n");
-    dw.onclick = () => toast("契约问题：" + issues.join("；"));
+    dw.onclick = () => notify("契约问题：" + issues.join("；"), "warn");
     rc.appendChild(dw);
   }
 
@@ -250,7 +291,7 @@ function cardEl(n, index) {
   idEl.onclick = (e) => {
     e.stopPropagation();
     if (navigator.clipboard) navigator.clipboard.writeText(n.id);
-    toast("已复制：" + n.id);
+    notify("已复制：" + n.id, "info");
   };
   const actions = document.createElement("div"); actions.className = "c-actions";
   actions.append(
@@ -299,7 +340,7 @@ function cardEl(n, index) {
 
   // 整卡点击选中（按钮已 stopPropagation）
   card.onclick = (e) => handleSelect(n.id, index, e);
-  card.ondblclick = () => { if (hasKids) enterFolder(n.id); else toast("该卡片无子项"); };
+  card.ondblclick = () => { if (hasKids) enterFolder(n.id); else notify("该卡片无子项", "info"); };
   return card;
 }
 
@@ -327,7 +368,7 @@ function syncSelectionUI() {
   });
 }
 
-// 描述弹层：半透明黑底白字，每 50 字一行
+// 描述弹层：半透明黑底白字，每 30 字一行
 function toggleDesc(n, el) {
   if (descOpenId === n.id) { hideDesc(); return; }
   if (!n.description) { return; }
@@ -354,11 +395,21 @@ document.getElementById("fab").addEventListener("click", (e) => {
   const btn = e.target.closest(".fab"); if (!btn) return;
   const act = btn.dataset.act;
   if (act === "new") openNew();
-  else if (act === "refresh") loadTree();
+  else if (act === "refresh") refreshTree();
   else if (act === "render") reRender();
 });
 
-// ---------- 卡片操作：删除 / 编辑 / 关联 ----------
+// 刷新：成功 / 失败都在右上角给出通知
+async function refreshTree() {
+  try {
+    await loadTree();
+    notify("已刷新", "ok");
+  } catch (err) {
+    notify("刷新失败：" + err, "err");
+  }
+}
+
+// ---------- 卡片操作：删除 / 编辑 / 获取 ----------
 
 // ---------- 删除：确认弹窗（可联动删除资产目录） ----------
 function delNode(id) {
@@ -377,30 +428,85 @@ function closeConfirm() {
 document.getElementById("confirm-ok").onclick = async () => {
   const id = pendingDeleteId;
   if (!id) return;
+  const n = findNode(id);
+  const keepMount = ((n && n.mount) || "").replace(/\/+$/, "");
   const purge = document.getElementById("confirm-purge").checked ? "&purge=1" : "";
   const j = await api("/api/node?id=" + encodeURIComponent(id) + purge, { method: "DELETE" });
   closeConfirm();
-  if (j.ok) { toast("已删除：" + id); selected.delete(id); await loadTree(); }
-  else toast("删除失败：" + (j.msg || ""));
+  if (j.ok) {
+    notify("已删除：" + id, "ok");
+    selected.delete(id);
+    await loadTree();
+    if (keepMount && ((TREE && TREE.orphans) || []).some((p) => p.replace(/\/+$/, "") === keepMount)) {
+      notify("⚠ 资产目录未删除，已成为孤儿：" + keepMount + "（点顶部「⚠ 孤儿资产」处理）", "warn");
+    }
+  }
+  else notify("删除失败：" + (j.msg || ""), "err");
 };
+
+// ---------- 孤儿资产：挂载为卡片 / 删除目录 ----------
+function openOrphans() {
+  const orphans = (TREE && TREE.orphans) || [];
+  if (!orphans.length) { notify("没有孤儿资产", "info"); return; }
+  const list = document.getElementById("orphan-list");
+  list.innerHTML = "";
+  orphans.forEach((p) => {
+    const row = document.createElement("div"); row.className = "orphan-row";
+    const path = document.createElement("div"); path.className = "orphan-path"; path.textContent = p;
+    const acts = document.createElement("div"); acts.className = "orphan-acts";
+    const delBtn = mkBtn("del", "删除目录", "删除该目录（需再点一次确认）", () => {
+      if (delBtn.dataset.armed !== "1") {
+        delBtn.dataset.armed = "1"; delBtn.textContent = "确认删除";
+        setTimeout(() => {
+          if (delBtn.dataset.armed === "1") { delBtn.dataset.armed = ""; delBtn.textContent = "删除目录"; }
+        }, 2600);
+        return;
+      }
+      delBtn.dataset.armed = ""; delBtn.textContent = "删除目录";
+      removeOrphan(p);
+    });
+    acts.append(mkBtn("link", "挂载为卡片", "把该目录挂成一张新卡片（标题取目录名）", () => adoptOrphan(p)), delBtn);
+    row.append(path, acts);
+    list.appendChild(row);
+  });
+  document.getElementById("orphan-modal").classList.remove("hidden");
+}
+function closeOrphans() { document.getElementById("orphan-modal").classList.add("hidden"); }
+async function adoptOrphan(p) {
+  const id = genId();
+  const name = p.replace(/\/+$/, "").split("/").pop() || id;
+  const j = await api("/api/node", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ op: "add", id, type: "公共", title: name,
+                           description: "暂无描述！请自行分析补全。", mount: p }),
+  });
+  if (j.ok) {
+    notify("已挂载为卡片：" + id + issuesNote(j), (j.issues || []).length ? "warn" : "ok");
+    closeOrphans(); await loadTree();
+  } else notify("挂载失败：" + (j.msg || ""), "err");
+}
+async function removeOrphan(p) {
+  const j = await api("/api/orphan?path=" + encodeURIComponent(p), { method: "DELETE" });
+  if (j.ok) {
+    notify("已删除孤儿目录：" + p, "ok");
+    await loadTree();
+    if (((TREE && TREE.orphans) || []).length) openOrphans(); else closeOrphans();
+  } else notify("删除失败：" + (j.msg || ""), "err");
+}
 
 // ---------- 编辑：父级选择 ----------
 
-// 父级候选（排除自身及子孙）
-function parentCandidates(id) {
+// 位置候选 = 卡片定位（排除自身及子孙）；path = 卡片真实目录（目录名=卡片id，一一对应）
+function positionCandidates(id) {
   const exclude = new Set([id]);
   const self = findNode(id);
   if (self) eachNode(self.children || [], (c) => exclude.add(c.id));
-  const list = [{ id: "", label: rootLabel() }];
+  const list = [{ id: "", path: rootLabel(), title: "" }];
   eachNode(TREE.nodes, (n) => {
     if (exclude.has(n.id)) return;
-    list.push({ id: n.id, label: parentLabel(n.id) });
+    list.push({ id: n.id, path: mountToDisplay(nodeMount(n)), title: n.title || "" });
   });
   return list;
-}
-function parentLabel(id) {
-  if (!id) return rootLabel();
-  return rootLabel() + "/" + pathTo(id).map((s) => s[1]).join("/");
 }
 function currentParentValue() {
   return document.getElementById("e-parent-path").value.trim();
@@ -410,16 +516,18 @@ function renderParentDrop(kw) {
   drop.innerHTML = "";
   const q = (kw || "").trim().toLowerCase();
   let count = 0;
-  parentCandidates(editingId).forEach((c) => {
-    if (q && !c.label.toLowerCase().includes(q)) return;
+  positionCandidates(editingId).forEach((c) => {
+    const label = c.title ? c.path + " ｜ " + c.title : c.path;
+    if (q && !label.toLowerCase().includes(q)) return;
     count++;
     const d = document.createElement("div");
-    d.className = "pd-item" + (currentParentValue() === c.label ? " active" : "");
-    d.textContent = c.label;
+    d.className = "pd-item" + (currentParentValue() === c.path ? " active" : "");
+    d.textContent = label;
     d.onclick = (e) => {
       e.stopPropagation();
-      document.getElementById("e-parent-path").value = c.label;
+      document.getElementById("e-parent-path").value = c.path;   // 卡片定位 → 落在其真实目录，归属即该卡片
       hideParentDrop();
+      updateBelongHint();
     };
     drop.appendChild(d);
   });
@@ -434,7 +542,7 @@ function hideParentDrop() { document.getElementById("e-parent-drop").classList.a
 const parentInput = document.getElementById("e-parent-path");
 parentInput.addEventListener("click", (e) => { e.stopPropagation(); renderParentDrop(""); });
 parentInput.addEventListener("focus", () => renderParentDrop(""));
-parentInput.addEventListener("input", (e) => renderParentDrop(e.target.value));
+parentInput.addEventListener("input", (e) => { renderParentDrop(e.target.value); updateBelongHint(); });
 
 // 类型输入：可输入 + 可下拉选择已有类型
 function renderTypeDrop(kw) {
@@ -468,6 +576,22 @@ typeInput.addEventListener("click", (e) => { e.stopPropagation(); renderTypeDrop
 typeInput.addEventListener("focus", () => renderTypeDrop(""));
 typeInput.addEventListener("input", (e) => renderTypeDrop(e.target.value));
 
+// ---- 归属提示：位置即归属——由位置推导最近一层卡片（唯一实现=引擎 nearest_card，经 /api/belong） ----
+let belongSeq = 0;
+async function updateBelongHint() {
+  const el = document.getElementById("e-belong-hint");
+  const seq = ++belongSeq;
+  try {
+    const m = normalizeMount(currentParentValue());
+    const j = await api("/api/belong?mount=" + encodeURIComponent(m));
+    if (seq !== belongSeq) return;                     // 快速输入：丢弃过期响应
+    const id = (j && j.ok) ? j.id : "";
+    el.textContent = "归属：" + (id ? pathTo(id).map((s) => s[1]).join(" / ") : rootLabel());
+  } catch (e) {
+    if (seq === belongSeq) el.textContent = "";
+  }
+}
+
 // 选择：调起本机原生文件夹选择弹窗，初始定位到当前卡片的资产文件夹
 function nodeMount(n) {
   if (!n) return "";
@@ -491,17 +615,18 @@ async function pickFolderNative() {
     if (j.ok && j.path) {
       document.getElementById("e-parent-path").value = mountToDisplay(j.path);
       hideParentDrop();
-      toast("位置：" + mountToDisplay(j.path));
+      updateBelongHint();
+      notify("位置：" + mountToDisplay(j.path), "info");
     } else {
-      toast(j.msg || "未选择文件夹");
+      notify(j.msg || "未选择文件夹", "warn");
     }
   } catch (e) {
-    toast("打开文件夹对话框失败：" + e);
+    notify("打开文件夹对话框失败：" + e, "err");
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = "选择"; }
   }
 }
-// 关联资产：选择来源文件夹（任意本机位置；确认时仅复制，不改原件）
+// 获取（复制源）：选择来源文件夹（任意本机位置；只复制，不改源）
 async function pickSource() {
   const cur = document.getElementById("e-source").value.trim();
   const btn = pickBtnOf("e-source");
@@ -513,12 +638,12 @@ async function pickSource() {
     });
     if (j.ok && j.path) {
       document.getElementById("e-source").value = j.path;
-      toast("已关联：" + j.path);
+      notify("已获取：" + j.path, "info");
     } else {
-      toast(j.msg || "未选择文件夹");
+      notify(j.msg || "未选择文件夹", "warn");
     }
   } catch (e) {
-    toast("打开文件夹对话框失败：" + e);
+    notify("打开文件夹对话框失败：" + e, "err");
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = "选择"; }
   }
@@ -561,30 +686,37 @@ function openNew() {
   document.getElementById("e-save").textContent = "确认";
   const src = document.getElementById("e-source");
   src.value = "";
-  // 默认位置 = 当前所在文件夹的位置（在哪添加就默认放哪）
-  const cur = currentParent ? findNode(currentParent) : null;
-  document.getElementById("e-parent-path").value = cur ? mountToDisplay(nodeMount(cur)) : rootLabel();
+  // 位置默认 = 当前所在文件夹（在哪添加就归到哪）；归属由位置推导（保存时引擎落定）
+  document.getElementById("e-parent-path").value =
+    mountToDisplay(currentParent ? nodeMount(findNode(currentParent)) : MOUNT_PREFIX);
   document.getElementById("e-type").value = "公共";
   const t = document.getElementById("e-title");
-  t.value = ""; t.placeholder = "留空则自动使用关联文件夹名";
+  t.value = ""; t.placeholder = "留空则自动使用复制源文件夹名";
   const d = document.getElementById("e-desc");
   d.value = ""; d.placeholder = "暂无描述！请自行分析补全。";
-  document.getElementById("e-msg").textContent = "";
   hideParentDrop(); hideTypeDrop();
+  updateBelongHint();
   document.getElementById("edit-modal").classList.remove("hidden");
 }
 
-function openEdit(id) {
+async function openEdit(id) {
   const n = findNode(id); if (!n) return;
   editMode = "edit";
   editingId = id;
   editOriginalMount = n.mount || "";
   document.getElementById("edit-title").textContent = "编辑卡片";
   document.getElementById("e-save").textContent = "保存";
-  // 关联资产：显示本机完整路径；若原位置已丢失 → 回退为当前位置资产的本机完整路径
+  // 获取（复制源）：显示本机完整路径；打开时探测，源不存在 → 自动指向本卡片当前资产目录
   const srcEl = document.getElementById("e-source");
   let srcVal = n.source || "";
-  if (!srcVal || !n.source_exists) {
+  let srcOk = !!n.source_exists;
+  if (srcVal) {
+    try {
+      const p = await api("/api/exists?path=" + encodeURIComponent(srcVal));
+      srcOk = !!(p && p.ok && p.exists);
+    } catch (e) { /* 探测失败：按最近一次加载的标注 */ }
+  }
+  if (!srcVal || !srcOk) {
     const m = n.mount || "";
     if (m) srcVal = absPathOf(m);
   }
@@ -596,8 +728,8 @@ function openEdit(id) {
   t.value = n.title || ""; t.placeholder = "卡片名称";
   const d = document.getElementById("e-desc");
   d.value = n.description || ""; d.placeholder = "这个卡片是做什么的…";
-  document.getElementById("e-msg").textContent = "";
   hideParentDrop(); hideTypeDrop();
+  updateBelongHint();
   document.getElementById("edit-modal").classList.remove("hidden");
 }
 function closeEdit() {
@@ -615,7 +747,8 @@ function positionOf(n) {
 }
 // 计算目标挂载目录 = 位置 + 卡片id（id 即资产文件夹名，天然唯一）
 function destMount(id) {
-  const base = normalizeMount(document.getElementById("e-parent-path").value.trim());
+  let base = normalizeMount(document.getElementById("e-parent-path").value.trim());
+  if (!base) base = MOUNT_PREFIX;                    // 位置留空 = 默认主页
   // 编辑且位置未改动 → 保持原挂载不动（幂等）
   if (editMode === "edit" && base === editBaseMount && editOriginalMount) return editOriginalMount;
   const b = base.replace(/\/+$/, "");
@@ -632,13 +765,13 @@ async function saveEdit() {
   const srcName = source ? source.replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop() : "";
 
   if (editMode === "new") {
-    if (!source) { showText("e-msg", "请先关联资产（必填）", "err"); return; }
+    if (!source) { notify("请先获取复制源（必填）", "warn"); return; }
     const id = genId();
     const mount = destMount(id);
     const j = await api("/api/node", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        op: "add", parent: currentParent, id,
+        op: "add", id,
         type: type || "公共",
         title: title || srcName || "待命名",
         description: description || "暂无描述！请自行分析补全。",
@@ -647,9 +780,9 @@ async function saveEdit() {
       }),
     });
     if (j.ok) {
-      toast("已新增：" + id + issuesNote(j));
+      notify("已新增：" + id + issuesNote(j), (j.issues || []).length ? "warn" : "ok");
       closeEdit(); selected.clear(); selected.add(id); await loadTree();
-    } else showText("e-msg", "新增失败：" + (j.msg || ""), "err");
+    } else notify("新增失败：" + (j.msg || ""), "err");
     return;
   }
 
@@ -661,22 +794,23 @@ async function saveEdit() {
       op: "update", id, title, description, type, source, mount,
     }),
   });
-  if (j.ok) { toast("已保存" + issuesNote(j)); closeEdit(); selected.clear(); await loadTree(); }
-  else showText("e-msg", "保存失败：" + (j.msg || ""), "err");
+  if (j.ok) { notify("已保存" + issuesNote(j), (j.issues || []).length ? "warn" : "ok"); closeEdit(); selected.clear(); await loadTree(); }
+  else notify("保存失败：" + (j.msg || ""), "err");
 }
 
 // ---------- 公共 ----------
 async function reRender() {
-  const j = await api("/api/render", { method: "POST" });
-  if (j.ok) toast("ROUTES.md 已重绘");
+  try {
+    const j = await api("/api/render", { method: "POST" });
+    if (j.ok) notify("ROUTES.md 已重绘" + issuesNote(j), (j.issues || []).length ? "warn" : "ok");
+    else notify("重绘失败：" + (j.msg || ""), "err");
+  } catch (err) {
+    notify("重绘失败：" + err, "err");
+  }
 }
 // 写操作返回的契约问题清单 → 提示后缀
 function issuesNote(j) {
   const d = (j && j.issues) || [];
   return d.length ? "（⚠ " + d.length + " 项契约问题）" : "";
 }
-function showText(elId, text, cls) {
-  const el = document.getElementById(elId); el.className = "msg " + (cls || ""); el.textContent = text;
-}
-
-loadTree();
+loadTree().catch((err) => notify("加载失败：" + err, "err"));

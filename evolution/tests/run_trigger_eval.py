@@ -10,7 +10,7 @@
 
 本脚本只做两件事，不绑定任何客户端：
 1. `--emit-prompt`：按当前 SKILL.md 的真实 name/description 打印探测提示词（逐条跑时原样投喂）。
-2. 汇总 `trigger_results.json`：算触发率、判定通过、分 train/validation 与正/负例统计，按阈值给退出码。
+2. 汇总触发记录（用户区 `data/state/trigger_results.json`）：算触发率、判定通过、分 train/validation 与正/负例统计，按阈值给退出码。
 
 用法：
   python evolution/tests/run_trigger_eval.py                 # 汇总已有结果
@@ -29,8 +29,12 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]                       # evolution/tests/ → 框架根
+
+sys.path.insert(0, str(ROOT / "evolution"))
+import paths  # noqa: E402  （导入即初始化用户区）
+
 QUERIES = HERE / "trigger_queries.json"
-RESULTS = HERE / "trigger_results.json"
+RESULTS = paths.TRIGGER_RESULTS_F            # 用户区记录（不进交付；LEYAO_SEED_HOME 可覆盖）
 
 
 def load_queries() -> dict:
@@ -80,7 +84,7 @@ def cmd_emit_prompt() -> int:
         return 1
     print(PROMPT.format(name=name, desc=desc, query="<把待测 query 原样放这里>"))
     print("\n[trigger] 判定口径：回复含 SKILL: %s → 视为触发；含 NONE → 未触发。" % name)
-    print("[trigger] 每条 query 跑 %d 次，结果逐条写入 %s" % (load_queries()["runs_per_query"], RESULTS.name))
+    print("[trigger] 每条 query 跑 %d 次，结果逐条写入 %s" % (load_queries()["runs_per_query"], RESULTS))
     return 0
 
 
@@ -88,7 +92,7 @@ def summarize(min_pass: float) -> int:
     spec = load_queries()
     res = load_results()
     if res is None:
-        print("[trigger] 尚无结果文件 %s——先用 --emit-prompt 逐条跑，再把结果写回该文件" % RESULTS.name)
+        print("[trigger] 尚无结果文件 %s——先用 --emit-prompt 逐条跑，再把结果写回该文件" % RESULTS)
         return 2
 
     name, _ = skill_identity()

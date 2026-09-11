@@ -615,11 +615,6 @@ textarea { resize: vertical; }
 .row button.primary { background: var(--accent); color: #fff; }
 .row button.primary:hover { background: #2b5be0; }
 
-.msg { margin-top: 12px; font-size: 12.5px; line-height: 1.5; }
-.msg.ok { color: #0a8c66; }
-.msg.err { color: #c0392b; }
-.msg.warn { color: #b9770e; }
-
 /* ---- 父级：路径输入框 + 选择按钮 + 下拉 ---- */
 .parent-pick { position: relative; display: flex; gap: 8px; }
 .type-pick { position: relative; }
@@ -674,29 +669,86 @@ textarea { resize: vertical; }
 .parent-drop .pd-item:hover { background: #f5f7fa; }
 .parent-drop .pd-item.active { background: var(--accent-light); color: var(--accent); font-weight: 600; }
 
+/* ---- 位置下方：归属提示（位置即归属的可见反馈，由引擎推导） ---- */
+.belong-hint {
+    margin-top: 5px;
+    font-size: 11px;
+    color: var(--text-3);
+    min-height: 14px;
+}
+
 /* ---- 删除确认弹窗（复用 stack 布局，宽度自适应文字） ---- */
 #confirm-modal .card { width: fit-content; min-width: 200px; max-width: 88vw; }
 .confirm-text { color: var(--text-1); font-size: 13px; line-height: 1.7; margin: 0; }
+
+/* ---- 孤儿资产处理（弹窗内列表） ---- */
+#orphan-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 46vh;
+    overflow-y: auto;
+    margin-top: 10px;
+}
+.orphan-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: space-between;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 10px;
+}
+.orphan-path {
+    flex: 1;
+    min-width: 0;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 11px;
+    color: var(--text-2);
+    word-break: break-all;
+}
+.orphan-acts { display: flex; gap: 6px; flex-shrink: 0; }
 /* 右下删除按钮：默认浅红底白字，悬浮/点击正红底白字 */
 .modal .card.stack .modal-foot button.del { background: #f0938a; color: #fff; }
 .modal .card.stack .modal-foot button.del:hover,
 .modal .card.stack .modal-foot button.del:active { background: #e74c3c; color: #fff; }
 
-.toast {
+/* ================= 通知消息（右上角：右侧滑入 · 依次下移 · 依次右滑出；宽度随文字） ================= */
+.toast-box {
     position: fixed;
-    right: 14px;
-    top: 14px;
-    transform: translateX(18px);
-    background: rgba(26, 26, 26, .86);
-    color: #fff;
-    padding: 8px 14px;
-    border-radius: 999px;
-    font-size: 12px;
-    z-index: 999;
-    opacity: 0;
+    top: 16px;
+    right: 16px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
     pointer-events: none;
-    transition: opacity .22s, transform .22s;
-    white-space: nowrap;
+}
+.toast {
+    pointer-events: auto;
+    cursor: pointer;
+    width: max-content;                            /* 宽度随文字：短句即窄、长句到上限才换行 */
+    max-width: min(74vw, 460px);
+    background: rgba(26, 26, 26, .9);
+    color: #fff;
+    padding: 9px 14px;
+    border-radius: 10px;
+    border-left: 3px solid #7aa2ff;
+    font-size: 12.5px;
+    line-height: 1.55;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+    opacity: 0;
+    transform: translateX(calc(100% + 24px));      /* 起始：右侧边界之外 */
+    transition: transform .3s cubic-bezier(.22, .9, .3, 1), opacity .3s;
 }
 .toast.show { opacity: 1; transform: translateX(0); }
+.toast.ok   { border-left-color: #34c38f; }
+.toast.warn { border-left-color: #f0a93b; }
+.toast.err  { border-left-color: #ff6b5e; }
+.toast.info { border-left-color: #7aa2ff; }
+.toast.ok::before   { content: "✓"; margin-right: 7px; color: #34c38f; }
+.toast.warn::before { content: "⚠"; margin-right: 7px; color: #f0a93b; }
+.toast.err::before  { content: "✕"; margin-right: 7px; color: #ff6b5e; }
+.toast.info::before { content: "•"; margin-right: 7px; color: #7aa2ff; }
 .hidden { display: none !important; }

@@ -5,7 +5,8 @@
 ## 调用链（任务处理层与资产管理层的关系）
 
 ```text
-任务 → 读 library/ROUTES.md（总路由地图）→ 按节点描述匹配场景，定位可用资产（无资产也照常推进）
+任务 → 会话首次：按 version/VERSION.md 检查（宿主常驻 + 版本；异步、失败降级）
+    → 读 library/ROUTES.md（总路由地图）→ 按节点描述匹配场景，定位可用资产（无资产也照常推进）
     → 五步流程推进（flow/1~5，判据自带）→ 全程 control.md 纠偏
     → 执行步：命中资产则进其挂载目录读 SKILL.md／README.md 原样调用；无命中按 flow 自带判据自做
     → 交付后：`grow.py trace` 追加轨迹（`--routed` 写命中节点 id / 无命中写 none）；缺能力用 `grow.py propose` 提案
@@ -45,4 +46,5 @@
 ## 与其他层的边界
 
 - 本层只做**编排与执行**，不维护路由与资产内容（那是资产管理层（`library/`）的职责，增删改走 `engine.py`）。
-- 经验沉淀不做静默自改——走自我进化层两档：`library/.memory.md` 自动档与提案守门（见 `evolution/EVOLUTION.md`）。
+- 经验沉淀不做静默自改——走自我进化层两档：用户区记忆（`.leyao-data/data/memory.md`）自动档与提案守门（内容类仅维护者实例，见 `evolution/EVOLUTION.md`）。
+- 版本与更新：属**版本维护层**（`version/VERSION.md`）——会话首次检查（宿主常驻 + 版本）；其落地经自我进化层唯一落地器（提案 + apply）。

@@ -13,6 +13,7 @@
 
 所有输出均为 JSON（AI 易读）。trace 时自动匹配 active/core 规则记账（hit_rules），
 并在数据充足时自动开启主动探索与元变异（翻转写审计）。
+数据落点：用户区（与 skill 同级 `.leyao-data/`，见 evolution/EVOLUTION.md）；包内只读。
 """
 from __future__ import annotations
 
@@ -28,6 +29,7 @@ import distiller  # noqa: E402
 import gate  # noqa: E402
 import actions  # noqa: E402
 import store  # noqa: E402
+import paths  # noqa: E402
 
 
 def out(data) -> None:
@@ -116,7 +118,9 @@ def cmd_status(_args) -> int:
             tr["total"], ae.get("min_traces", 40), active_count, ae.get("min_active_rules", 2))},
         "library_health": {"ok": not health, "findings": health},
         "exploration": {"enabled": bool(ae.get("exploration")), "signal": explore_hint},
-        "memory_file": "library/.memory.md",
+        "memory_file": str(store.MEMORY_F),
+        "user_area": str(paths.HOME),
+        "role": "maintainer" if paths.maintainer() else "user",
         "checks": {"ok": gate.run_checks().get("ok")},
     })
     return 0
@@ -161,8 +165,8 @@ def main() -> int:
     sub.add_parser("evolve", help="择：候选 → 变异（自动档落地 / 提案）")
     p_prop = sub.add_parser("propose", help="择：构造动作类变异提案（待用户批准）")
     p_prop.add_argument("--kind", required=True,
-                        choices=["route_update", "asset_write", "meta_update", "core_demote"],
-                        help="route_update=路由 / asset_write=资产内容 / meta_update=阈值 / core_demote=规则降级")
+                        choices=["route_update", "asset_write", "meta_update", "core_demote", "framework_update"],
+                        help="route_update=路由 / asset_write=资产内容 / meta_update=阈值 / core_demote=规则降级 / framework_update=整包更新")
     p_prop.add_argument("--payload", required=True, help="JSON 负载，如 {\"cmd\":\"add\",\"args\":[\"--id\",\"x\"]}")
     p_rej = sub.add_parser("reject", help="择：否决提案（关闭 pending，留审计）")
     p_rej.add_argument("--id", required=True)

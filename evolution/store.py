@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """经验库（store）：规则状态机 + 墓碑 + 轨迹 + 记忆读写 + 提案 + 审计。
 
-自我进化层唯一数据落点，全部原子写。规则状态机：
-  candidate → active → core / demoted → retired(墓碑)。
-记忆文件 library/.memory.md 四段与状态一一对应（见 EVOLUTION.md）。
+唯一数据落点 = **用户区**（与 skill 同级 `.leyao-data/`，由 `paths.py` 解析；包内只读），全部原子写。
+规则状态机：candidate → active → core / demoted → retired(墓碑)。
+记忆文件 `data/memory.md` 四段与状态一一对应（见 EVOLUTION.md）。
 """
 from __future__ import annotations
 
@@ -11,16 +11,20 @@ import datetime
 import hashlib
 import json
 import os
+import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-STATE = ROOT / "evolution" / "state"   # 本层运行时数据（规则/墓碑/棘轮/轨迹/提案/审计）
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import paths  # noqa: E402  （导入即初始化用户区：配置/记忆播种，幂等）
+
+ROOT = paths.SKILL_ROOT                # 包根（资产层/引擎引用它）
+STATE = paths.STATE_D                  # 用户区运行态（轨迹/规则/棘轮/审计/提案）
 TRACES_F = STATE / "traces.json"
 EXP_F = STATE / "experience.json"
 RATCHET_F = STATE / "ratchet.json"
-AUDIT_F = STATE / "audit.log"
-PROPOSALS_D = STATE / "proposals"
-MEMORY_F = ROOT / "library" / ".memory.md"
+AUDIT_F = paths.AUDIT_F
+PROPOSALS_D = paths.PROPOSALS_D
+MEMORY_F = paths.MEMORY_F
 
 MAX_TRACES = 200
 MEMORY_SECTIONS = ("失效模式", "有效做法", "待验证", "墓碑")
@@ -48,6 +52,31 @@ def load_json(path: Path, default):
         except json.JSONDecodeError:
             pass
     return default
+
+
+# ---------- 深合并 / 差分（meta 的"覆盖式读取 + 变更集写入"共用） ----------
+
+def deep_merge(base, override):
+    """深合并：override 优先；同为 dict 递归，其余直接覆盖。"""
+    out = dict(base) if isinstance(base, dict) else {}
+    for k, v in (override or {}).items():
+        out[k] = deep_merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
+def deep_diff(base, merged):
+    """merged 相对 base 的差异：只保留"与默认不同"的键（变更集写入的唯一实现）。"""
+    out = {}
+    for k, v in (merged or {}).items():
+        if k not in base:
+            out[k] = v
+        elif isinstance(v, dict) and isinstance(base[k], dict):
+            sub = deep_diff(base[k], v)
+            if sub:
+                out[k] = sub
+        elif v != base[k]:
+            out[k] = v
+    return out
 
 
 def rule_id(kind: str, pattern, target: str) -> str:
@@ -147,7 +176,10 @@ def retire_rule(rid: str, reason: str):
 # ---------- 记忆（L0，唯一自动写区） ----------
 
 def memory_read() -> str:
-    return MEMORY_F.read_text(encoding="utf-8") if MEMORY_F.exists() else ""
+    """读用户区记忆；文件缺失时回落模板（自愈：写入会按模板重建）。"""
+    if MEMORY_F.exists():
+        return MEMORY_F.read_text(encoding="utf-8")
+    return paths.TPL_MEMORY.read_text(encoding="utf-8") if paths.TPL_MEMORY.exists() else ""
 
 
 def _section_bounds(lines: list, section: str):
@@ -175,7 +207,7 @@ def memory_put(section: str, rule: dict) -> bool:
 
 
 def memory_scrub(rid: str) -> bool:
-    """从所有段移除该 id 的条目（降级/淘汰/迁移时用）；段被清空则回落「（无）」占位。"""
+    """从所有段移除该 id 的条目（降级 / 淘汰 / 状态迁移时用）；段被清空则回落「（无）」占位。"""
     lines = memory_read().splitlines()
     kept, removed = [], False
     for ln in lines:

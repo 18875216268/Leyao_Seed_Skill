@@ -15,26 +15,32 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parents[2]      # evolution/tests/run_checks.py → 框架根
 
+sys.path.insert(0, str(ROOT / "evolution"))
+import paths  # noqa: E402  （导入即初始化用户区；用户区路径的唯一事实源）
+import store  # noqa: E402  （仅取 deep_merge 与运行态路径常量）
+
 REQUIRED = [
     "SKILL.md", "manifest.json",
     "processor/PROCESSOR.md", "processor/control.md",
     "processor/flow/1-understand.md", "processor/flow/2-plan.md", "processor/flow/3-execute.md",
     "processor/flow/4-accept.md", "processor/flow/5-deliver.md",
     "processor/shapes.md",
-    "library/ROUTES.md", "library/routes.json", "library/engine.py", "library/.memory.md",
+    "library/ROUTES.md", "library/routes.json", "library/engine.py",
     "library/assets",
     "library/admin/README.md", "library/admin/console.py", "library/admin/server.py",
     "library/admin/pick_folder.py",
     "library/admin/web/index.html", "library/admin/web/app.js", "library/admin/web/style.css",
-    "evolution/EVOLUTION.md", "evolution/meta.json", "evolution/store.py",
+    "evolution/EVOLUTION.md", "evolution/store.py", "evolution/paths.py",
+    "evolution/templates/memory.md", "evolution/templates/meta.json",
     "evolution/distiller.py", "evolution/gate.py", "evolution/actions.py", "evolution/grow.py",
     "evolution/tests/run_checks.py", "evolution/tests/README.md",
+    "version/VERSION.md",
 ]
 
 MEMORY_SECTIONS = ("失效模式", "有效做法", "待验证", "墓碑")
 
-DOC_REF = re.compile(r"`((?:library|processor|evolution|state|tests)/[^`\s]*)`")
-DOC_FILES = ("SKILL.md", "processor/*.md", "processor/flow/*.md", "evolution/*.md",
+DOC_REF = re.compile(r"`((?:library|processor|evolution|version|state|tests)/[^`\s]*)`")
+DOC_FILES = ("SKILL.md", "processor/*.md", "processor/flow/*.md", "evolution/*.md", "version/*.md",
              "library/ROUTES.md", "library/admin/README.md", "evolution/tests/README.md")
 CMD_REF = re.compile(r"python\s+([\w./-]+\.py)")
 CMD_SEG = re.compile(r"python\s+([\w./-]+\.py[^\n`]*)")
@@ -157,9 +163,9 @@ def main() -> int:
         manifest = json.loads((ROOT / "manifest.json").read_text(encoding="utf-8"))
         ids = sorted(c["id"] for c in manifest.get("layers", []))
         checks.append(check("manifest_layers",
-                            ids == ["evolution", "library", "main", "processor"], ",".join(ids)))
+                            ids == ["evolution", "library", "main", "processor", "version"], ",".join(ids)))
     except Exception as exc:
-        checks.append(check("manifest_components", False, str(exc)))
+        checks.append(check("manifest_layers", False, str(exc)))
 
     try:
         allowed = {c["path"].rstrip("/") for c in manifest.get("layers", [])}
@@ -193,10 +199,10 @@ def main() -> int:
         checks.append(check("routes_described", False, str(exc)))
 
     try:
-        memory = (ROOT / "library" / ".memory.md").read_text(encoding="utf-8")
+        memory = paths.MEMORY_F.read_text(encoding="utf-8")
         missing_sections = [s for s in MEMORY_SECTIONS if ("## " + s) not in memory]
         checks.append(check("memory_sections", not missing_sections,
-                            "缺段: %s" % missing_sections if missing_sections else "四段齐备"))
+                            "缺段: %s" % missing_sections if missing_sections else "四段齐备（用户区记忆）"))
     except Exception as exc:
         checks.append(check("memory_sections", False, str(exc)))
 
@@ -244,13 +250,60 @@ def main() -> int:
         checks.append(check("skill_frontmatter", False, str(exc)))
 
     try:
-        meta = json.loads((ROOT / "evolution" / "meta.json").read_text(encoding="utf-8"))
+        config = store.load_json(paths.CONFIG_F, {})
+        ready = (paths.HOME.is_dir() and paths.MEMORY_F.exists()
+                 and isinstance(config.get("maintainer"), bool))
+        checks.append(check("user_area", ready,
+                            "用户区就绪：%s（role=%s）" % (paths.HOME, "maintainer" if config.get("maintainer") else "user")))
+    except Exception as exc:
+        checks.append(check("user_area", False, str(exc)))
+
+    try:
+        leftovers = [p.relative_to(ROOT).as_posix() for p in
+                     (ROOT / "evolution" / "state", ROOT / "library" / ".memory.md",
+                      ROOT / "evolution" / "meta.json", ROOT / "evolution" / "tests" / "trigger_results.json")
+                     if p.exists()]
+        checks.append(check("paths_external", not leftovers,
+                            ("包内不应有运行态：%s" % leftovers) if leftovers
+                            else "运行态只存用户区（.leyao-data/），包内零残留"))
+    except Exception as exc:
+        checks.append(check("paths_external", False, str(exc)))
+
+    try:
+        meta = store.deep_merge(store.load_json(paths.TPL_META, {}),
+                                store.load_json(paths.META_F, {}))   # 模板 ⊕ 变更集
         th = meta.get("thresholds", {})
         sane = (th.get("min_support", 0) >= 1 and th.get("observation", 0) >= 1
                 and th.get("demote", 0) >= 1 and th.get("retire", 0) >= 1)
         checks.append(check("meta_sanity", sane, json.dumps(th, ensure_ascii=False)))
     except Exception as exc:
         checks.append(check("meta_sanity", False, str(exc)))
+
+    try:
+        front = (ROOT / "SKILL.md").read_text(encoding="utf-8").split("---", 2)[1]
+        skill_ver = next((ln.split(":", 1)[1].strip().strip('"').strip("'")
+                          for ln in front.splitlines() if ln.strip().startswith("version:")), "")
+        manifest_ver = str(manifest.get("version", ""))
+        checks.append(check("version_sync", bool(manifest_ver) and manifest_ver == skill_ver,
+                            "manifest=%s · SKILL.md=%s" % (manifest_ver, skill_ver)))
+    except Exception as exc:
+        checks.append(check("version_sync", False, str(exc)))
+
+    try:
+        if not paths.VERSIONS_F.exists():
+            # 版本记录由落地器在首次更新时生成；未生成同样计入项数（覆盖率恒定的同一约定）
+            checks.append(check("versions_shape", True, "版本记录尚未生成，跳过（计入项数，保持覆盖恒定）"))
+        else:
+            rec = json.loads(paths.VERSIONS_F.read_text(encoding="utf-8"))
+            hist = rec.get("history")
+            ok = (isinstance(rec.get("local"), dict) and isinstance(rec.get("baseline"), dict)
+                  and isinstance(hist, list) and len(hist) <= 10
+                  and all(isinstance(h, dict) and h.get("version") and h.get("date") for h in hist))
+            checks.append(check("versions_shape", ok,
+                                "结构合法（local / history≤10 / baseline）" if ok
+                                else "结构不合法：%s" % json.dumps(rec, ensure_ascii=False)[:160]))
+    except Exception as exc:
+        checks.append(check("versions_shape", False, str(exc)))
 
     try:
         engine = _engine()
@@ -274,10 +327,11 @@ def main() -> int:
     checks.append(check("doc_cli_args", not bad_cli,
                         "失效子命令/参数: %s" % bad_cli if bad_cli else "文档子命令与 --参数全部真实存在"))
 
-    for name in ("library/routes.json", "evolution/meta.json",
-                 "evolution/state/traces.json", "evolution/state/experience.json",
-                 "evolution/state/ratchet.json"):
-        path = ROOT / name
+    for name, path in (("library/routes.json", ROOT / "library" / "routes.json"),
+                       ("meta.json", paths.META_F),
+                       ("traces.json", store.TRACES_F),
+                       ("experience.json", store.EXP_F),
+                       ("ratchet.json", store.RATCHET_F)):
         if not path.exists():
             # 运行时文件尚未生成时不跳过、而是计入并标注：否则检查项数会随运行状态静默变化，
             # 覆盖率名义 1.0 却在缩水（沙箱与线上会数出不同的 total）。

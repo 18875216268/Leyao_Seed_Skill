@@ -1,0 +1,12 @@
+{
+  "base_package": {
+    "src_url": "https://testimagedc.leyopharm.com/skillhub/skills/leyo-sys/leyo-sys.zip",
+    "vendor_dir": "leyo-sys"
+  },
+  "optimizers": [],
+  "host_endpoints": {
+    "pmsHost": "https://pms.ysbang.cn",
+    "datacenterHost": "https://pms.leyopharm.com",
+    "authHost": "https://auth.leyopharm.com"
+  }
+}
