@@ -26,9 +26,12 @@
    - 远端 **≤** 本地 → 以本地为准：不动、不请示；
    - 远端 **>** 本地 → 提醒用户一次（本地 x → 远端 y，附变更摘要）；用户问起随时可查；
    - 取不到 / 不可比（非 SemVer 等）→ 静默降级，不阻塞任务；
-2. **获取**（用户选择更新后）：用宿主能力把新版整包取到 staging（git / tarball / HTTP 均可）。
-   网络处置链：直连 / 备源（jsDelivr 等）→ 按路由地图（`library/ROUTES.md`）匹配资产层的 GitHub 加速技能（如有）→
-   自行想办法 → 无论成败都记录并告知原因；
+2. **获取**（用户选择更新后）：用宿主能力把新版**整包**取到 staging（临时目录，与当前包隔离）。实测可用路径：
+   - 首选 `git clone --depth 1 <仓库> <staging>`——一次得到完整整包（自带 `.git`，落地器不把点开头内容计入作用域）；
+   - 备选直连压缩包 `https://codeload.github.com/18875216268/Leyao_Seed_Skill/tar.gz/refs/heads/main`（zip 同理），解压后以顶层目录为 staging；
+   - 取到先校验 staging 的 `manifest.json`：`name` == 本包 `name` 且 `version` == 目标版本；不符即丢弃、不推进；
+   - 网络处置链：直连 / 备源（jsDelivr 等）→ 按路由地图（`library/ROUTES.md`）匹配资产层的 GitHub 加速技能（如有）→
+     自行想办法 → 无论成败都记录并告知原因；
 3. **预检**：staging 跑 `evolution/tests/run_checks.py`（须全绿）；对照本地形成变更清单（新增 / 覆盖 / 删除 概览）；
    「本地偏离」红标由落地器在覆盖前权威记录并落备份（见下）；
 4. **落地守门**：`python evolution/grow.py propose --kind framework_update --payload '{"staging": "<新版包目录>", "version": "x.y.z"}'`
@@ -41,8 +44,8 @@
 
 ```json
 {
-  "local":    { "version": "0.6.0", "applied_at": "2026-09-11T14:30:05" },
-  "history":  [ { "version": "0.6.0", "date": "2026-09-11", "source": "remote", "summary": "整包更新（framework_update）" } ],
+  "local":    { "version": "0.6.1", "applied_at": "2026-09-11T14:30:05" },
+  "history":  [ { "version": "0.6.1", "date": "2026-09-11", "source": "remote", "summary": "整包更新（framework_update）" } ],
   "baseline": { "<相对路径>": "<sha1>" }
 }
 ```
