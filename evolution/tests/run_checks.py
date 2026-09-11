@@ -185,8 +185,10 @@ def main() -> int:
     try:
         engine = _engine()
         issues = engine.validate(engine.load(), ROOT)
+        _hints = engine.hints(engine.load(), ROOT)
         checks.append(check("routes_contract", not issues,
-                            "契约问题: %s" % issues if issues else "挂载存在 · 入口文档齐备 · id 唯一"))
+                            "契约问题: %s" % issues if issues
+                            else "挂载存在 · id 唯一（入口文档缺失 %d 项 → 软提示，不判失败）" % len(_hints)))
     except Exception as exc:
         checks.append(check("routes_contract", False, str(exc)))
 

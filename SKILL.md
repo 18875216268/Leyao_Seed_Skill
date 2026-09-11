@@ -4,7 +4,7 @@ description: "用这个 skill 处理需要成套流程与资产路由的任务�
 compatibility: "需要 Python 3.10+（仅标准库，无第三方依赖）；资产管理台在本地起 HTTP 服务（默认 127.0.0.1:8765，需要能开本地端口）"
 license: "MIT"
 metadata:
-  version: "0.6.2"
+  version: "0.6.4"
   architecture: "processor + library(routes + assets) + evolution(五环自举) + version(版本维护)"
   author: "Leyao"
   date: "2026-09-11"
@@ -44,7 +44,7 @@ metadata:
 
 ```text
 python library/admin/console.py                    # 资产管理台（新增 / 编辑 / 删除 / 获取复制源）
-python library/engine.py                      # 重绘 ROUTES.md + 契约校验（挂载存在/入口文档/id 唯一）+ 报告孤儿
+python library/engine.py                      # 重绘 ROUTES.md + 契约校验（挂载存在/id 唯一）+ 入口文档缺失提示 + 报告孤儿
 python library/engine.py render               # 同上（显式子命令写法，与不带子命令完全等价）
 python library/engine.py add --parent <节点id> --id <新id> --type <类型> --title "<标题>" [--mount <挂载>]
 python library/engine.py remove --id <节点id>

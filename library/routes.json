@@ -3,12 +3,20 @@
   "updated": "2026-09-11",
   "nodes": [
     {
-      "id": "74rmu1",
+      "id": "bvix9o",
       "type": "Skill包",
-      "title": "GitHub网络连通",
-      "mount": "library/assets/74rmu1/",
-      "description": "需要从GitHub获取资源且网络不通时，可以通过此技能连通网络！以对GitHub进行访问。若不可用，或者此技能落后，可重新从“www.majiabin.com/AI/github-accelerator.zip”下载并解压、安装此技能后使用！",
-      "source": "C:\\Users\\zhixiaobo\\Desktop\\github-accelerator"
+      "title": "公共套件",
+      "mount": "library/assets/bvix9o/",
+      "description": "万能套件，任何情况下可参考，目前包含：\n\n1.制作PPT；\n2.绘制流程图；\n3.将抽象观点变成图；\n4.降ai味；\n5.更多......\n\n其它需要各种技能协助进行任务处理的时候，可参考此文档，以获取更多技能，并获得更多支持。",
+      "source": "C:\\Users\\zhixiaobo\\Desktop\\skill制作v904\\归档\\公共套件"
+    },
+    {
+      "id": "fmcq5n",
+      "type": "Skill包",
+      "title": "github-web-skill",
+      "mount": "library/assets/fmcq5n/",
+      "description": "本机网络正常，但访问github因为各种原因不可达时，使用此技能以连通。",
+      "source": "C:\\Users\\zhixiaobo\\Desktop\\skill制作v904\\github-web-skill"
     },
     {
       "id": "p3nes3",

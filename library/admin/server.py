@@ -493,6 +493,7 @@ class Handler(BaseHTTPRequestHandler):
                 "root": str(REPO_ROOT),
                 "mount_prefix": engine.ASSETS_MOUNT,
                 "issues": engine.validate(data, REPO_ROOT),
+                "hints": engine.hints(data, REPO_ROOT),
                 "orphans": engine.find_orphans(data),
             })
         if u.path == "/api/exists":

@@ -11,8 +11,11 @@
 - 类型（type）为自由文本，默认登记「方法论 / Skill包」，实际出现过的类型自动汇入登记表。
 - 节点只有唯一挂载字段 `mount`。
 - 资产根 `ASSETS` = library/assets/；挂载前缀 `ASSETS_MOUNT` 由其推导，禁止另行硬编码。
-- 契约校验 `validate`（唯一实现，CLI / 管理台 / 自检 / 库存体检共用）：挂载路径必须存在（防死链）、
-  挂载目录必须有入口文档 SKILL.md / README.md（否则处理器进得去却用不了）、路由 id 必须唯一。
+- 契约校验 `validate`（唯一实现，CLI / 管理台 / 自检 / 库存体检共用）——**硬契约（会拦截/报警）**：
+  挂载路径必须存在（防死链）、路由 id 必须唯一。
+- 软提示 `hints`（唯一实现，同样四端共用）——**不算问题、不拦截**：挂载目录未附入口文档（SKILL.md / README.md）。
+  **资产 ≠ Skill**：一张卡片可以放任意内容（资料 / 数据 / 工具 / 文档…），纯资料型资产不需要入口文档；
+  入口文档只在"要被 AI 按其指引调用"时才有价值（处理器命中后读它；没有则退回自带判据自做）。
 - 孤儿资产（未被任何节点挂载引用的目录）只提示不拦截：它可能是"已放入、待挂载"的合法中间态。
 
 用法：
@@ -198,12 +201,12 @@ def known_types(data: dict) -> list[str]:
 
 
 def validate(data: dict, root: Path) -> list[str]:
-    """路由契约校验（唯一实现，CLI / 管理台 / 自检 / 库存体检共用）。
+    """路由**硬契约**校验（唯一实现，CLI / 管理台 / 自检 / 库存体检共用）——会拦截/报警的两类：
 
-    三类问题：
     - 死链：挂载路径必须真实存在；
-    - 缺入口文档：挂载目录必须有 SKILL.md 或 README.md（处理器命中后要读它，没有则进得去用不了）；
     - id 重复：路由 id 必须唯一（否则无法唯一定位）。
+
+    入口文档缺失**不在此列**（资产 ≠ Skill，资料型资产无需入口文档）——见 `hints()`。
     """
     issues, ids = [], []
     for n, _ in iter_nodes(data.get("nodes")):
@@ -212,14 +215,29 @@ def validate(data: dict, root: Path) -> list[str]:
         m = n.get("mount")
         if not m:
             continue
-        p = root / m
-        if not p.exists():
+        if not (root / m).exists():
             issues.append(f"{nid}: mount 路径不存在 → {m}")
-        elif p.is_dir() and not ((p / "SKILL.md").exists() or (p / "README.md").exists()):
-            issues.append(f"{nid}: 挂载目录缺入口文档（SKILL.md / README.md）→ {m}")
     for dup in sorted({i for i in ids if ids.count(i) > 1}):
         issues.append(f"{dup}: 路由 id 重复")
     return issues
+
+
+def hints(data: dict, root: Path) -> list[str]:
+    """**软提示**（非问题、不拦截）：挂载目录未附入口文档（SKILL.md / README.md）。
+
+    只提示不判定：卡片可以放任意内容——需要"被 AI 按文档调用"的资产才建议补；
+    纯资料 / 数据 / 工具型资产可忽略（处理器命中后无入口文档时退回自带判据自做）。
+    """
+    out = []
+    for n, _ in iter_nodes(data.get("nodes")):
+        m = n.get("mount")
+        if not m:
+            continue
+        p = root / m
+        if p.is_dir() and not ((p / "SKILL.md").exists() or (p / "README.md").exists()):
+            out.append(f"{n.get('id')}: 未附入口文档（SKILL.md / README.md）→ {m}"
+                       "（提示，非问题：资料型资产可忽略；需按文档调用时建议补一个）")
+    return out
 
 
 def find_orphans(data: dict) -> list[str]:
@@ -270,7 +288,7 @@ def render(data: dict) -> str:
         "## 维护",
         "",
         "```text",
-        "python library/engine.py                      # 重绘本地图 + 契约校验（挂载/入口文档/id）",
+        "python library/engine.py                      # 重绘本地图 + 契约校验（挂载/id；入口文档缺失仅提示）",
         'python library/engine.py add --id <新id> --type <类型> --title "<标题>" [--parent <父id>] [--mount 挂载] [--description "<何时用>"]',
         "python library/engine.py remove --id <节点id>",
         "python library/engine.py move --id <节点id> [--parent <父id>]   # 移动节点（省略即移到根）",
@@ -347,14 +365,19 @@ def node_remove(data: dict, node_id: str):
 # ---------- 命令（全部经 commit，唯一写路径） ----------
 
 def _report(issues: list[str]) -> int:
-    """统一输出：契约校验结果 + 孤儿提示。"""
+    """统一输出：硬契约结果 + 软提示 + 孤儿提示。"""
     print("[routes] ROUTES.md 已重绘")
     if issues:
-        print("[routes] 契约问题：")
+        print("[routes] 契约问题（硬）：")
         for i in issues:
             print("  -", i)
         return 1
-    print("[routes] 契约校验通过（挂载存在 · 入口文档齐备 · id 唯一）")
+    print("[routes] 契约校验通过（挂载存在 · id 唯一）")
+    hs = hints(load(), LIB.parent)
+    if hs:
+        print("[routes] 提示（非问题，不影响使用）：")
+        for h in hs:
+            print("  -", h)
     orphans = find_orphans(load())
     if orphans:
         print("[routes] 孤儿资产（未挂路由，可能待挂载）：")

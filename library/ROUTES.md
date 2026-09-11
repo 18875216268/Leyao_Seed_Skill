@@ -8,8 +8,18 @@
 > 同读用户区记忆 `.leyao-data/data/memory.md`（与 skill 同级）：命中「失效模式」先规避，命中「有效做法」直接复用。
 > 回写契约：交付后追加轨迹时 `--routed` 写**命中的节点 id**（各节点行首反引号内）；无命中（自带判据亲做）写 `none`——该字段是规则归属与命中率统计的唯一依据。
 
-- `74rmu1` **GitHub网络连通** `Skill包` → `library/assets/74rmu1/`
-  - _需要从GitHub获取资源且网络不通时，可以通过此技能连通网络！以对GitHub进行访问。若不可用，或者此技能落后，可重新从“www.majiabin.com/AI/github-accelerator.zip”下载并解压、安装此技能后使用！_
+- `bvix9o` **公共套件** `Skill包` → `library/assets/bvix9o/`
+  - _万能套件，任何情况下可参考，目前包含：
+
+1.制作PPT；
+2.绘制流程图；
+3.将抽象观点变成图；
+4.降ai味；
+5.更多......
+
+其它需要各种技能协助进行任务处理的时候，可参考此文档，以获取更多技能，并获得更多支持。_
+- `fmcq5n` **github-web-skill** `Skill包` → `library/assets/fmcq5n/`
+  - _本机网络正常，但访问github因为各种原因不可达时，使用此技能以连通。_
 - `p3nes3` **Pms-乐药查询** `Skill包` → `library/assets/p3nes3/`（1 个子节点）
   - _有任何业务数据需求时！可使用此资产。适用于各类数据查询，出库数据、促销数据以及基础数据等，按内置板块参数筛选查询，实时性较强（实时性：促销毛利＞其它板块）。但无法自定义聚合、计算数据，具体见主文档。_
   - `psol5x` **Pms-促销毛利板块** `Skill包` → `library/assets/p3nes3/vendor/optimizers/Pms_促销毛利v1.08/psol5x/`
@@ -27,7 +37,7 @@ Ps：无法查询应收边际利润数据！
 ## 维护
 
 ```text
-python library/engine.py                      # 重绘本地图 + 契约校验（挂载/入口文档/id）
+python library/engine.py                      # 重绘本地图 + 契约校验（挂载/id；入口文档缺失仅提示）
 python library/engine.py add --id <新id> --type <类型> --title "<标题>" [--parent <父id>] [--mount 挂载] [--description "<何时用>"]
 python library/engine.py remove --id <节点id>
 python library/engine.py move --id <节点id> [--parent <父id>]   # 移动节点（省略即移到根）

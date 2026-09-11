@@ -88,10 +88,10 @@ def distill_traces(items: list, min_support: int = 2) -> list:
 
 
 def check_library() -> list:
-    """Lane C：库体检——复用资产层引擎的路由契约校验（唯一实现，不另写一套路径检查）。
+    """Lane C：库体检——复用资产层引擎的**硬契约**校验（唯一实现，不另写一套路径检查）。
 
-    与路由契约对齐：命中节点后要进其挂载目录读 SKILL.md／README.md，
-    因此挂载目录必须有入口文档，否则 AI 进得去却用不了。
+    资产 ≠ Skill：这里只报"死链 / id 重复"这类会坏框架的问题；入口文档缺失属**软提示**
+    （见 engine.hints，不判失败）——需要按文档调用的资产才建议补，资料型资产可忽略。
     """
     return engine.validate(engine.load(), store.ROOT)
 

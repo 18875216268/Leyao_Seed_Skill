@@ -32,7 +32,7 @@ python evolution/tests/run_update_sandbox.py  # 更新链路回归（零联网�
 | `skill_frontmatter` | 官方 Agent Skills 硬规则：字段白名单 + `name` 为小写 kebab-case 且**等于目录名**（与官方 `skills-ref validate` 等价，防回退） |
 | `user_area` | 用户区就绪（目录 / `config.json` / 记忆；角色 = maintainer / user） |
 | `paths_external` | 包内零运行态（记忆 / 阈值 / 状态 / 评测记录只存用户区 `.leyao-data/`） |
-| `routes_contract` | 路由契约：挂载存在 · 入口文档齐备 · id 唯一 |
+| `routes_contract` | 路由**硬契约**：挂载存在 · id 唯一（入口文档缺失 → **软提示**，不判失败） |
 | `routes_described` | 每个节点都有「何时用」描述（否则 AI 无法路由） |
 | `memory_sections` | 用户区记忆四段齐备（`.leyao-data/data/memory.md`） |
 | `processor_sections` | 任务处理层结构契约：五步 flow 五段（输入·动作·出口判据·红旗·引导）齐备 + 「判据分级」在场 |
