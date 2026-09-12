@@ -37,7 +37,7 @@
 （例：跨项目记忆文件、会话记忆、每轮常驻规则（`rules/*.md` + `alwaysApply: true`）、`CLAUDE.md`、`AGENTS.md`、系统提示注入……位置与格式**因软件而异**）——按序自检：
 ① 宿主是否提供**记忆 / 规则写入能力**（记忆工具 / 规则 API / 命令）→ 就用宿主提供的机制；
 ② 宿主**自身**的记忆或常驻规则载体（从其文档、环境变量、目录结构或惯例自行推断；**记忆区**与**每轮规则**可能同处、也可能分两处）→ 写入两样：
-   (a) 最小常驻条目：「使用 leyao-seed-core 处理多步任务与资产路由（位置：<当前绝对路径>）」；
+   (a) 最小常驻条目：「使用 leyao-seed-skill 处理多步任务与资产路由（位置：<当前绝对路径>）」；
    (b) **最高准则**（内容取 `<包>/SKILL.md` 的〈最高准则〉节，≤10 行）——**优先写"每轮注入"的规则位**（若有），其次写记忆区；
 ③ 都没有 / 不可写 → **如实告知用户并提醒一次**，不假装已常驻 ✗。
 
@@ -51,11 +51,11 @@
 
 ## 二、Skill 自主更新（每天首次使用；异步；落地必须用户批准）
 
-唯一权威源：`https://github.com/18875216268/Leyao_Seed_Skill`（仓库根 = 本包根，整包取用）。
+唯一权威源：`https://github.com/18875216268/leyao-seed-skill`（仓库根 = 本包根，整包取用）。
 执行时机：**会话首次 + 每日 14:00 定时任务唤醒**（各一次）；同会话内不重复检测；用户随时可主动要求复查。
 
 1. **检测**：取远端 `manifest.json`（直连 raw / jsDelivr / API 任选；例如
-   `https://raw.githubusercontent.com/18875216268/Leyao_Seed_Skill/main/manifest.json`）→ 与本地 `manifest.json` 比 SemVer：
+   `https://raw.githubusercontent.com/18875216268/leyao-seed-skill/main/manifest.json`）→ 与本地 `manifest.json` 比 SemVer：
    - 先校验「同一框架」：远端 manifest 的 `name` 必须等于本包 `manifest.json` 的 `name`；不同名 / 缺字段 → 视为**不可比**，
      只提醒一次、不提供更新、绝不拉取（防旧版 / 异源包误装；落地器契约还有同名同版本同层级二道拦截）；
    - 远端 **≤** 本地 → 以本地为准：不动、不请示；
@@ -63,7 +63,7 @@
    - 取不到 / 不可比（非 SemVer 等）→ 静默降级，不阻塞任务；
 2. **获取**（用户选择更新后）：用宿主能力把新版**整包**取到 staging（临时目录，与当前包隔离）。实测可用路径：
    - 首选 `git clone --depth 1 <仓库> <staging>/<包名>`——一次得到完整整包（自带 `.git`，落地器不把点开头内容计入作用域）；
-   - 备选直连压缩包 `https://codeload.github.com/18875216268/Leyao_Seed_Skill/tar.gz/refs/heads/main`（zip 同理），解压后把顶层目录改名为包名再作 staging；
+   - 备选直连压缩包 `https://codeload.github.com/18875216268/leyao-seed-skill/tar.gz/refs/heads/main`（zip 同理），解压后把顶层目录改名为包名再作 staging；
    - 取到先校验：**staging 目录名 == 包名**（证环 `skill_frontmatter` 要求 name 等于目录名，目录名不符预检必红——实测踩坑），
      且 `manifest.json` 的 `name` == 本包 `name`、`version` == 目标版本；不符即丢弃、不推进；
    - 网络处置链：直连 / 备源（jsDelivr 等）→ 按路由地图（`library/ROUTES.md`）匹配资产层的 GitHub 加速技能（如有）→

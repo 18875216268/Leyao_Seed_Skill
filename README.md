@@ -1,4 +1,4 @@
-# leyao-seed-core · 任务处理核心
+# leyao-seed-skill · 任务处理核心
 
 **纯框架，零业务**：把任务按「理解 → 规划 → 执行 → 验收 → 交付」五步推进并实时纠偏；先查总路由地图，选**已挂载的资产**承担具体业务，
 没有可用资产就用自带判据自己完成；交付后回写经验、由框架自我进化。**无资产也能运行**。
@@ -13,11 +13,11 @@
 ## 快速开始（3 步）
 
 ```bash
-# 1) 放置：整包放到任意可写目录即可（宿主技能区 / 自选目录都行；目录名请保持 leyao-seed-core）
-#    支持技能目录的宿主：放到 <宿主 skills 目录>/leyao-seed-core（目录名 = SKILL.md 里的 name）
+# 1) 放置：整包放到任意可写目录即可（宿主技能区 / 自选目录都行；目录名请保持 leyao-seed-skill）
+#    支持技能目录的宿主：放到 <宿主 skills 目录>/leyao-seed-skill（目录名 = SKILL.md 里的 name）
 #    从仓库取整包（任选其一）：
-#      git clone --depth 1 https://github.com/18875216268/Leyao_Seed_Skill.git
-#      https://codeload.github.com/18875216268/Leyao_Seed_Skill/tar.gz/refs/heads/main
+#      git clone --depth 1 https://github.com/18875216268/leyao-seed-skill.git
+#      https://codeload.github.com/18875216268/leyao-seed-skill/tar.gz/refs/heads/main
 
 # 2) 自检（离线；首次运行会自动初始化用户区）
 python evolution/tests/run_checks.py          # 期望 ok=true · score=1.0
@@ -30,7 +30,7 @@ python library/admin/console.py               # 浏览器打开 http://127.0.0.1
 
 | 你要做的事 | 怎么做 |
 | --- | --- |
-| 让 agent 用起来 | 直接在任务里说需求（触发条件见 `SKILL.md` 的 `description`）；也可点名「用 leyao-seed-core」 |
+| 让 agent 用起来 | 直接在任务里说需求（触发条件见 `SKILL.md` 的 `description`）；也可点名「用 leyao-seed-skill」 |
 | 看 / 改资产与路由 | 管理台 `python library/admin/console.py`；纯 CLI：`python library/engine.py add`（另有 `remove` / `move` / `update` / `default`，口径见 `library/admin/README.md`） |
 | 让它越用越聪明 | 交付后追加轨迹 `python evolution/grow.py trace --task "<任务>" --routed "<命中节点id / 无命中写 none>" --outcome success\|partial\|fail`（默认自动沉淀经验；高风险改行走 `propose` → `apply`，见 `evolution/EVOLUTION.md`） |
 
@@ -59,7 +59,7 @@ python library/admin/console.py               # 浏览器打开 http://127.0.0.1
 ## 版本与更新
 
 - **当前版本**以 `manifest.json` 为准（与 `SKILL.md` 的 `metadata.version` 同步：改一处必改另一处）；
-- **权威源仓库**：<https://github.com/18875216268/Leyao_Seed_Skill>（仓库根 = 本包根）——更新检测、整包取用与落地守门见 `version/VERSION.md`。
+- **权威源仓库**：<https://github.com/18875216268/leyao-seed-skill>（仓库根 = 本包根）——更新检测、整包取用与落地守门见 `version/VERSION.md`。
 
 ## 许可
 
@@ -68,7 +68,7 @@ MIT（见 `LICENSE`）。
 ## 目录一览
 
 ```text
-leyao-seed-core/
+leyao-seed-skill/
 ├── SKILL.md            主文档（版本 + 层级导航 + 标准调用链 + 维护命令）
 ├── manifest.json       版本与层级清单（权威来源）
 ├── README.md           本文件（门口说明）

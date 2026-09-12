@@ -28,7 +28,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]          # leyao-seed-core/
+ROOT = Path(__file__).resolve().parents[2]          # leyao-seed-skill/
 sys.dont_write_bytecode = True                      # 运行期零写包（不在包内生成 __pycache__）
 sys.path.insert(0, str(ROOT / "evolution"))
 import paths  # noqa: E402  （用户区路径唯一事实源；导入即初始化）

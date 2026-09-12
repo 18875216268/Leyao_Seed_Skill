@@ -16,7 +16,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]          # leyao-seed-core/
+ROOT = Path(__file__).resolve().parents[2]          # leyao-seed-skill/
 sys.dont_write_bytecode = True                      # 运行期零写包（不在包内生成 __pycache__）
 FIELDS = ("【何时用】", "【不适用】", "【别名】", "【输入前置】", "【时效性】", "【回退】")
 PARENT = {}                                         # 父子关系：由**真实树**构建（见 _parent_map；勿硬编码 ✗）

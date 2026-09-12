@@ -1,5 +1,5 @@
 {
-  "skill_name": "leyao-seed-core",
+  "skill_name": "leyao-seed-skill",
   "method": "Agent Skills 官方触发评测（agentskills.io/skill-creation/optimizing-descriptions）：约 20 条 query = 应触发 + 不应触发；每条跑 runs_per_query 次算 trigger_rate；阈值 threshold——应触发须 > 阈值，不应触发须 < 阈值；train/validation 分离（train 失败指导改动，validation 判断是否泛化）。",
   "runs_per_query": 3,
   "threshold": 0.5,

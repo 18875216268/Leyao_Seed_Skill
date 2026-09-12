@@ -33,9 +33,9 @@ from urllib.parse import urlparse, parse_qs
 
 sys.dont_write_bytecode = True          # 运行期零写包（不在包内生成 __pycache__）
 
-HERE = Path(__file__).resolve().parent  # leyao-seed-core/library/admin
+HERE = Path(__file__).resolve().parent  # leyao-seed-skill/library/admin
 WEB = HERE / "web"
-LIB = HERE.parent                       # ★ 管理台驻留在资产管理层内：leyao-seed-core/library
+LIB = HERE.parent                       # ★ 管理台驻留在资产管理层内：leyao-seed-skill/library
 if not (LIB / "engine.py").is_file():
     raise SystemExit(
         f"[admin] 未找到资产管理层引擎：{LIB / 'engine.py'}\n"
@@ -44,7 +44,7 @@ if not (LIB / "engine.py").is_file():
 sys.path.insert(0, str(LIB))
 import engine                           # noqa: E402
 
-REPO_ROOT = LIB.parent                  # leyao-seed-core/
+REPO_ROOT = LIB.parent                  # leyao-seed-skill/
 ASSETS = engine.ASSETS                  # ★ 资产根（主页）——单一来源：引擎常量（勿另起一套路径）
 PICK_SCRIPT = HERE / "pick_folder.py"   # 原生文件夹对话框（tkinter 独立进程）
 PORT = 8765
@@ -53,7 +53,7 @@ PORT = 8765
 # ---------- 路径与资产搬运 ----------
 
 def safe_target(mount: str) -> Path:
-    """挂载路径必须落在 leyao-seed-core/ 内，防路径穿越。"""
+    """挂载路径必须落在 leyao-seed-skill/ 内，防路径穿越。"""
     p = (REPO_ROOT / mount).resolve()
     root = REPO_ROOT.resolve()
     if p != root and root not in p.parents:

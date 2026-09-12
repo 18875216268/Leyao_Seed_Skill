@@ -16,7 +16,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]          # leyao-seed-core/
+ROOT = Path(__file__).resolve().parents[2]          # leyao-seed-skill/
 sys.dont_write_bytecode = True                      # 运行期零写包（不在包内生成 __pycache__）
 CONTROL = ROOT / "processor" / "control.md"
 PROCESSOR = ROOT / "processor" / "PROCESSOR.md"

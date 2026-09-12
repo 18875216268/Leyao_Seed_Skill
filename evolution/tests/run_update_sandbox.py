@@ -87,7 +87,7 @@ class Test:
         self.base = Path(tempfile.mkdtemp(prefix="leyao_sb_"))
         self.home = self.base / "home"
         self.home.mkdir(parents=True)
-        self.skill = self.base / "sb" / "leyao-seed-core"
+        self.skill = self.base / "sb" / "leyao-seed-skill"
         shutil.copytree(ROOT, self.skill, ignore=IGNORE)
         self.items: list = []
 

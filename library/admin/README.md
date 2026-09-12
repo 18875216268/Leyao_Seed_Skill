@@ -94,7 +94,7 @@ python library/admin/console.py --no-browser   # 只起后端（脚本 / 无界�
 
 - 资产根 = `library/assets/`（界面显示为 `主页(assets)`）；`library/` 自身的引擎/方法论文件与之彻底分离。
 - 目录名 = 卡片 id（6 位随机、全局唯一）→ 天然隔离，改关联/改位置不会误删其它卡片的资产；AI 可由 id 直接推导路径。
-- 挂载路径强制落在 `leyao-seed-core/` 内（防路径穿越）；落位与对话框均限制在资产根 `library/assets/` 内。
+- 挂载路径强制落在 `leyao-seed-skill/` 内（防路径穿越）；落位与对话框均限制在资产根 `library/assets/` 内。
 - 所有写操作经引擎**跨进程写锁 + 原子落盘**，与管理台/CLI 并发安全共存。
 
 ## 接口

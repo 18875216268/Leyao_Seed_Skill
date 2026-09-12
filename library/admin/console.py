@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """资产管理台唯一启动入口：起后端 + 打开浏览器。零依赖。
 
-用法（在 leyao-seed-core/ 目录下执行）：
+用法（在 leyao-seed-skill/ 目录下执行）：
     python library/admin/console.py                # 起后端并自动打开浏览器
     python library/admin/console.py --no-browser   # 只起后端（脚本 / 无界面环境）
 """
