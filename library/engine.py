@@ -470,6 +470,7 @@ def render(data: dict) -> str:
         "描述形态：六段齐备=判据链全能力；`（自由描述·降级匹配）`=关键词级；`（无描述·不可路由）`（模板见 `processor/shapes.md` 第 7 节）。",
         f"> 级联：`（N 个子节点 → 局部图 library/routes/<id>.md）` → 读局部图继续匹配（可再分片 → 任意级联），叶节点执行"
         f"（分片阈值：子节点 > {INLINE_KIDS_MAX} 或 子树节点 > {INLINE_SUBTREE_MAX}）。",
+        "> 凭证：节点【输入前置】**声明凭证＝需要登录**（未声明＝无需登录）；**未验证不得向用户索要**；一律按该资产〈登录〉说明验证（详见 `processor/PROCESSOR.md` 资产使用准则④）。",
         "> 回写：交付后 `--routed <命中节点id>`；无命中写 `none`。同读用户区 `.leyao-data/data/memory.md`"
         "（命中「失效模式」先规避、命中「有效做法」直接复用）。",
         "",
