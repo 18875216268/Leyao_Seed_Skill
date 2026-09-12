@@ -4,7 +4,7 @@ description: "用这个 skill 处理需要成套流程与资产路由的任务�
 compatibility: "需要 Python 3.10+（仅标准库，无第三方依赖）；资产管理台在本地起 HTTP 服务（默认 127.0.0.1:8765，需要能开本地端口）"
 license: "MIT"
 metadata:
-  version: "0.27.1"
+  version: "0.28.0"
   architecture: "processor + library(routes + assets) + evolution(五环自举) + version(版本维护)"
   author: "Leyao"
   date: "2026-09-13"
@@ -45,12 +45,18 @@ metadata:
       同读用户区记忆 .leyao-data/data/memory.md（L0 经验：命中失效模式先规避、有效做法直接复用）
       同读**默认资产卡**（★ 行指向；卡在用户数据区 `card.md`）：每次任务必读、只做"识别与定位"；
       缺失/过期不阻断（如实标注 + 提示刷新）——任务层判据 0.5；未注册默认资产则跳过
+      同读**能力库索引**（`library/assets/bvix9o/README.md` 与 `高频场景指引/README.md`，各一屏）：
+      **默认层入口，每次任务读**（只读索引与摘要，不读全文）；缺失不阻断——为"方法预扫"提供能力图景
       级联下钻：带「（N 个子节点 → 局部图 library/routes/<id>.md）」的节点 → 先读局部图继续匹配（可任意级联）；
       容器节点（只挂子节点、无挂载）不直接执行，下钻其子节点；叶节点（有挂载 / 入口文档）执行
   → 进入 processor/（按五步流程执行；每步判据自带，见 flow/1~5 与 control.md）
       执行时：命中资产则进其挂载目录读 SKILL.md／README.md 原样调用；无命中按自带判据亲自动手
   → 交付后：`python evolution/grow.py trace --routed "<命中节点 id / 无命中写 none>" …` 追加轨迹（五环自举入口，见 evolution/EVOLUTION.md）
 ```
+
+> **资产三层**（路由直觉 · 供判读）：① **默认层**——每次任务读**入口**（知识库 `pp32an`【卡】＋ 能力库 `bvix9o`【索引】）；
+> ② **数据能力层**——任务需要数据时才用（`p3nes3` / `i7c4z1`）；③ **其他按需**（`fmcq5n` 连通通道 / 场景文件 / 其他资产）。
+> 顺序：默认层 → 圈候选路由 → 能力阶梯（方法论 → 资产 → 工具 → 调研 → 亲做）。
 
 ## 资产管理层维护（增删改）
 
