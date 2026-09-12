@@ -16,7 +16,7 @@ python evolution/tests/run_update_sandbox.py  # 更新链路回归（零联网�
 
 ## 路由演练（run_route_drill.py · 零联网 · 零写入）
 
-判据链在**真实描述**上的分支回归 + 描述分级静态校验，共 **27 项**：**A 静态（9）**（描述非空 / 无旧措辞残留 / 结构化节点【回退】【别名】非空 / 别名≠标题 / 业务节点互斥指引 / 判据含 1c / shapes 含路由决策记录 / D 区形状 / 自由描述降级标注在场）·
+判据链在**真实描述**上的分支回归 + 描述分级静态校验，共 **28 项**：**A 静态（9）**（描述非空 / 无旧措辞残留 / 结构化节点【回退】【别名】非空 / 别名≠标题 / 业务节点互斥指引 / 判据含 1c / shapes 含路由决策记录 / D 区形状 / 自由描述降级标注在场）·
 **B 场景矩阵（14 例）**（父子按贴合度取 → 子或父 / 不适用语义化排除（"非 X" 不误排除）/ 输入前置挡下（"无需凭证" 不误判）/ 覆盖不全 → 问用户 / 组合需求 → 问用户 / 模糊任务 → 先澄清 / 别名命中 / 无命中 → 亲做）·
 **C 过程记录 D 区形状（1）**（候选·依据·结论·复核·必要性·四格·成因 齐备）· **D 结构闭环（3）**（目录与记录结构，详见脚本输出）。
 判定口径：**规则化 dry-run**——验证"判据链能否给出正确分支"；真实 AI 行为由实战轨迹（D 区四格）继续校准。改描述、改判据、加/删资产后**必跑**。
@@ -94,7 +94,7 @@ python evolution/tests/run_update_sandbox.py  # 更新链路回归（零联网�
 ## 人工清单（发布/交付前逐项过）
 
 1. `python evolution/tests/run_checks.py` —— `ok=true` 且 `score=1.0`
-2. `python evolution/tests/run_route_drill.py` —— 路由演练 27 项全过（**改描述 / 改判据 / 增删资产必跑**）
+2. `python evolution/tests/run_route_drill.py` —— 路由演练 28 项全过（**改描述 / 改判据 / 增删资产必跑**）
 3. `python evolution/tests/run_task_drill.py` —— 任务层演练 19 项全过（**改 `processor/` 判据 / 流程 / 模板必跑**）
 4. `python evolution/tests/run_task_set.py` —— 判定准确率 **7/7**（balanced；**改判据 / 改模板 / 新增工作区产物后必跑**）
 5. `python evolution/tests/run_update_sandbox.py` —— 更新链路回归全过 + `score=1.0`（**项数不作判据**；**改过落地器 / 版本维护层 / 证环必跑**）
