@@ -371,6 +371,11 @@ def render(data: dict) -> str:
                      f"——卡在**用户数据区** `data/assets/{d['default']}/card.md`（框架挂载态 `.leyao-data/…`；"
                      "独立态 `~/.leyao-kb/card.md`）；只用于识别与定位（定义以池 authority 为准）；"
                      "读法与刷新见其 `references/card.md`，判据见 `processor/flow/3-execute.md` 0.5。")
+        if d.get("layers"):
+            lines.append("> ★ 默认层（每次任务读入口 · ≤3）："
+                         " ｜ ".join(f"`{x['id']}`→{'卡' if x['read']=='card' else '索引'}"
+                                   for x in d["layers"]))
+
     lines += [
         "> 读者：agent 与审阅者；**维护**请用管理台（`library/admin/`）或 `routes.json`（唯一事实源，本图由 `engine.py` 生成）。",
         "> 路由：按节点**描述**匹配 → 命中进其 `→ 挂载` 目录读 `SKILL.md`／`README.md` 调用；无命中按自带判据亲做。"
@@ -725,6 +730,22 @@ def cmd_default(args) -> int:
         if hook not in DEFAULT_HOOKS:
             return False, f"hook 非法：{hook}（可选 {'|'.join(DEFAULT_HOOKS)}）"
         data["defaults"] = {"default": args.id, "hook": hook}
+            lay = getattr(args, "layers", None)
+            if lay is not None:
+                items = [x.strip() for x in lay.split(",") if x.strip()]
+                if len(items) > 3:
+                    return False, "默认层至多 3 项（防固定成本膨胀）"
+                parsed = []
+                for it in items:
+                    if ":" not in it:
+                        return False, f"默认层格式须为 <id>:<card|index>：{it}"
+                    nid, rd = it.split(":", 1)
+                    if find(data, nid) is None:
+                        return False, f"默认层节点不存在：{nid}"
+                    if rd not in ("card", "index"):
+                        return False, f"默认层 read 非法：{rd}（可选 card|index）"
+                    parsed.append({"id": nid, "read": rd})
+                data["defaults"]["layers"] = parsed
         return True, ""
 
     ok, payload = commit(mutate)
@@ -763,6 +784,7 @@ def main() -> int:
     p_df = sub.add_parser("default")
     p_df.add_argument("--id", default="")          # 设默认资产（与 --clear 二选一）
     p_df.add_argument("--hook", default="")        # 仅 read（省略 = 保留现值 / read）
+    p_df.add_argument("--layers", default=None)   # 默认层：<id>:<card|index>,…（≤3；空串清除）
     p_df.add_argument("--clear", action="store_true")
     args = parser.parse_args()
 
