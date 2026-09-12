@@ -29,7 +29,7 @@ description: "出库统计Ultra 板块优化 skill（自包含，可独立移植
    `resources/credential.local.json`（`{"token":"…","tokenSig":"…","exp":1789…}`）；
 3. 宿主父 skill 回退（可选）：向上存在 `scripts/login_bi.py` 时自动取其登录仓（**BI 侧特例**；PMS 侧接入验收明禁子包读父凭证仓库——勿互相套用）。
 
-- 三级全空时返回 `AUTH_REQUIRED`，此时必须由用户直接传入凭证（窗口 1 或 2）。
+- 三级全空时返回 `AUTH_REQUIRED`——**先按父级登录入口取新凭证**（↑ 的 `i7c4z1` 登录器：先 `--status` 验证、失效才登录；本板不自行登录），或由用户直接提供（窗口 1 或 2）；**不得未验证即向用户索要、不得因缺凭证停用本板** ✗。
 - **获取方式**：宿主父 skill 登录器扫码（若有；**cwd = 父资产 `library/assets/i7c4z1/`**，`python scripts/login_bi.py`），或由用户直接提供 token。
 - 查询返回 `AUTH_*` 错误时先换新凭证再重试一次；不要因参数、权限、限流、网络错误触发换凭证。
 - API 契约自包含于 [references/api查询文档.md](references/api查询文档.md)，移植无需父 skill 文档。

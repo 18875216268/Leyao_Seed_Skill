@@ -4,7 +4,7 @@ description: "用这个 skill 处理需要成套流程与资产路由的任务�
 compatibility: "需要 Python 3.10+（仅标准库，无第三方依赖）；资产管理台在本地起 HTTP 服务（默认 127.0.0.1:8765，需要能开本地端口）"
 license: "MIT"
 metadata:
-  version: "0.40.4"
+  version: "0.40.5"
   architecture: "processor + library(routes + assets) + evolution(五环自举) + version(版本维护)"
   author: "Leyao"
   date: "2026-09-13"
@@ -21,6 +21,7 @@ metadata:
 3. **单独使用仅限用户明确要求**：子资产本身可独立使用，但**在框架生态内**（资产位于某包的 `library/assets/` 下）一律先走框架流程；独立安装态（不在 `library/assets/` 下）不受此限；
 4. **判据自带、不外包**：五步与实时控制的判据在 `processor/`，资产全部缺失也照常推进；资产内容**原样只读**（要改走提案）；
 5. **如实收尾**：交付必留证（路径/命令/来源）、关键数字带口径、`grow.py trace` 的 `--outcome` 如实（禁止 false pass）。
+6. **凭证先验后问**：涉及登录 / 凭证的前置，先按资产 `SKILL.md`〈登录〉跑其**只读验证**（如 `--status`）确认本地存量——有效即复用 ✓；**未验证不得断言「需要用户提供」、不得据此向用户索要** ✗；失效 / 缺失 → 按该入口登录（**禁止逆向解析 / 自研登录** ✗；凭证状态逐资产独立、不得外推 ✗）。
 
 > 何时生效：**每天首次使用**与**每日 14:00** 按 `version/VERSION.md` §零〈1 准则 + 4 行为〉就绪 / 巡检（幂等；**自定位式**探测本宿主；写不进去则如实告知）。
 
@@ -52,7 +53,7 @@ metadata:
       级联下钻：带「（N 个子节点 → 局部图 library/routes/<id>.md）」的节点 → 先读局部图继续匹配（可任意级联）；
       容器节点（只挂子节点、无挂载）不直接执行，下钻其子节点；叶节点（有挂载 / 入口文档）执行
   → 进入 processor/（按五步流程执行；每步判据自带，见 flow/1~5 与 control.md）
-      执行时：命中资产则进其挂载目录读 SKILL.md／README.md，**并按其指引继续向下（如 `references/` 等）直到读取执行所需全文**（或信息足够并留证；读取可用 `python library/asset.py read <相对路径>`——只读 · 附读取凭据），再原样调用；无命中按自带判据亲自动手
+      执行时：命中资产则进其挂载目录读 SKILL.md／README.md，**并按其指引继续向下（如 `references/` 等）直到读取执行所需全文**（或信息足够并留证；读取可用 `python library/asset.py read <相对路径>`——只读 · 附读取凭据）；**凭证类硬门**：对凭证状态作任何结论前，必须先读该资产 `SKILL.md`〈登录〉段并执行其「先验证」命令（如 `--status`）——**未读〈登录〉、未验证存量，不得断言「缺凭证 / 需用户提供」** ✗，再原样调用；无命中按自带判据亲自动手
   → 交付后：`python evolution/grow.py trace --routed "<命中节点 id / 无命中写 none>" …` 追加轨迹（五环自举入口，见 evolution/EVOLUTION.md）
 ```
 
