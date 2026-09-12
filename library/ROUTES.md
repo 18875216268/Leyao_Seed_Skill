@@ -2,6 +2,7 @@
 > ★ 默认资产（每次任务必读）：`pp32an` **@行业知识库** → `library/assets/pp32an/`——卡在**用户数据区** `data/assets/pp32an/card.md`（框架挂载态 `.leyao-data/…`；独立态 `~/.leyao-kb/card.md`）；只用于识别与定位（定义以池 authority 为准）；（卡落点由 `evolution/paths.py` 解析：挂载态/同级/独立态/覆盖态）读法与刷新见其 `references/card.md`，判据见 `processor/flow/3-execute.md` 0.5。
 > ★ 默认层（每次任务读入口 · ≤3）：`pp32an`→卡 ｜ `bvix9o`→索引
 > 读者：agent 与审阅者；**维护**请用管理台（`library/admin/`，★ 默认资产/默认层经 `engine.py default`；管理台暂不含）或 `routes.json`（唯一事实源，本图由 `engine.py` 生成）。
+> 读取：拿到 `→ 挂载` 路径后 → `python library/asset.py read <相对路径>`（只读 · 相对包根 · 附读取凭据 · 零搜索依赖；另有子命令 `resolve` / `list`）。
 > 路由：按节点**描述**匹配 → 命中进其 `→ 挂载` 目录读 `SKILL.md`／`README.md` 调用；无命中按自带判据亲做。描述形态：六段齐备=判据链全能力；`（自由描述·降级匹配）`=关键词级；`（无描述·不可路由）`（模板见 `processor/shapes.md` 第 7 节）。
 > 级联：`（N 个子节点 → 局部图 library/routes/<id>.md）` → 读局部图继续匹配（可再分片 → 任意级联），叶节点执行（分片阈值：子节点 > 5 或 子树节点 > 20）。
 > 回写：交付后 `--routed <命中节点id>`；无命中写 `none`。同读用户区 `.leyao-data/data/memory.md`（命中「失效模式」先规避、命中「有效做法」直接复用）。

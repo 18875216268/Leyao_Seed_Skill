@@ -4,7 +4,7 @@ description: "用这个 skill 处理需要成套流程与资产路由的任务�
 compatibility: "需要 Python 3.10+（仅标准库，无第三方依赖）；资产管理台在本地起 HTTP 服务（默认 127.0.0.1:8765，需要能开本地端口）"
 license: "MIT"
 metadata:
-  version: "0.36.1"
+  version: "0.37.0"
   architecture: "processor + library(routes + assets) + evolution(五环自举) + version(版本维护)"
   author: "Leyao"
   date: "2026-09-13"
@@ -52,7 +52,7 @@ metadata:
       级联下钻：带「（N 个子节点 → 局部图 library/routes/<id>.md）」的节点 → 先读局部图继续匹配（可任意级联）；
       容器节点（只挂子节点、无挂载）不直接执行，下钻其子节点；叶节点（有挂载 / 入口文档）执行
   → 进入 processor/（按五步流程执行；每步判据自带，见 flow/1~5 与 control.md）
-      执行时：命中资产则进其挂载目录读 SKILL.md／README.md，**并按其指引继续向下（如 `references/` 等）直到读取执行所需全文**（或信息足够并留证），再原样调用；无命中按自带判据亲自动手
+      执行时：命中资产则进其挂载目录读 SKILL.md／README.md，**并按其指引继续向下（如 `references/` 等）直到读取执行所需全文**（或信息足够并留证；读取可用 `python library/asset.py read <相对路径>`——只读 · 附读取凭据），再原样调用；无命中按自带判据亲自动手
   → 交付后：`python evolution/grow.py trace --routed "<命中节点 id / 无命中写 none>" …` 追加轨迹（五环自举入口，见 evolution/EVOLUTION.md）
 ```
 
