@@ -59,8 +59,7 @@ def build_synthetic(case_id: str, root: Path) -> Path:
         (p / "README.md").write_text("# 空任务\n", encoding="utf-8")
         return p
     tpl = read(ROOT / "processor" / "templates" / "过程记录.md")
-    rec = tpl.replace("## 6. 执行循环与回退（长任务；判据见 `processor/control.md`）",
-                      "## 6. 执行循环与回退（长任务；判据见 `processor/control.md`）")
+    rec = tpl
     if case_id in ("syn-legacy",):
         rec = rec.split("## 6.")[0]                       # 去掉 §6 = 机制前产物
     if case_id == "syn-partial":
