@@ -292,7 +292,7 @@ def validate(data: dict, root: Path) -> list[str]:
         if not m:
             continue
         if not (root / m).exists():
-            issues.append(f"{nid}: mount 路径不存在 → {m}")
+            issues.append(f"{nid}: mount 路径不存在 → {m}（ROUTES 已标 ⚠ 不可用）")
     for dup in sorted({i for i in ids if ids.count(i) > 1}):
         issues.append(f"{dup}: 路由 id 重复")
     # 默认资产注册契约（"读它"由任务层判据 0.5 执行；引擎只校验注册面，不解析资产内容 ✗）
@@ -358,6 +358,8 @@ def hints(data: dict, root: Path) -> list[str]:
     """
     out = []
     for n, _ in iter_nodes(data.get("nodes")):
+        if not (n.get('children') or []) and not n.get('mount'):
+            out.append("%s: 叶节点无挂载 → 命中后无处可读（补挂载或改容器）" % n.get('id'))
         for note in desc_length_notes(n.get("description") or ""):
             out.append(f"{n.get('id')}: {note}")
         st = desc_state(n.get("description"))
@@ -401,6 +403,11 @@ def find_orphans(data: dict) -> list[str]:
             if p.is_dir() and not p.name.startswith(".") and p.name not in used]
 # ---------- 渲染 ----------
 
+def mount_missing(node: dict, root: Path = LIB.parent) -> bool:
+    """挂载声明存在但目录不在（悬空路由）——渲染时显式标注，避免被广告为可用。"""
+    m = (node or {}).get("mount")
+    return bool(m) and not (root / m).exists()
+
 def render(data: dict) -> str:
     """渲染 **agent 路由面**（瘦身版：只留路由必需信息）。
 
@@ -416,13 +423,16 @@ def render(data: dict) -> str:
     if d.get("default"):
         dn = next((n for n, _ in iter_nodes(data.get("nodes")) if n.get("id") == d["default"]), None) or {}
         mnt = f" → `{dn['mount']}`" if dn.get("mount") else ""
+        if mount_missing(dn):
+            mnt += "（⚠ 挂载缺失 · 不可用）"
         lines.append(f"> ★ 默认资产（每次任务必读）：`{d['default']}` **{dn.get('title', '')}**{mnt}"
                      f"——卡在**用户数据区** `data/assets/{d['default']}/card.md`（框架挂载态 `.leyao-data/…`；"
                      "独立态 `~/.leyao-kb/card.md`）；只用于识别与定位（定义以池 authority 为准）；"
                      "（卡落点由 `evolution/paths.py` 解析：挂载态/同级/独立态/覆盖态）读法与刷新见其 `references/card.md`，判据见 `processor/flow/3-execute.md` 0.5。")
         if d.get("layers"):
-            lines.append("> ★ 默认层（每次任务读入口 · ≤3）："
-                         + " ｜ ".join(("`%s`→%s" % (x.get("id"), {"card": "卡", "index": "索引"}.get(x.get("read"), "非法")))
+            _byname = {n.get("id"): n for n, _ in iter_nodes(data.get("nodes"))}
+        lines.append("> ★ 默认层（每次任务读入口 · ≤3）："
+                         + " ｜ ".join(("`%s`→%s" % (x.get("id"), {"card": "卡", "index": "索引"}.get(x.get("read"), "非法") + ("（⚠ 缺）" if mount_missing(_byname.get(x.get("id")) or {}) else "")))
                                      for x in d["layers"] if isinstance(x, dict)))
     lines += [
         "> 读者：agent 与审阅者；**维护**请用管理台（`library/admin/`，★ 默认资产/默认层经 `engine.py default`；管理台暂不含）或 `routes.json`（唯一事实源，本图由 `engine.py` 生成）。",
@@ -440,6 +450,11 @@ def render(data: dict) -> str:
         for n in ns:
             indent = "  " * depth
             mount = f" → `{n['mount']}`" if n.get("mount") else ""
+            miss = "（⚠ 挂载缺失 · 不可用）" if mount_missing(n) else ""
+            if not miss and n.get("mount"):
+                _mp = LIB.parent / n["mount"]
+                if _mp.is_dir() and not any(_mp.iterdir()):
+                    miss = "（⚠ 空目录 · 无可读内容）"
             kids = n.get("children") or []
             split = bool(kids) and needs_split(n, sizes)
             suffix = ""
@@ -449,7 +464,7 @@ def render(data: dict) -> str:
                           else f"（{len(kids)} 个子节点）")
             st = desc_state(n.get("description"))
             flag = {"empty": "（无描述·不可路由）", "free": "（自由描述·降级匹配）"}.get(st, "")
-            lines.append(f"{indent}- `{n.get('id')}` **{n.get('title')}** `{n.get('type')}`{mount}{suffix}{flag}")
+            lines.append(f"{indent}- `{n.get('id')}` **{n.get('title')}** `{n.get('type')}`{mount}{miss}{suffix}{flag}")
             if n.get("description"):
                 lines.append(f"{indent}  - _{n['description']}_")
             if kids and not split:
@@ -477,6 +492,11 @@ def local_map(data: dict, node: dict) -> str:
         for n in ns:
             indent = "  " * depth
             mount = f" → `{n['mount']}`" if n.get("mount") else ""
+            miss = "（⚠ 挂载缺失 · 不可用）" if mount_missing(n) else ""
+            if not miss and n.get("mount"):
+                _mp = LIB.parent / n["mount"]
+                if _mp.is_dir() and not any(_mp.iterdir()):
+                    miss = "（⚠ 空目录 · 无可读内容）"
             sub = n.get("children") or []
             split = bool(sub) and needs_split(n, sizes)
             suffix = ""
@@ -485,7 +505,7 @@ def local_map(data: dict, node: dict) -> str:
                           else f"（{len(sub)} 个子节点）")
             st = desc_state(n.get("description"))
             flag = {"empty": "（无描述·不可路由）", "free": "（自由描述·降级匹配）"}.get(st, "")
-            lines.append(f"{indent}- `{n.get('id')}` **{n.get('title')}** `{n.get('type')}`{mount}{suffix}{flag}")
+            lines.append(f"{indent}- `{n.get('id')}` **{n.get('title')}** `{n.get('type')}`{mount}{miss}{suffix}{flag}")
             if n.get("description"):
                 lines.append(f"{indent}  - _{n['description']}_")
             if sub and not split:

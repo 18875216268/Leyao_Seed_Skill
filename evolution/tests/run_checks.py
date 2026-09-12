@@ -266,6 +266,10 @@ def main() -> int:
                          and p.name != "README.md" and p.name not in _ixt]
                 if _miss:
                     _problems.append("能力库索引缺场景文件行（命中后无法直读定位）：%s" % "、".join(_miss))
+                _refs = set(__import__("re").findall(r"`([^`/\\]+[.](?:txt|md))`", _ixt))
+                _gone = [r for r in sorted(_refs) if not (_sc / r).is_file()]
+                if _gone:
+                    _problems.append("能力库索引指向不存在的文件：%s" % "、".join(_gone))
         checks.append(check("default_asset", not _problems,
                             "；".join(_problems) if _problems else
                             ("默认资产 = %s：★ 行与判据 0.5 一致" % _did if _did
