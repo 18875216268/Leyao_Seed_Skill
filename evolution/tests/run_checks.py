@@ -257,6 +257,15 @@ def main() -> int:
                         _problems.append("★ 默认层 行缺成员：%s（与 defaults.layers 不一致）" % "、".join(_miss))
                     if _bad:
                         _problems.append("★ 默认层 行 read 标签不符：%s" % "、".join(_bad))
+            _sc = ROOT / "library" / "assets" / "bvix9o" / "高频场景指引"
+            _ix = _sc / "README.md"
+            if _sc.is_dir() and _ix.is_file():
+                _ixt = _ix.read_text(encoding="utf-8")
+                _miss = [p.name for p in sorted(_sc.iterdir())
+                         if p.is_file() and p.suffix in (".txt", ".md")
+                         and p.name != "README.md" and p.name not in _ixt]
+                if _miss:
+                    _problems.append("能力库索引缺场景文件行（命中后无法直读定位）：%s" % "、".join(_miss))
         checks.append(check("default_asset", not _problems,
                             "；".join(_problems) if _problems else
                             ("默认资产 = %s：★ 行与判据 0.5 一致" % _did if _did
