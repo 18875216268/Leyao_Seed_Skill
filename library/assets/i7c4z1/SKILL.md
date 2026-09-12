@@ -41,17 +41,10 @@ metadata:
 3. **能力提供**：在遵循本 skill 框架指引的前提下，完完全全遵照子 skill 和集团 skill 包的相关文件说明，本框架不做任何转述篡改。通道与优化包（`vendor/`）随 skill **内置交付、原样只读**，由 AI 直读执行（无同步器、无动态拉取）。**本框架不内置、不解释任何 API 参数**——接口知识全部随各自通道/优化板文档交付，本文件仅做引导。
 4. **路由引导**：以 `vendor/SUBSKILL_ROUTING.md` 为唯一总路由，次序为——**先通道优先，再板块优先；都不行，先通道降级，再板块降级**。即：默认主通道 bi-cookie；通道内优先所属优化板块，无或不满足再按通道本身指引；主通道无法满足时自动降级到备用通道并重复上述次序。**无法确认通道及优化板块时，给出选项由用户决定，不擅自代选。**
 
-```
-Bi skill（父：纯登录框架 + 裁决 + 路由引导）
-├── 功能器官  scripts/（纯登录框架，不含任何 API 业务知识）
-│   ├── 登录器  login_bi.py    登录本体（单文件自包含；自带 CLI：--status / --show-token / --reuse / --no-ui / --no-remote）
-│   └── 公共底座 bi_common.py    错误/stdio/凭证读取公共层
-└── vendor/（通道与子 skill，原样只读，接口知识全部随包自带）
-    ├── bi-cookie/           通道1：Cookie 卡片通道（SKILL.md + references 契约 + scripts 三工具 + data 索引）
-    ├── bi-pat/              通道2：PAT SQL 通道（自包含：凭证窗口 + 手册 + 四道闸 + pat_call.py）
-    ├── optimizers/          板块优化文件夹（每板自包含并标注所属通道）
-    │                        已接入：BI-出库统计Ultra查询v1.08（Cookie卡片通道 · 出库统计Ultra 板块）
-    └── SUBSKILL_ROUTING.md   统一总路由（§1 通道准则；§2 板块准则；§3 决策树；§4/§5 路由表；§6 规则）
+```text
+Bi skill = 纯登录框架 + 裁决 + 路由引导；vendor/ 结构（通道 / 优化板 / 路由文档）
+以 `vendor/SUBSKILL_ROUTING.md` 的目录树为准（**单源** ✗，本文件不复述）。
+父 skill 根 scripts/：`login_bi.py`（登录本体，自带 CLI）+ `bi_common.py`（底座）+ `requirements.txt`。
 ```
 
 > 本 skill **不实现**任何自进化 / 经验画像 / 自动蒸馏 / 跨会话推荐模块：取数经验不落地为可自我修改的代码，集团包与优化包一律原样只读、零解析。这与 `Pms_智能取数_login` 的「无 SEM 自进化」原则一致（不绑定具体版本，避免随包升级而过时）。
@@ -80,7 +73,7 @@ Cookie 卡片通道的三工具——发送器 `bi_call.py`、卡片索引 `bi_i
 - 集团基础 skill 含全量卡片/字段但无引导，直接通读取数慢；优化 skill 针对特定板块提供精简指引。
 - **完整路由规则见 `vendor/SUBSKILL_ROUTING.md`**（§1 通道准则 / §2 板块准则 / §3 决策树 / §6 强制规则），核心次序：**先通道优先，再板块优先；都不行，先通道降级，再板块降级**；不转述、不改写，直接读原样文件；**凭证来源——子 skill 一律不实现登录，凭证由本 skill 登录组件提供或用户直接给定**。
 - 当前已接入优化 skill：**BI-出库统计Ultra查询v1.08**（出库统计Ultra 板块：DSL 聚合查询/批量并发/分页/区域树/聚合导出；自包含，凭证三级窗口。详见 `vendor/optimizers/BI-出库统计Ultra查询v1.08/h4dsa6/SKILL.md` 与 `vendor/SUBSKILL_ROUTING.md` §5）。
-- 通道现状：**通道1 Cookie 卡片通道**（任何登录用户，主通道）；**通道2 PAT SQL 通道** `vendor/bi-pat/`（仅持 PAT 的特定权限用户，数据集级 SQL 自由聚合）。通道选择与权限分流见 `vendor/SUBSKILL_ROUTING.md` §1/§3。
+- 通道：**1 = bi-cookie（主）**· **2 = bi-pat（备，仅持 PAT 用户）**——启用条件与权限分流见 `vendor/SUBSKILL_ROUTING.md` §1 ✗。
 
 ## 3. 取数流程（AI 主导，非固定脚本链）
 

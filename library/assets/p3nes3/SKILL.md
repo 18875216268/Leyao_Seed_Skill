@@ -91,7 +91,7 @@ Pms skill（父：总指引 + 裁决 + 路由）
   - host 基址 + 路径：`python scripts/pms_call.py --host-key pmsHost --path /api/Index/xxx --payload-file payload.json`（host 基址从 `sync_config.json` 的 `host_endpoints` 解析）
   - 导出落盘：`... --out-file 报表.xlsx`（自动识别文件流 / data.url 两种形态）
   - 响应写入文件：`... --output resp.json`（导出结果用 `--out-file`）
-  - token 自动注入（`--token` > `PMS_TOKEN` 环境变量 > 凭证仓库最近登录账号，本地检查绝不弹窗）；body 双发 token
+  - token 自动注入（**来源优先级见 §1.1** ✗）；body 双发 token
   - 集团接口均为 POST，发送器固定 POST，无 method 选项；`content_type` 默认 `application/json`，亦可 `application/x-www-form-urlencoded`
 
 ### 1.4 体检器（vendor_lint.py —— 接入体检，防重复登录）
@@ -116,17 +116,16 @@ Pms skill（父：总指引 + 裁决 + 路由）
 
 ## 4. 常见陷阱与故障处理（Agent 必读）
 
-- **401 / token 失效**：先用 Python API `login_and_store()` 重登（**唯一同时落库 + 补口径的入口**）✅；或 `python scripts/pms_login.py`（无参/弹窗**只把凭证返回到 stdout、不落库** ✗）——此时必须把新 token 以 `--token`/`PMS_TOKEN` 传入本次查询，否则仓库里仍是旧凭证、会再次 401；不要改代码；弹窗失败可点容器重试。
+- **401 / token 失效**：先用 Python API `login_and_store()` 重登（**唯一同时落库 + 补口径的入口**）✅；或 `python scripts/pms_login.py`（语义见 §1.1 ✗）——若用无参/弹窗版必须把新 token 以 `--token`/`PMS_TOKEN` 传入本次查询，否则仓库里仍是旧凭证、会再次 401；不要改代码；弹窗失败可点容器重试。
 - **42053 请求过频**（当前已知集团限流码，以随包文档为准）：缩小时间范围、按天拆分明细；`pms_call.py` 已内置退避重试（默认 2 次）。
 - **代理报错（PROXY_ERROR）**：登录器本身不走系统代理；`pms_call.py` 报代理错误时同命令加 `--no-proxy`，不要改系统代理设置。
 - **TLS 报错（TLS_ERROR）**：仅在受控环境用 `--insecure`；优先修复本地 CA 配置（登录器可用 `PMS_CA_BUNDLE` 指定证书）。
-- **多公司账号**：主接口多要求 `providerId`；登录不收集子公司列表，取数前用文档中带 lookup 语义的接口消歧后传入。
+- **多公司账号**：口径与动作见 §3 第 6 条（`providerId` 随登录带出；子公司列表登录不收集 ✗）。
 - **大报表导出**：超过导出阈值（以随包文档为准）走后台异步，此时响应无下载 URL，提示去任务列表下载，不要干等；同步导出用 `--out-file` 落盘。
 - **名称对不上**：先 lookup 同名候选让用户确认，不要擅自选第一条；随包文档标注【强制直传】的筛选项禁止额外 lookup。（**本包未标注时**：按包内单值筛选项规则执行 ✓）
 
 > **交付三硬规则**（① 来源泳道标注（含 Excel 落点）② 多板块交叉分栏 ③ 预估口径 + 取数时点）：见 `vendor/SUBSKILL_ROUTING.md`〈交付硬规则〉✓。
 
-> **执行步同受约束**：§3 按随包文档取数时，**同样遵守**本节三条硬规则（来源泳道标注 / 多板块交叉分栏 / 预估口径 + 取数时点）✓。
 - **严禁改 `vendor/` 原样包与功能器官代码**：集团格式零假设，改坏无法回退到原文；接口理解只经 §3 流程（AI 直读）。
 
 ## 5. 读取与路由协议（边界）
