@@ -427,8 +427,8 @@ def render(data: dict) -> str:
             mnt += "（⚠ 挂载缺失 · 不可用）"
         lines.append(f"> ★ 默认资产（每次任务必读）：`{d['default']}` **{dn.get('title', '')}**{mnt}"
                      f"——卡在**用户数据区** `data/assets/{d['default']}/card.md`（框架挂载态 `.leyao-data/…`；"
-                     "独立态 `~/.leyao-kb/card.md`）；只用于识别与定位（定义以池 authority 为准）；"
-                     "（卡落点由 `evolution/paths.py` 解析：挂载态/同级/独立态/覆盖态）读法与刷新见其 `references/card.md`，判据见 `processor/flow/3-execute.md` 0.5。")
+                     "独立态可能另有知识库自身的 `~/.leyao-kb/card.md`）；只用于识别与定位（定义以池 authority 为准）；"
+                     "（**卡落点由 `evolution/paths.py` 解析**：`LEYAO_SEED_HOME` → 同级 `.leyao-data` → 用户主目录三级）读法与刷新见其 `references/card.md`，判据见 `processor/flow/3-execute.md` 0.5。")
         if d.get("layers"):
             _byname = {n.get("id"): n for n, _ in iter_nodes(data.get("nodes"))}
             lines.append("> ★ 默认层（每次任务读入口 · ≤3）："

@@ -6,7 +6,7 @@
   python library/asset.py read <相对路径> [--head N] [--tail N] [--lines A-B]
                                                       # 读文件：带行号输出 + **读取凭据**（路径 / 行数 / 字节 / sha1）
 
-约定：路径一律相对**包根**（本文件所在 `library/` 的上一级）；`..` / 绝对路径一律拒绝 ✗；**只读** ✗ 不写。
+约定：路径一律相对**包根**（本文件所在 `library/` 的上一级；**参数与 cwd 无关**，脚本路径按你的 cwd 写全即可）；`..` / 绝对路径一律拒绝 ✗；**只读** ✗ 不写。
 示例：python library/asset.py read library/assets/bvix9o/高频场景指引/子公司（店铺）整月销售目标拆解.txt
 
 分层：本工具只做「已知路径 → 内容」；**路由（选哪个资产）在 `library/engine.py` / `ROUTES.md`**，两者不重叠。
@@ -81,7 +81,9 @@ def cmd_resolve(args) -> int:
         print("[asset] ✗ 拒绝：只接受相对包根的路径（不可 `..` / 绝对路径）")
         return 1
     if not p.exists():
-        print("[asset] ✗ 不存在：%s（可先用 resolve <节点id> 拿挂载目录）" % _rel(p))
+        _hint = "（该词形似节点 id，但未在 `library/routes.json` 命中——先 resolve <节点id> 拿挂载目录）" \
+            if len(args.target) == 6 and args.target.isalnum() else "（可先用 resolve <节点id> 拿挂载目录）"
+        print("[asset] ✗ 不存在：%s %s" % (_rel(p), _hint))
         return 1
     if p.is_dir():
         print("[asset] 目录 %s ｜ 直属条目 %d" % (_rel(p), len(_entries(p))))
@@ -120,7 +122,8 @@ def cmd_read(args) -> int:
     try:
         text = b.decode("utf-8")
     except UnicodeDecodeError:
-        print("[asset] （二进制文件，不展示内容）读取凭据：%s ｜ 字节 %d ｜ sha1 %s" % (_rel(p), len(b), sha))
+        print("[asset] （二进制文件，不展示内容）读取凭据：%s ｜ 字节 %d ｜ sha1(全文) %s（以此充当锚点）"
+              % (_rel(p), len(b), hashlib.sha1(b).hexdigest()))
         return 0
     lines = text.split("\n")
     lo, hi = 1, len(lines)
@@ -152,7 +155,7 @@ def main(argv=None) -> int:
     l.set_defaults(func=cmd_list)
     d = sub.add_parser("read", help="读文件（带读取凭据）")
     d.add_argument("path")
-    d.add_argument("--head", type=int, help="只展示前 N 行")
+    d.add_argument("--head", type=int, help="只展示前 N 行（与 --tail/--lines 同给时按 lines > head > tail 取一）")
     d.add_argument("--tail", type=int, help="只展示后 N 行")
     d.add_argument("--lines", help="展示 A-B 行")
     d.set_defaults(func=cmd_read)
