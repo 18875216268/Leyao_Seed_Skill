@@ -315,8 +315,12 @@ def main() -> int:
                 bad.append("%s 出口判据须排在动作之前（先定验收目标再讲做法）" % f.name)
         if "## 判据分级" not in (ROOT / "processor" / "PROCESSOR.md").read_text(encoding="utf-8"):
             bad.append("processor/PROCESSOR.md 缺「判据分级」")
+        _ctl = (ROOT / "processor" / "control.md").read_text(encoding="utf-8")
+        for _need in ("卡壳处置", "决策卡点"):
+            if _need not in _ctl:
+                bad.append("processor/control.md 缺通用处置节「%s」" % _need)
         checks.append(check("processor_sections", not bad,
-                            "；".join(bad) if bad else "五步 flow 五段齐备 · 出口判据前置 · 判据分级在场"))
+                            "；".join(bad) if bad else "五步 flow 五段齐备 · 出口判据前置 · 判据分级在场 · control.md 通用处置节（卡壳 / 决策卡点）在场"))
     except Exception as exc:
         checks.append(check("processor_sections", False, str(exc)))
 
