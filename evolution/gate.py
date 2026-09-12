@@ -8,6 +8,7 @@ review 时承担、用户终审。Gödel Agent 实证：临时下降不可避免
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -20,7 +21,9 @@ CHECKS = ROOT / "evolution" / "tests" / "run_checks.py"
 
 
 def run_checks() -> dict:
-    proc = subprocess.run([sys.executable, str(CHECKS)], capture_output=True)
+    # 子进程零写包（子进程不继承本进程的 dont_write_bytecode，必须显式传环境）
+    proc = subprocess.run([sys.executable, str(CHECKS)], capture_output=True,
+                          env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
     try:
         return json.loads(proc.stdout.decode("utf-8"))
     except Exception:

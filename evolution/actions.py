@@ -3,7 +3,7 @@
 
 reflect 蒸馏候选 → evolve 出变异（自动档 memory 直写 / 高风险档提案）
 → apply 执行已批准提案（快照→写入→评分→失败即回滚）→ review 观察期结算。
-两档权限：唯一自动档是用户区记忆（`data/memory.md`，L0）；其余一律提案（内容类 route_update / asset_write 仅维护者实例）；
+两档权限：唯一自动档是用户区记忆（`.leyao-data/data/memory.md`，L0）；其余一律提案（内容类 route_update / asset_write 仅维护者实例）；
 整包更新（framework_update，版本维护层）不受维护者限制——经用户批准即可，落地器内自带快照 / 证环 / 整体回滚。
 """
 from __future__ import annotations
@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -93,6 +94,7 @@ def reflect() -> list:
             continue
         store.upsert_rule(r)
         new.append(r)
+    store.enforce_capacity(th.get("max_active_rules", store.MAX_ACTIVE_RULES_DEFAULT))   # 容量守卫（reflect 侧）
     return new
 
 
@@ -113,7 +115,8 @@ def evolve() -> dict:
         store.audit("evolve.auto_memory", rule=r["id"], section=section,
                     support=r["support"], success_rate=r["success_rate"], applied=ok)
         applied.append({"rule": r["id"], "action": f"memory_put:{section}", "summary": r.get("summary")})
-    return {"applied": applied}
+    retired = store.enforce_capacity(th.get("max_active_rules", store.MAX_ACTIVE_RULES_DEFAULT))   # 库宽上限 C（Ratchet）
+    return {"applied": applied, "retired": retired}
 
 
 # ---------- 择 / 行：提案（唯一高风险通道）—— 造 / 否决 / 执行 ----------
@@ -219,12 +222,20 @@ def apply(pid: str, approved_by: str = "user") -> dict:
         return {"ok": False, "discarded": True, "error": "%s；该提案已作废并留审计" % err}
 
     if kind == "route_update":
+        lmap_d = store.ROOT / "library" / "routes"                # 分片节点的局部图（分形路由）
+        pre_maps = {f.name for f in lmap_d.glob("*.md")} if lmap_d.exists() else set()
         files = [store.ROOT / "library" / "routes.json", store.ROOT / "library" / "ROUTES.md"]
+        files += sorted(lmap_d.glob("*.md")) if lmap_d.exists() else []
         before = gate.capture(files)
         args = [sys.executable, str(store.ROOT / "library" / "engine.py"), payload["cmd"]] + payload["args"]
-        proc = subprocess.run(args, capture_output=True)
+        proc = subprocess.run(args, capture_output=True,
+                              env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})   # 子进程零写包
         if proc.returncode != 0:
             gate.restore_files(before)
+            if lmap_d.exists():                                   # 本次新建的局部图一并回滚（防残留）
+                for f in lmap_d.glob("*.md"):
+                    if f.name not in pre_maps:
+                        f.unlink()
             store.audit("apply.rollback", proposal=pid, kind=kind,
                         reason=proc.stdout.decode("utf-8", "replace")[-200:])
             store.remove_proposal(pid)

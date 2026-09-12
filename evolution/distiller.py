@@ -34,13 +34,26 @@ def _pattern(groups, limit: int = 3) -> list:
             for t in s:
                 counts[t] = counts.get(t, 0) + 1
         common = set(counts)
-    ranked = sorted(common, key=lambda t: (-sum(1 for s in sets if t in s), t))
-    return ranked[:limit]
+    ranked = sorted(common, key=lambda t: (-sum(1 for s in sets if t in s), -len(t), t))
+    picked = []
+    for t in ranked:                     # 策展：优先长词；丢弃已被更长词覆盖的碎片（如「么算」「径查」）
+        if len(t) < 2:
+            continue
+        if any(t in p and t != p for p in picked):
+            continue
+        picked.append(t)
+        if len(picked) >= limit:
+            break
+    return picked or ranked[:limit]
 
 
 def distill_traces(items: list, min_support: int = 2) -> list:
     """Lane B：用户纠正（最强信号）→route 候选；同路由失败→avoid 候选。墓碑拦截。"""
     exp = store.experience()
+    try:                                     # 已知节点 id（用于把自由文本纠正解析成"路由目标"）
+        known_ids = {n["id"] for n, _ in engine.iter_nodes(engine.load().get("nodes"))}
+    except Exception:
+        known_ids = set()
     override_groups, failure_groups = {}, {}
     for t in items:
         if not isinstance(t, dict):
@@ -49,7 +62,10 @@ def distill_traces(items: list, min_support: int = 2) -> list:
         if not tokens:
             continue
         if t.get("user_override"):
-            override_groups.setdefault(t["user_override"], []).append((tokens, t.get("outcome") == "success"))
+            raw = str(t["user_override"]).strip()
+            hit = next((i for i in sorted(known_ids, key=len, reverse=True) if i in raw), "")
+            key = hit or raw                 # 命中节点 id → 作为路由目标；否则保留原文（提示型，不假装是节点）
+            override_groups.setdefault(key, []).append((tokens, t.get("outcome") == "success", bool(hit)))
         elif t.get("outcome") == "fail" and t.get("routed_to"):
             failure_groups.setdefault(t["routed_to"], []).append((tokens, t.get("failure_reason", "")))
 
@@ -61,12 +77,14 @@ def distill_traces(items: list, min_support: int = 2) -> list:
         rid = store.rule_id("route", pattern, target)
         if store.tombstoned(rid, exp):
             continue
+        is_id = bool(group[0][2])
+        note = "优先走 %s" % target if is_id else "用户纠正（未识别到节点 id，作提示）：%s" % target
         rules.append({
             "id": rid, "kind": "route", "pattern": pattern, "target": target,
             "support": len(group),
             "success_rate": round(sum(1 for g in group if g[1]) / len(group), 4),
             "state": "candidate", "source": "trace",
-            "summary": "任务含「%s」→ 优先走 %s" % ("/".join(pattern), target),
+            "summary": "任务含「%s」→ %s" % ("/".join(pattern), note),
             "created_at": store.now(), "hits": 0, "misses": 0, "observed": 0,
         })
     for target, group in failure_groups.items():
@@ -82,6 +100,35 @@ def distill_traces(items: list, min_support: int = 2) -> list:
             "support": len(group), "success_rate": 0.0,
             "state": "candidate", "source": "trace",
             "summary": "「%s」场景下 %s 曾失败（%s），使用前先核验" % ("/".join(pattern), target, "；".join(reasons) or "原因见轨迹"),
+            "created_at": store.now(), "hits": 0, "misses": 0, "observed": 0,
+        })
+
+    # Lane A2（成功路径）：同一路由目标**成功**使用 ≥ min_support 次 → route 候选（"有做法可复用"）。
+    # 为什么必须有：正常使用中"成功"占绝大多数、"纠正/失败"很少——只学后者会让本层**几乎学不到东西** ✗
+    # （依据：Voyager 技能库「把成功经验沉淀为可复用技能」/ EvolveR「经验驱动生命周期含成功轨迹」/ 自进化综述）
+    success_groups = {}
+    for t in items:
+        if not isinstance(t, dict) or t.get("user_override"):
+            continue
+        target = (t.get("routed_to") or "").strip()
+        if t.get("outcome") != "success" or not target or target == "none":
+            continue
+        tokens = tokenize(t.get("task", ""))
+        if tokens:
+            success_groups.setdefault(target, []).append((tokens, True))
+    seen = {r["id"] for r in rules}
+    for target, group in success_groups.items():
+        if len(group) < min_support:
+            continue
+        pattern = _pattern(group)
+        rid = store.rule_id("route", pattern, target)
+        if rid in seen or store.tombstoned(rid, exp):
+            continue
+        rules.append({
+            "id": rid, "kind": "route", "pattern": pattern, "target": target,
+            "support": len(group), "success_rate": 1.0,
+            "state": "candidate", "source": "trace-success",
+            "summary": "任务含「%s」→ 走 %s 成功 %d 次（可复用）" % ("/".join(pattern), target, len(group)),
             "created_at": store.now(), "hits": 0, "misses": 0, "observed": 0,
         })
     return rules

@@ -1,11 +1,12 @@
 """Shared transport, credential, validation, and CLI helpers for PMS promo profit v1.08.
 
-登录由父 skill 负责，本模块不实现任何登录流程，只消费凭证。
+本模块**不实现任何登录流程**：凭证一律由**调用方传入**（`--token` / `PMS_TOKEN` /
+`--state-file`）——本包不获取、不生成、不存储凭证，也不感知凭证来自哪个 skill。
 
-凭证来源优先级（与父 skill 自有登录组件一致）：
-    --token  >  环境变量 PMS_TOKEN  >  凭证文件（--state-file / PMS_STATE_FILE，可选）
-凭证文件由父 skill 或用户提供，本包不生成它；文件不存在时不会报错，
-此时必须显式提供 --token 或 PMS_TOKEN。
+本包可独立使用，也可原样落盘进任一父 skill：父 skill 登录一次拿到凭证后，由调用方
+（Agent / 宿主）经上述入口把 token 传进来即可——子包只认「如何传入凭证」这一件事。
+凭证文件可携带 providerId / warehouseIds（兼容 provider_id / warehouse_ids）；
+两者都没有时须显式传 `--provider-id` 或设 `PMS_PROVIDER_ID`。
 """
 
 from __future__ import annotations
@@ -37,8 +38,7 @@ MAX_SPAN_SECONDS = 172800
 USER_AGENT = "pms-cxml/1.08"
 CHINA_TIMEZONE = timezone(timedelta(hours=8))
 LOGIN_HINT = (
-    "Obtain a credential from the parent skill (python scripts/pms_login.py at the skill root), "
-    "or supply one via --token, PMS_TOKEN, or --state-file."
+    "Pass a credential via --token, the PMS_TOKEN env var, or --state-file."
 )
 
 
@@ -49,7 +49,7 @@ class PmsError(RuntimeError):
 def default_state_path() -> Path:
     """凭证文件路径（可选）：PMS_STATE_FILE 优先，默认 ~/.promo_profit_monitor/credential.json。
 
-    该文件由父 skill 或用户提供，本包不写入它；不存在时视为无凭证文件。
+    该文件由调用方提供，本包不写入它；不存在时视为无凭证文件。
     """
     configured = os.getenv("PMS_STATE_FILE")
     if configured:
@@ -92,6 +92,7 @@ def resolve_token(state: dict[str, Any], explicit_token: str | None = None) -> s
 
 
 def load_runtime_state(args: argparse.Namespace) -> dict[str, Any]:
+    """按优先级组装运行态：--token > PMS_TOKEN > 凭证文件（全部由调用方提供）。"""
     state = load_state(args.state_file) if args.state_file.expanduser().exists() else {}
     state = dict(state)
     state["token"] = resolve_token(state, getattr(args, "token", None))
@@ -131,12 +132,13 @@ def resolve_scope(args: argparse.Namespace, state: dict[str, Any]) -> QueryScope
     value = (
         getattr(args, "provider_id", None)
         or state.get("provider_id")
+        or state.get("providerId")
         or os.getenv("PMS_PROVIDER_ID")
     )
     if value in (None, ""):
         raise PmsError(
             "providerId is required. Pass --provider-id, set PMS_PROVIDER_ID, "
-            "or supply a credential file that contains it."
+            "or supply a credential file that contains provider_id (providerId)."
         )
     provider_id = _normalize_id(value)
     available_providers = {
@@ -163,10 +165,13 @@ def resolve_scope(args: argparse.Namespace, state: dict[str, Any]) -> QueryScope
                 f"warehouseIds {invalid} do not belong to providerId {provider_id}."
             )
         warehouse_ids = explicit_warehouses
-    elif all_warehouses or str(provider_id) != str(state.get("provider_id")):
+    elif all_warehouses or str(provider_id) != str(state.get("provider_id") or state.get("providerId")):
         warehouse_ids = []
     else:
-        warehouse_ids = [int(value) for value in state.get("warehouse_ids") or []]
+        warehouse_ids = [
+            int(value)
+            for value in state.get("warehouse_ids") or state.get("warehouseIds") or []
+        ]
     return QueryScope(provider_id, tuple(dict.fromkeys(warehouse_ids)))
 
 
@@ -232,7 +237,8 @@ def validate_span(
         raise PmsError("payTimeEnd must be greater than or equal to payTimeStart.")
     if not allow_long and (end_dt - start_dt).total_seconds() > MAX_SPAN_SECONDS:
         raise PmsError(
-            "A direct PMS query may span at most 48 hours. Split the range by day or use export."
+            "A direct PMS query may span at most 48 hours. Split the range by local day "
+            "(exports are subject to the same 48h limit)."
         )
     return start_dt, end_dt
 
@@ -267,7 +273,7 @@ def add_common_filters(
         "--state-file",
         type=Path,
         default=default_state_path(),
-        help="Credential file (optional): provided by the parent skill or the user",
+        help="Credential file (optional): provided by the caller (--token / PMS_TOKEN also work)",
     )
     parser.add_argument(
         "--token",
@@ -282,11 +288,11 @@ def add_common_filters(
     )
     parser.add_argument(
         "--start",
-        help="yyyy-MM-dd HH:mm:ss; omit with --end to use today in China time",
+        help="yyyy-MM-dd HH:mm:ss; give both --start/--end together, or omit both to use today in China time",
     )
     parser.add_argument(
         "--end",
-        help="yyyy-MM-dd HH:mm:ss; omit with --start to use today in China time",
+        help="yyyy-MM-dd HH:mm:ss; give both --start/--end together, or omit both to use today in China time",
     )
     parser.add_argument("--staff-name", default="")
     if include_operator:

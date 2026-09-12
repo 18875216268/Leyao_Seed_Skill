@@ -6,7 +6,8 @@
     "observation": 5,
     "demote": 2,
     "retire": 10,
-    "core_demote": 3
+    "core_demote": 3,
+    "max_active_rules": 200
   },
   "auto_enable": {
     "min_traces": 40,

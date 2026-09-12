@@ -55,7 +55,12 @@
       "credentialPath": "...",         // 本地明文凭证文件
       "user": {"userId":..., "userName":"张三", "accountNo":"LY000123",
                "roleId":..., "roleName":..., "roleType":...,
-               "phone":..., "account":...}
+               "phone":..., "account":...},
+      "providers": [{"id": 3364, "name": "重庆央拓"}],   // 账户可见公司（登录时自动带出）
+      "provider_id": 3364,           // 公司口径：单公司账号自动确定；多公司时留空
+      "provider_name": "重庆央拓",
+      "warehouses": [{"providerId": 3364,               // 发货仓清单（登录时自动带出）
+                      "warehouseList": [{"warehouseId": 123, "warehouseName": "央拓重庆仓"}]}]
     }
 
 =========================== 四、UI 状态机（严格按需求） ===========================
@@ -177,6 +182,7 @@ def emit(value: dict[str, Any]) -> None:
 PMS_BASE = "https://pms.ysbang.cn"
 AUTH_BASE = "https://auth.leyopharm.com"
 WECOM_BASE = "https://login.work.weixin.qq.com"
+DATA_BASE = "https://pms.leyopharm.com"   # 集团数据中心官方主机（发货仓清单接口所在主机）
 ORIGIN = "https://pms.ysbang.cn"
 
 APP_VERSION = "14.30.1"
@@ -225,6 +231,7 @@ _ALLOWED_HOSTS = frozenset(
         urlparse(PMS_BASE).hostname,
         urlparse(AUTH_BASE).hostname,
         urlparse(WECOM_BASE).hostname,
+        urlparse(DATA_BASE).hostname,
     }
 )
 _WECOM_GET_PATHS = frozenset({"/wwlogin/sso/login", "/wwlogin/sso/qrcode"})
@@ -239,8 +246,11 @@ _PMS_POST_PATHS = frozenset(
     {
         "/api/Index/loginViaLeyoKeyToken/v1170",
         "/api/Index/index/v423",
+        "/pms-main/merpUser/getSubProviderList/v2050",
     }
 )
+# 集团数据中心（官方主机 pms.leyopharm.com）端点白名单：发货仓清单
+_DATA_POST_PATHS = frozenset({"/datacenter_pms/web/search/providerWarehouseOption/pv9210"})
 
 CHINA_TZ = timezone(timedelta(hours=8))
 
@@ -292,6 +302,7 @@ class Transport:
         self.pms_base = PMS_BASE
         self.auth_base = AUTH_BASE
         self.wecom_base = WECOM_BASE
+        self.data_base = DATA_BASE
         self.timeout = (CONNECT_TIMEOUT, READ_TIMEOUT)
         ca_bundle = os.environ.get("PMS_CA_BUNDLE", "").strip()
         if ca_bundle:
@@ -353,6 +364,16 @@ class Transport:
         return self._request(
             "POST", self.pms_base, path, data=form, headers=_pms_headers(token)
         )
+
+    def datacenter_post(
+        self, path: str, *, token: str, json_body: dict[str, Any]
+    ) -> Response:
+        """集团数据中心（官方主机）JSON 请求：发货仓清单用。"""
+        if path not in _DATA_POST_PATHS:
+            raise PmsError("ENDPOINT_NOT_ALLOWED", "数据中心请求端点不在白名单中。")
+        headers = _pms_headers(token)
+        headers["content-type"] = "application/json"
+        return self._request("POST", self.data_base, path, json=json_body, headers=headers)
 
     def _request(
         self,
@@ -636,6 +657,70 @@ def _validate_token_remote(transport: Transport, token: str) -> None:
     )
 
 
+def collect_login_scope(token: str) -> dict[str, Any]:
+    """取账户可见的 PMS 数据口径（**登录信息的一部分**）：公司列表 + 发货仓清单。
+
+    为什么在这里取：扫码只回答「你是谁」，不回答「你能看哪些公司 / 哪些仓」——这两项来自
+    PMS 官方接口（都已在传输层主机/端点白名单内，均为集团官方主机）：
+      · 公司列表   `getSubProviderList`（pms.ysbang.cn，与登录同一主机）
+      · 发货仓清单 `providerWarehouseOption`（pms.leyopharm.com，集团数据中心主机）
+
+    并入凭证后，Agent 在**同一处**即可取到全部登录信息（token + 身份 + 公司 + 仓库），
+    使用任何子 skill 时直接传参即可（见 vendor/SUBSKILL_ROUTING.md §3 第 6 条）。
+
+    单公司账号 → 直接给出 `provider_id` / `provider_name`；多公司 → `provider_id` 留空、列候选。
+    `warehouses` 落盘供查询时选择；**不自动收窄** `warehouse_ids`（默认 = 全部发货仓，
+    需要收敛时由调用方显式传 `--warehouse-id`）。任一接口失败都只损失该部分，不阻断登录。
+    """
+    transport = Transport()
+    try:
+        scope: dict[str, Any] = {}
+        try:
+            pbody = transport.json(
+                transport.pms_post(PROVIDERS_PATH, token=str(token), form=_pms_form(str(token)))
+            )
+        except Exception:  # noqa: BLE001 —— 取不到不影响登录与取数
+            pbody = {}
+        options = [
+            {"id": item.get("id"), "name": item.get("name")}
+            for item in (pbody.get("data") if isinstance(pbody.get("data"), list) else [])
+            if isinstance(item, dict) and item.get("id") is not None
+        ]
+        if options:
+            scope["providers"] = options
+            if len(options) == 1:
+                scope["provider_id"] = options[0]["id"]
+                scope["provider_name"] = options[0].get("name") or ""
+        try:
+            wbody = transport.json(
+                transport.datacenter_post(
+                    WAREHOUSES_PATH,
+                    token=str(token),
+                    json_body={"token": str(token), "buildTime": _build_time()},
+                )
+            )
+        except Exception:  # noqa: BLE001
+            wbody = {}
+        warehouses = []
+        for item in (wbody.get("data") if isinstance(wbody.get("data"), list) else []):
+            if not isinstance(item, dict):
+                continue
+            warehouses.append({
+                "providerId": item.get("providerId"),
+                "warehouseList": [
+                    {"warehouseId": wh.get("warehouseId"),
+                     "warehouseName": wh.get("warehouseName") or wh.get("name")}
+                    for wh in (item.get("warehouseList") or [])
+                    if isinstance(wh, dict) and wh.get("warehouseId") is not None
+                ],
+            })
+        if warehouses:
+            scope["warehouses"] = warehouses
+        return scope
+    finally:
+        transport.close()
+
+
 def fetch_user_info(credential: dict[str, Any]) -> dict[str, Any]:
     """查询某份凭证**实际属于哪个用户**。
 
@@ -733,6 +818,8 @@ AUTH_LOGIN_PATH = "/auth-service/auth/loginByWorkWeChat/v100"
 AUTH_INDEX_PATH = "/auth-service/auth/index/v100"
 LOGIN_TOKEN_PATH = "/api/Index/loginViaLeyoKeyToken/v1170"
 INDEX_PATH = "/api/Index/index/v423"
+PROVIDERS_PATH = "/pms-main/merpUser/getSubProviderList/v2050"
+WAREHOUSES_PATH = "/datacenter_pms/web/search/providerWarehouseOption/pv9210"
 
 
 class LoginFlow:
@@ -1079,6 +1166,9 @@ def verify_credential(
         )
 
     credential["validatedAt"] = int(time.time())
+    if validate_remote and not (credential.get("providers") and credential.get("warehouses")):
+        # 自愈：为老凭证补「公司 + 仓库口径」（登录信息的一部分）——补齐一次后长期复用
+        credential.update(collect_login_scope(str(credential.get("token") or "")))
     store.upsert(latest_account, credential)
     result = dict(credential)
     # 手工入库（add_account / update_account）的凭证可能不带登录产出时的
@@ -1406,6 +1496,8 @@ def login_and_store(
     credential = run_login_dialog(parent=parent)
     user_info = fetch_user_info(credential)
     name = account or _identity_of(user_info)
+    # 登录即取全「登录信息」：token + 身份 + 公司口径 + 发货仓清单（取不到不影响登录）
+    credential.update(collect_login_scope(str(credential.get("token") or "")))
     account_store().upsert(name, credential, category=category)
     return credential
 

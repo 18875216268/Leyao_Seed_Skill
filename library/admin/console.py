@@ -13,6 +13,8 @@ import time
 import webbrowser
 from pathlib import Path
 
+sys.dont_write_bytecode = True          # 运行期零写包（不在包内生成 __pycache__）
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import server  # noqa: E402

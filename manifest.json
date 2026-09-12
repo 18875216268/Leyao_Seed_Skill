@@ -1,6 +1,6 @@
 {
   "name": "leyao-seed-core",
-  "version": "0.7.0",
+  "version": "0.9.9",
   "updated": "2026-09-11",
   "layers": [
     { "id": "main", "path": "SKILL.md", "role": "主文档（版本与层级导航）" },

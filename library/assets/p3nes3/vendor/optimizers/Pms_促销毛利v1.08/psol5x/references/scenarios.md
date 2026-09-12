@@ -5,7 +5,7 @@
 - 页面筛选项与查询返回字段读取 `system.md`。
 - 导出机制与导出字段读取 `export.md`。
 - 指标含义、聚合口径与分析边界读取 `business.md`。
-- 凭证与公司、发货仓：见 SKILL.md「凭证」章节（由父 skill 提供或用户给定）。
+- 凭证与公司、发货仓：见 SKILL.md「凭证」章节（凭证由调用方传入）。
 - 错误与空结果处理读取 `troubleshooting.md`。
 
 ## 目录
@@ -195,12 +195,10 @@
 
 ## 执行入口
 
-需要访问 PMS 时先准备凭证（由父 skill 登录获取，或用户直接提供），详见 SKILL.md「凭证」章节：
+需要访问 PMS 时由**调用方传入凭证**（本包不登录、不获取凭证），详见 SKILL.md「凭证」章节：
 
 ```bash
-# 父 skill 根目录执行，企微扫码获取凭证
-python scripts/pms_login.py
-# 或由用户直接提供：--token <token> / 环境变量 PMS_TOKEN
+# 三选一：--token <token> ｜ 环境变量 PMS_TOKEN ｜ 凭证文件 --state-file <path>
 ```
 
 查询命令：

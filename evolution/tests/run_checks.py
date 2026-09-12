@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
+sys.dont_write_bytecode = True                  # 运行期零写包（不在包内生成 __pycache__）
 
 ROOT = Path(__file__).resolve().parents[2]      # evolution/tests/run_checks.py → 框架根
 
@@ -34,6 +35,8 @@ REQUIRED = [
     "evolution/templates/memory.md", "evolution/templates/meta.json",
     "evolution/distiller.py", "evolution/gate.py", "evolution/actions.py", "evolution/grow.py",
     "evolution/tests/run_checks.py", "evolution/tests/README.md",
+    "evolution/tests/run_route_drill.py", "evolution/tests/run_task_drill.py",
+    "evolution/tests/run_task_set.py", "evolution/tests/task_set.json",
     "processor/templates/过程记录.md",
     "version/VERSION.md",
 ]
@@ -138,12 +141,6 @@ def check(name: str, ok: bool, detail: str = "") -> dict:
     return {"name": name, "ok": bool(ok), "detail": detail}
 
 
-def iter_nodes(nodes):
-    for n in nodes:
-        yield n
-        yield from iter_nodes(n.get("children") or [])
-
-
 def _engine():
     """惰性导入资产层引擎（复用唯一实现；导入失败由调用方 try 捕获）。"""
     sys.path.insert(0, str(ROOT / "library"))
@@ -179,7 +176,7 @@ def main() -> int:
 
     try:
         routes = json.loads((ROOT / "library" / "routes.json").read_text(encoding="utf-8"))
-        nodes = list(iter_nodes(routes.get("nodes", [])))
+        nodes = [n for n, _ in _engine().iter_nodes(routes.get("nodes", []))]   # 复用引擎遍历（唯一实现）
     except Exception:
         nodes = []
 
@@ -189,17 +186,43 @@ def main() -> int:
         _hints = engine.hints(engine.load(), ROOT)
         checks.append(check("routes_contract", not issues,
                             "契约问题: %s" % issues if issues
-                            else "挂载存在 · id 唯一（入口文档缺失 %d 项 → 软提示，不判失败）" % len(_hints)))
+                            else "挂载存在 · id 唯一（软提示 %d 项 → 不判失败）" % len(_hints)))
     except Exception as exc:
         checks.append(check("routes_contract", False, str(exc)))
 
     try:
+        # 描述（路由判据 H1）：硬判据 = 每节点**有非空描述**（无描述无法被召回）；
+        # 六段结构化 = 推荐（自由描述合法 → 路由降级匹配，由 hints / ROUTES.md 显式标注）→ 不判失败
+        eng = _engine()
         undesc = [n.get("id") for n in nodes if not (n.get("description") or "").strip()]
+        free = [n.get("id") for n in nodes if eng.desc_state(n.get("description")) == "free"]
         checks.append(check("routes_described", not undesc,
-                            "缺适用场景描述（AI 无法路由）: %s" % undesc if undesc
-                            else "%d 个节点均有适用场景描述" % len(nodes)))
+                            "无描述: %s" % undesc if undesc
+                            else "每节点均有描述；六段齐备 %d/%d（自由 %d → 降级匹配）"
+                                 % (len(nodes) - len(free), len(nodes), len(free))))
     except Exception as exc:
         checks.append(check("routes_described", False, str(exc)))
+
+    try:
+        # 别名规范（SKOS 精神）：别名不得与标题相同；跨节点的别名不得指同一串（避免歧义召回）
+        _re2 = __import__("re")
+        alias_map, bad = {}, []
+        for n in nodes:
+            m = _re2.search(r"【别名】([^｜|【\n]*)", n.get("description") or "")
+            if not m:
+                continue
+            items = [x.strip(" 　") for x in _re2.split(r"[、,，/／]", m.group(1)) if x.strip(" 　")]
+            for it in items:
+                if it in ("无", "-"):
+                    continue
+                if it == (n.get("title") or "").strip():
+                    bad.append("%s 别名与标题相同：%s" % (n.get("id"), it))
+                if it in alias_map and alias_map[it] != n.get("id"):
+                    bad.append("别名跨节点重复：%s（%s 与 %s）" % (it, alias_map[it], n.get("id")))
+                alias_map[it] = n.get("id")
+        checks.append(check("routes_alias", not bad, "；".join(bad) if bad else "别名规范（≠标题 · 跨节点唯一）"))
+    except Exception as exc:
+        checks.append(check("routes_alias", False, str(exc)))
 
     try:
         memory = paths.MEMORY_F.read_text(encoding="utf-8")
@@ -283,9 +306,16 @@ def main() -> int:
                      (ROOT / "evolution" / "state", ROOT / "library" / ".memory.md",
                       ROOT / "evolution" / "meta.json", ROOT / "evolution" / "tests" / "trigger_results.json")
                      if p.exists()]
+        # 泛化：library/ 下「点开头」的**目录**、以及**非占位类**点文件 = 运行态（缓存/记忆/日志的隐藏约定）；
+        # 占位/配置类点文件（.gitkeep/.gitignore/.DS_Store）属资产内容，不算运行态 ✗（避免误报）
+        _placeholder = {".gitkeep", ".gitignore", ".DS_Store"}
+        hidden = {p.relative_to(ROOT).as_posix() for p in (ROOT / "library").rglob(".*")
+                  if p.is_dir() or p.name not in _placeholder}
+        leftovers = sorted(set(leftovers) | hidden)
         checks.append(check("paths_external", not leftovers,
-                            ("包内不应有运行态：%s" % leftovers) if leftovers
-                            else "运行态只存用户区（.leyao-data/），包内零残留"))
+                            ("包内不应有运行态：%s（请**迁移**到用户区而非直接删——多为有用数据，如知识库的缓存/记忆/反馈）"
+                             % leftovers) if leftovers
+                            else "运行态只存用户区（.leyao-data/），包内零残留（含隐藏/点目录）"))
     except Exception as exc:
         checks.append(check("paths_external", False, str(exc)))
 
@@ -346,6 +376,25 @@ def main() -> int:
     bad_cli = doc_cli_args()
     checks.append(check("doc_cli_args", not bad_cli,
                         "失效子命令/参数: %s" % bad_cli if bad_cli else "文档子命令与 --参数全部真实存在"))
+
+    try:
+        _dist = (ROOT / "evolution" / "distiller.py").read_text(encoding="utf-8")
+        checks.append(check("distiller_success_lane",
+                            "success_groups" in _dist and "trace-success" in _dist,
+                            "成功路径蒸馏 lane 在位（成功 ≥ min_support → route 候选；正常使用也能学到）"))
+    except Exception as exc:
+        checks.append(check("distiller_success_lane", False, str(exc)))
+
+    try:
+        _st = (ROOT / "evolution" / "store.py").read_text(encoding="utf-8")
+        _act = (ROOT / "evolution" / "actions.py").read_text(encoding="utf-8")
+        _mt = (ROOT / "evolution" / "templates" / "meta.json").read_text(encoding="utf-8")
+        checks.append(check("capacity_guard",
+                            "def enforce_capacity" in _st and "enforce_capacity(" in _act
+                            and "max_active_rules" in _mt,
+                            "库宽上限 C 守卫在位（Ratchet：上限是非发散必要条件；默认 200、meta 可调；超限退贡献最低者）"))
+    except Exception as exc:
+        checks.append(check("capacity_guard", False, str(exc)))
 
     for name, path in (("library/routes.json", ROOT / "library" / "routes.json"),
                        ("meta.json", paths.META_F),

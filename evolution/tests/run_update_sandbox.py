@@ -32,6 +32,7 @@ import tempfile
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
+sys.dont_write_bytecode = True                  # 运行期零写包（不在包内生成 __pycache__）
 
 ROOT = Path(__file__).resolve().parents[2]      # evolution/tests/run_update_sandbox.py → 框架根
 IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc", ".git", ".leyao-data")
@@ -60,7 +61,8 @@ def sha1(p: Path) -> str:
 
 
 def run(args, cwd: Path, home: Path):
-    env = {**os.environ, "LEYAO_SEED_HOME": str(home), "PYTHONIOENCODING": "utf-8"}
+    env = {**os.environ, "LEYAO_SEED_HOME": str(home), "PYTHONIOENCODING": "utf-8",
+           "PYTHONDONTWRITEBYTECODE": "1"}       # 沙箱子进程同样零写包
     p = subprocess.run([sys.executable, *args], cwd=str(cwd), env=env,
                        capture_output=True, timeout=300)
     txt = p.stdout.decode("utf-8", "replace")

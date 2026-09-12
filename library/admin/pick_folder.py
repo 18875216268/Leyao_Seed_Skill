@@ -10,6 +10,8 @@ from __future__ import annotations
 import argparse
 import sys
 
+sys.dont_write_bytecode = True          # 运行期零写包（不在包内生成 __pycache__）
+
 
 def main() -> int:
     try:

@@ -27,6 +27,7 @@ PROPOSALS_D = paths.PROPOSALS_D
 MEMORY_F = paths.MEMORY_F
 
 MAX_TRACES = 200
+MAX_ACTIVE_RULES_DEFAULT = 200      # 库宽上限 C（依据 Ratchet：上限是非发散的必要条件）；默认足够高，避免误退
 MEMORY_SECTIONS = ("失效模式", "有效做法", "待验证", "墓碑")
 SECTION_FOR = {"route": "待验证", "avoid": "失效模式"}
 
@@ -171,6 +172,30 @@ def retire_rule(rid: str, reason: str):
     memory_scrub(rid)
     memory_put("墓碑", {**rule, "summary": "已淘汰：" + reason})
     return rule
+
+
+def enforce_capacity(limit: int) -> list:
+    """容量守卫（库宽上限 C）：活跃规则（candidate/active/core）超上限 → 按"贡献最低"退役。
+
+    依据（Ratchet, arXiv 2605.22148 摘要）：**库宽上限 C 是非发散的必要条件**；不加维护会出现
+    library drift（库不断增长，直到"注入规则比不注入更差"）。贡献近似 = hits - misses，
+    再按 observed、created_at 排序（越差越先退）；**只退役不删除**（复用 retire_rule → 墓碑 + 记忆同步，可审计）。
+    """
+    active = [r for r in experience()["rules"] if r.get("state") in ("candidate", "active", "core")]
+    over = len(active) - int(limit)
+    if over <= 0:
+        return []
+    ranked = sorted(active, key=lambda r: (r.get("hits", 0) - r.get("misses", 0),
+                                           r.get("observed", 0), r.get("created_at", "")))
+    retired = []
+    for r in ranked[:over]:
+        reason = "容量上限 C=%d：贡献最低者退役（hits-misses=%d, observed=%d）" % (
+            int(limit), r.get("hits", 0) - r.get("misses", 0), r.get("observed", 0))
+        retire_rule(r["id"], reason)
+        retired.append({"id": r["id"], "reason": reason})
+    if retired:
+        audit("capacity.retire", limit=int(limit), retired=retired)   # 留痕（不静默）
+    return retired
 
 
 # ---------- 记忆（L0，唯一自动写区） ----------

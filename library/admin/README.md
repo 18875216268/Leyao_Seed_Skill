@@ -106,3 +106,27 @@ POST   /api/pick-folder                调起原生文件夹对话框（mode=sou
 DELETE /api/node?id=<id>[&purge=1]     删除节点（purge=1 同时删资产目录）
 DELETE /api/orphan?path=<挂载路径>      删除孤儿资产目录（限资产根内 · 未被挂载引用）
 ```
+
+## CLI 维护命令（从 `library/ROUTES.md` 移入 · 给维护者，agent 不需要）
+
+```text
+python library/engine.py                      # 重绘 ROUTES.md + 契约校验（挂载/id；入口文档缺失仅提示）
+python library/engine.py add --id <新id> --type <类型> --title "<标题>" [--parent <父id>] [--mount 挂载] [--description "<何时用>"]
+python library/engine.py remove --id <节点id>
+python library/engine.py move --id <节点id> [--parent <父id>]   # 移动节点（省略即移到根）
+python library/engine.py update --id <节点id> [--title 新标题] [--mount 挂载] [--description "<何时用>"]
+python library/admin/console.py               # 可视化管理台（推荐给日常维护）
+```
+
+- 描述：怎么写都行（自由文本合法）；六段齐备 → 路由判据链全能力（模板见 `processor/shapes.md` 第 7 节）。
+- 分形路由：子树超阈值（子节点 > 5 或 子树节点 > 20）→ 自动收进 `library/routes/<id>.md`（局部图），总图只留指针。
+- 管理台每笔改动自动重绘（总图 + 局部图）；框架更新后长驻管理台会自愈重载引擎并重绘。
+- `library/ROUTES.md` 是 **agent 路由面**（瘦身版）；事实源永远是 `library/routes.json`。
+
+## 接口响应字段（`/api/tree` 与节点操作共用）
+
+| 字段 | 含义 | 界面处理 |
+| --- | --- | --- |
+| `issues` | **硬契约问题**：挂载路径不存在 / id 重复 / 分形局部图缺链（引擎 `validate`） | 「⚠ N 项契约问题」→ 必须修（会拦截/报警） |
+| `hints` | **软建议**：未附入口文档 / 描述未结构化（→ 路由降级匹配）/ 六段某段超长 / 顶层过多建议分组（引擎 `hints`） | 「💡 N 项建议」→ **非问题、不拦截** |
+| `orphans` | 资产根下未被任何卡片引用的目录（可能是"已放入、待挂载"的合法中间态） | 「⚠ N 个孤儿资产」→ 可清理或挂载 |

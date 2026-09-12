@@ -1,0 +1,33 @@
+{
+  "registry_version": "1.0.0",
+  "updated_at": "2026-09-12",
+  "priority": ["ops-pool", "leyou"],
+  "ttl_seconds": {"caliber": 86400, "policy": 86400, "term": 86400, "course": 86400, "search": 3600},
+  "semantic_threshold": 0.85,
+  "budget_seconds": 20,
+  "assets": [
+    {
+      "id": "ops-pool",
+      "name": "运营知识库（公共池）",
+      "kind": "pool",
+      "endpoint": "https://lyzsk.cfdaili.top/api/pool",
+      "covers_need": ["term", "caliber", "policy", "course", "search"],
+      "timeout_s": 6,
+      "retry": 1,
+      "use_category_filter": false,
+      "write_token": "brf-pool-2026-shared",
+      "write_timeout_s": 10,
+      "report_adopt": true,
+      "note": "第一优先：单请求全取（不带 tier 过滤），本地按 trust 排序；口径（caliber）只查注入库 tier=inject；写路径（submit/inject/adopt）需 write_token，仅显式 contribute / 采纳上报时使用"
+    },
+    {
+      "id": "leyou",
+      "name": "乐药云智库",
+      "kind": "cli",
+      "cli": "scripts/sources/leyou/leyou_cloud.py",
+      "covers_need": ["policy", "course", "caliber", "term", "search"],
+      "timeout_s": 12,
+      "note": "第二优先（兜底）：仅当前面全空时调用；未登录返回 LOGIN_REQUIRED，不弹窗、不扫码"
+    }
+  ]
+}

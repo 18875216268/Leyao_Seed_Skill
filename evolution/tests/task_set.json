@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "note": "任务集：真实工作区 + 合成用例（透明标注）。本文件只登记用例与期望档位（包内只读）；判据在 processor/ 与 control.md；pass^k 台账在用户区 data/state/task_set_results.jsonl（run_task_set.py --record 追加）。",
+  "expected_levels": {
+    "pass": "新机制产物：结构合规 + 含 §6 推进控制记录",
+    "legacy": "v0.7.1 前产物：结构合规但缺 §6 字段——判 legacy（历史合理），不判失败",
+    "doing": "进行态：结构合规、无交付件——只判结构",
+    "fail": "结构不合规：缺区 / 根散落 / 无过程记录 / 完成态无交付件"
+  },
+  "cases": [
+    {
+      "id": "real-task-layer",
+      "kind": "real",
+      "stage": "done",
+      "path": "work-20260912-任务层v2自测",
+      "expect": "pass"
+    },
+    {
+      "id": "real-review-sep",
+      "kind": "real",
+      "stage": "done",
+      "path": "work-20260912-本月销售复盘",
+      "expect": "legacy",
+      "note": "v0.7.1 前产物（无 §6/红线/成本字段）——应判 legacy 而非 fail"
+    },
+    {
+      "id": "syn-full",
+      "kind": "synthetic",
+      "stage": "done",
+      "expect": "pass"
+    },
+    {
+      "id": "syn-partial",
+      "kind": "synthetic",
+      "stage": "doing",
+      "expect": "doing"
+    },
+    {
+      "id": "syn-legacy",
+      "kind": "synthetic",
+      "stage": "done",
+      "expect": "legacy"
+    },
+    {
+      "id": "syn-bad-root",
+      "kind": "synthetic",
+      "stage": "done",
+      "expect": "fail"
+    },
+    {
+      "id": "syn-empty",
+      "kind": "synthetic",
+      "stage": "done",
+      "expect": "fail"
+    }
+  ]
+}

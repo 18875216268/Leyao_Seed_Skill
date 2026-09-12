@@ -51,9 +51,12 @@ VERSIONS_F = DATA_D / "versions.json"          # 版本记录（版本维护层�
 AUDIT_F = STATE_D / "audit.log"
 PROPOSALS_D = STATE_D / "proposals"
 TRIGGER_RESULTS_F = STATE_D / "trigger_results.json"
+TASK_SET_RESULTS_F = STATE_D / "task_set_results.jsonl"   # 任务集回归台账（pass^k 累积；追加式，永不裁剪）
 
+USER_AREA_README_F = DATA_D / "README.md"        # 用户区索引（用途 / 清理策略 / 落点规则）
 TPL_MEMORY = SKILL_ROOT / "evolution" / "templates" / "memory.md"
 TPL_META = SKILL_ROOT / "evolution" / "templates" / "meta.json"
+TPL_USER_AREA = SKILL_ROOT / "evolution" / "templates" / "user-area.md"
 
 
 def maintainer() -> bool:
@@ -85,6 +88,9 @@ def ensure() -> dict:
     if not MEMORY_F.exists() and TPL_MEMORY.exists():
         shutil.copy2(TPL_MEMORY, MEMORY_F)
         actions.append("memory.seed")
+    if not USER_AREA_README_F.exists() and TPL_USER_AREA.exists():
+        shutil.copy2(TPL_USER_AREA, USER_AREA_README_F)      # 用户区索引：AI/人一眼看懂各区用途与清理策略
+        actions.append("readme.seed")
     if actions:
         _audit("bootstrap", actions=actions)
     return {"home": str(HOME), "actions": actions}

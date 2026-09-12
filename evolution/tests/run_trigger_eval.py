@@ -10,7 +10,8 @@
 
 本脚本只做两件事，不绑定任何客户端：
 1. `--emit-prompt`：按当前 SKILL.md 的真实 name/description 打印探测提示词（逐条跑时原样投喂）。
-2. 汇总触发记录（用户区 `data/state/trigger_results.json`）：算触发率、判定通过、分 train/validation 与正/负例统计，按阈值给退出码。
+2. 汇总触发记录（用户区 `.leyao-data/data/state/trigger_results.json`）：算触发率、判定通过、分 train/validation 与正/负例统计，按阈
+   （注：进化层"成功路径蒸馏"的回归护栏见 `run_checks.py` 的 `distiller_success_lane`）值给退出码。
 
 用法：
   python evolution/tests/run_trigger_eval.py                 # 汇总已有结果
@@ -26,6 +27,7 @@ import sys
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
+sys.dont_write_bytecode = True                  # 运行期零写包（不在包内生成 __pycache__）
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]                       # evolution/tests/ → 框架根

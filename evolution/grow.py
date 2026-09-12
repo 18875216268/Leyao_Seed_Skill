@@ -18,8 +18,11 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import sys
+
+sys.dont_write_bytecode = True          # 运行期零写包（不在包内生成 __pycache__）
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -61,7 +64,18 @@ def cmd_trace(args) -> int:
     for r in store.rules_by_state("demoted"):
         store.update_rule(r["id"], observed_since_demote=r.get("observed_since_demote", 0) + 1)
     enabled = actions.auto_enable_check()
-    out({"ok": True, "total_traces": data["total"], "matched_rules": matched, "auto_enabled": enabled})
+    auto = None
+    if not getattr(args, "no_auto", False):      # 自动闭环（默认开）：trace → reflect → evolve（memory 自动档直写）
+        new_rules = actions.reflect()
+        evo = actions.evolve()
+        auto = {"new_candidates": len(new_rules),
+                "applied": evo.get("applied", []),
+                "retired": evo.get("retired", [])}
+    warn = None
+    if args.outcome in ("fail", "partial") and not (args.reason or "").strip():
+        warn = "outcome=%s 但未写 --reason：本层无法从这次学到原因（判据见 processor/flow/5-deliver.md「outcome 必须如实」）" % args.outcome
+    out({"ok": True, "total_traces": data["total"], "matched_rules": matched,
+         "auto_enabled": enabled, "auto_evolve": auto, "warn": warn})
     return 0
 
 
@@ -95,6 +109,23 @@ def cmd_review(_args) -> int:
     return 0
 
 
+def assets_data_summary() -> list:
+    """各资产私有数据区足迹（**只统计、不解析内容**，零格式耦合）：id / 文件数 / 字节 / 最后写入。
+
+    用途：让 AI 与人一眼看到"各资产在用户区留了什么、有多大、多久没动"——
+    清理决策（缓存可删 / 证据类迁移）与后续跨层利用的依据；资产内容语义仍归资产自己。
+    """
+    d = paths.DATA_D / "assets"
+    out = []
+    for sub in sorted(p for p in d.glob("*") if p.is_dir()) if d.exists() else []:
+        files = [f for f in sub.rglob("*") if f.is_file()]
+        latest = max((f.stat().st_mtime for f in files), default=0)
+        out.append({"id": sub.name, "files": len(files),
+                    "bytes": sum(f.stat().st_size for f in files),
+                    "last_write": datetime.datetime.fromtimestamp(latest).isoformat(timespec="seconds") if latest else ""})
+    return out
+
+
 def cmd_status(_args) -> int:
     tr = store.traces()
     exp = store.experience()
@@ -112,12 +143,15 @@ def cmd_status(_args) -> int:
                           for r in store.rules_by_state(state)]
                   for state in ("candidate", "active", "core", "demoted")},
         "tombstones": len(exp["tombstones"]),
+        "capacity": {"used": len(store.rules_by_state("candidate", "active", "core")),
+                     "limit": actions.thresholds().get("max_active_rules", store.MAX_ACTIVE_RULES_DEFAULT)},
         "proposals": store.list_proposals(),
         "ratchet": gate.ratchet()["best"],
         "auto_enable": {**ae, "progress": "%d/%d traces, %d/%d active+core" % (
             tr["total"], ae.get("min_traces", 40), active_count, ae.get("min_active_rules", 2))},
         "library_health": {"ok": not health, "findings": health},
         "exploration": {"enabled": bool(ae.get("exploration")), "signal": explore_hint},
+        "assets_data": assets_data_summary(),
         "memory_file": str(store.MEMORY_F),
         "user_area": str(paths.HOME),
         "role": "maintainer" if paths.maintainer() else "user",
@@ -160,6 +194,8 @@ def main() -> int:
     p_trace.add_argument("--outcome", required=True, choices=["success", "partial", "fail"])
     p_trace.add_argument("--reason", help="失败/部分成功的原因（反射性分析输入）")
     p_trace.add_argument("--override", help="用户纠正（最强信号）")
+    p_trace.add_argument("--no-auto", action="store_true",
+                         help="关闭自动闭环（默认：trace 后自动跑 reflect+evolve，让经验立即生效）")
 
     sub.add_parser("reflect", help="变：轨迹蒸馏 → 候选规则")
     sub.add_parser("evolve", help="择：候选 → 变异（自动档落地 / 提案）")

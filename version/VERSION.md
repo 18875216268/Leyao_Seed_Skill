@@ -45,8 +45,8 @@
 
 ```json
 {
-  "local":    { "version": "0.6.2", "applied_at": "2026-09-11T14:30:05" },
-  "history":  [ { "version": "0.6.2", "date": "2026-09-11", "source": "remote", "summary": "整包更新（framework_update）" } ],
+  "local":    { "version": "<x.y.z>", "applied_at": "<ISO 时间>" },
+  "history":  [ { "version": "<x.y.z>", "date": "<YYYY-MM-DD>", "source": "remote", "summary": "整包更新（framework_update）" } ],
   "baseline": { "<相对路径>": "<sha1>" }
 }
 ```

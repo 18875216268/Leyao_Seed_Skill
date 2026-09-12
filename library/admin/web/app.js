@@ -256,6 +256,17 @@ function renderFolder() {
     rc.appendChild(dw);
   }
 
+  // 软建议（非问题、不拦截：未附入口文档 / 描述未结构化→降级匹配 / 段长超限 / 顶层过多建议分组）
+  const hints = (TREE && TREE.hints) || [];
+  if (hints.length) {
+    const hb = document.createElement("span");
+    hb.className = "rc-warn";
+    hb.textContent = "💡 " + hints.length + " 项建议";
+    hb.title = hints.join("\n");
+    hb.onclick = () => notify("建议（非问题，不影响使用）：" + hints.join("；"), "info");
+    rc.appendChild(hb);
+  }
+
   if (!kids.length) {
     const e = document.createElement("div");
     e.className = "folder-empty";

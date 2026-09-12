@@ -23,12 +23,15 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
+
+sys.dont_write_bytecode = True          # 运行期零写包（不在包内生成 __pycache__）
 
 HERE = Path(__file__).resolve().parent  # leyao-seed-core/library/admin
 WEB = HERE / "web"
@@ -249,6 +252,7 @@ def pick_folder(initial: str = "", mode: str = "dest"):
         proc = subprocess.run(
             [sys.executable, str(PICK_SCRIPT), "--initial", str(base)],
             capture_output=True, text=True, encoding="utf-8", timeout=600,
+            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},   # 子进程零写包
         )
     except Exception as e:  # noqa: BLE001
         return False, f"无法启动文件夹对话框: {e}"
@@ -438,6 +442,34 @@ def do_render():
     return engine.commit(lambda data: (True, ""))
 
 
+# ---------- 长驻进程自愈：引擎更新 → 重载并重绘（防"旧进程用旧规则渲染"的静默失真） ----------
+
+_ENGINE_MTIME = 0.0
+
+
+def _fresh_engine() -> None:
+    """engine.py 的 mtime 变了（框架被更新）→ 重载引擎 + 立即重绘一次。
+
+    实测教训（2026-09-12）：管理台是**长驻进程**，改了 engine.py 后旧进程仍按旧规则渲染，
+    表现为"改了代码但总图/局部图不按新规则生成"——静默失真 ✗。本函数在每个 HTTP 请求入口调用：
+    首次请求只记基线；发现更新则 reload + commit(noop) 重绘，并打印到控制台（不静默）。
+    """
+    global _ENGINE_MTIME
+    try:
+        mt = Path(engine.__file__).resolve().stat().st_mtime
+    except OSError:
+        return
+    if not _ENGINE_MTIME or mt == _ENGINE_MTIME:
+        _ENGINE_MTIME = mt
+        return
+    import importlib
+    importlib.reload(engine)                               # 同一模块对象原地重载，既有引用仍有效
+    _ENGINE_MTIME = mt
+    ok, payload = engine.commit(lambda data: (True, ""))
+    print("[admin] 检测到 engine.py 更新 → 已重载并重绘（%s）"
+          % ("健康" if ok and not payload else payload), flush=True)
+
+
 # ---------- HTTP 处理 ----------
 
 class Handler(BaseHTTPRequestHandler):
@@ -476,6 +508,7 @@ class Handler(BaseHTTPRequestHandler):
         }.get(p.suffix, "application/octet-stream")
 
     def do_GET(self):
+        _fresh_engine()
         u = urlparse(self.path)
         if u.path in ("/", "/index.html"):
             return self._serve_file(WEB / "index.html", "text/html; charset=utf-8")
@@ -513,6 +546,7 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(404, "not found")
 
     def do_POST(self):
+        _fresh_engine()
         u = urlparse(self.path)
         if u.path == "/api/node":
             body = json.loads(self._read_body() or b"{}")
@@ -539,6 +573,7 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(404, "not found")
 
     def do_DELETE(self):
+        _fresh_engine()
         u = urlparse(self.path)
         if u.path == "/api/node":
             qs = parse_qs(u.query)
@@ -561,7 +596,8 @@ def _resp(ok, issues):
     return {"ok": False, "msg": issues}
 
 
-def run(host="127.0.0.1", port=PORT):
+def run(host="127.0.0.1", port=None):
+    port = port or PORT                  # 默认值在**调用时**解析（改 PORT / 指定端口都能生效，便于测试与换端口）
     ASSETS.mkdir(parents=True, exist_ok=True)
     srv = ThreadingHTTPServer((host, port), Handler)
     srv.serve_forever()

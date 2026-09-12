@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""资产管理层引擎：routes.json（单一事实源）→ ROUTES.md（人读级联地图）。
+"""资产管理层引擎：routes.json（单一事实源）→ ROUTES.md（人读级联总图）+ routes/<id>.md（分片节点局部图）。
 
 对外契约（CLI 与管理台共用本引擎，禁止第二实现）：
 - 唯一写路径 = `commit(mutate)`：加锁 → 读 → 改 → 原子落盘 routes.json → 渲染 ROUTES.md → 契约校验。
@@ -13,7 +13,11 @@
 - 资产根 `ASSETS` = library/assets/；挂载前缀 `ASSETS_MOUNT` 由其推导，禁止另行硬编码。
 - 契约校验 `validate`（唯一实现，CLI / 管理台 / 自检 / 库存体检共用）——**硬契约（会拦截/报警）**：
   挂载路径必须存在（防死链）、路由 id 必须唯一。
-- 软提示 `hints`（唯一实现，同样四端共用）——**不算问题、不拦截**：挂载目录未附入口文档（SKILL.md / README.md）。
+- 描述（路由判据 H1）**写入不拦**：用户/管理员怎么写都行（自由文本合法）；
+  六段结构化属**路由能力等级（推荐，非门槛）**——齐备 → 判据链全能力；自由 → 关键词降级匹配。
+  降级**不静默**：`hints` 提示 + `ROUTES.md` 行内标注；模板见 `processor/shapes.md` 第 7 节。
+- 软提示 `hints`（唯一实现，同样四端共用）——**不算问题、不拦截**：挂载目录未附入口文档（SKILL.md / README.md）；
+  描述自由/未写、六段超软上限（`DESC_FIELD_MAX`，建议精简）。
   **资产 ≠ Skill**：一张卡片可以放任意内容（资料 / 数据 / 工具 / 文档…），纯资料型资产不需要入口文档；
   入口文档只在"要被 AI 按其指引调用"时才有价值（处理器命中后读它；没有则退回自带判据自做）。
 - 孤儿资产（未被任何节点挂载引用的目录）只提示不拦截：它可能是"已放入、待挂载"的合法中间态。
@@ -39,6 +43,7 @@ import time
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
+sys.dont_write_bytecode = True          # 运行期零写包（不在包内生成 __pycache__）
 
 LIB = Path(__file__).resolve().parent
 ROUTES_JSON = LIB / "routes.json"
@@ -46,6 +51,9 @@ ROUTES_MD = LIB / "ROUTES.md"
 ASSETS = LIB / "assets"                  # 资产根（"主页"）
 ASSETS_MOUNT = ASSETS.relative_to(LIB.parent).as_posix() + "/"   # 挂载前缀由路径推导，禁止另行硬编码
 DEFAULT_TYPES = ["方法论", "Skill包"]     # 类型登记表默认值（自由文本，可扩展）
+LOCAL_MAPS = LIB / "routes"              # 局部路由图目录（分片节点的子树；总图指针指向它 → 任意级联）
+INLINE_KIDS_MAX = 5                      # 分片阈值①：子节点数超过此值的子树收进局部图
+INLINE_SUBTREE_MAX = 20                  # 分片阈值②：**子树节点总数**超过此值也收进局部图（防"每层都 ≤5 但很深"）
 
 _LOCK_FILE = ROUTES_JSON.with_suffix(".lock")
 _LOCK_MUTEX = threading.Lock()           # 进程内线程互斥（文件锁负责跨进程）
@@ -120,7 +128,7 @@ def commit(mutate):
             return False, payload
         data["updated"] = datetime.date.today().isoformat()
         _write_atomic(ROUTES_JSON, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
-        _write_atomic(ROUTES_MD, render(data))
+        render_all(data)
         return True, validate(data, LIB.parent)
 
 
@@ -131,6 +139,29 @@ def iter_nodes(nodes, depth: int = 0):
     for n in nodes or []:
         yield n, depth
         yield from iter_nodes(n.get("children") or [], depth + 1)
+
+
+def subtree_sizes(nodes) -> dict:
+    """每棵子树的节点总数（含自身）。供分片判定用——**深而窄**的树只有靠它才不会漏判。"""
+    out = {}
+
+    def walk(ns) -> int:
+        total = 0
+        for n in ns or []:
+            s = 1 + walk(n.get("children") or [])
+            out[n.get("id")] = s
+            total += s
+        return total
+
+    walk(nodes)
+    return out
+
+
+def needs_split(node: dict, sizes: dict) -> bool:
+    """分片判定（**唯一实现**：总图 / 局部图 / 校验 / 报告共用）：
+    ① 子节点数 > INLINE_KIDS_MAX（宽）或 ② 子树节点总数 > INLINE_SUBTREE_MAX（深而窄）。"""
+    return (len(node.get("children") or []) > INLINE_KIDS_MAX
+            or sizes.get(node.get("id"), 0) > INLINE_SUBTREE_MAX)
 
 
 def find_parent_list(data: dict, node_id: str):
@@ -204,7 +235,8 @@ def validate(data: dict, root: Path) -> list[str]:
     """路由**硬契约**校验（唯一实现，CLI / 管理台 / 自检 / 库存体检共用）——会拦截/报警的两类：
 
     - 死链：挂载路径必须真实存在；
-    - id 重复：路由 id 必须唯一（否则无法唯一定位）。
+    - id 重复：路由 id 必须唯一（否则无法唯一定位）；
+    - 分形死链：超内联上限的节点必须有局部图，局部图必须对应分片节点（防残留）。
 
     入口文档缺失**不在此列**（资产 ≠ Skill，资料型资产无需入口文档）——见 `hints()`。
     """
@@ -219,17 +251,38 @@ def validate(data: dict, root: Path) -> list[str]:
             issues.append(f"{nid}: mount 路径不存在 → {m}")
     for dup in sorted({i for i in ids if ids.count(i) > 1}):
         issues.append(f"{dup}: 路由 id 重复")
+    # 分形路由一致性：分片节点必须有局部图；局部图不得对应无关节点（防死链 / 防残留）
+    sizes = subtree_sizes(data.get("nodes"))
+    for n, _ in iter_nodes(data.get("nodes")):
+        if needs_split(n, sizes) and not (LOCAL_MAPS / f"{n.get('id')}.md").exists():
+            issues.append(f"{n.get('id')}: 子树超分片阈值（子节点 > {INLINE_KIDS_MAX} 或子树节点 > {INLINE_SUBTREE_MAX}）"
+                          f" → 缺少局部路由图 routes/{n.get('id')}.md")
+    if LOCAL_MAPS.exists():
+        big = {n.get("id") for n, _ in iter_nodes(data.get("nodes")) if needs_split(n, sizes)}
+        for f in sorted(LOCAL_MAPS.glob("*.md")):
+            if f.stem not in big:
+                issues.append(f"routes/{f.name}: 多余局部图（对应节点不存在或未超内联上限）→ 跑 engine.py 重绘即清理")
     return issues
 
 
 def hints(data: dict, root: Path) -> list[str]:
-    """**软提示**（非问题、不拦截）：挂载目录未附入口文档（SKILL.md / README.md）。
+    """**软提示**（非问题、不拦截）：① 挂载目录未附入口文档（SKILL.md / README.md）；
+    ② 描述为自由文本 / 未写（→ 路由降级匹配或不参与，建议补齐）；
+    ③ 描述六段某段超过软上限（`DESC_FIELD_MAX`，建议精简）。
 
     只提示不判定：卡片可以放任意内容——需要"被 AI 按文档调用"的资产才建议补；
     纯资料 / 数据 / 工具型资产可忽略（处理器命中后无入口文档时退回自带判据自做）。
     """
     out = []
     for n, _ in iter_nodes(data.get("nodes")):
+        for note in desc_length_notes(n.get("description") or ""):
+            out.append(f"{n.get('id')}: {note}")
+        st = desc_state(n.get("description"))
+        if st == "free":
+            out.append(f"{n.get('id')}: 描述为自由文本（未按六段模板）→ 路由按关键词降级匹配；"
+                       "建议补齐（模板见 processor/shapes.md 第 7 节，也可让 AI 起草后粘贴）")
+        elif st == "empty":
+            out.append(f"{n.get('id')}: 无描述 → 无法参与路由匹配（补一句『何时用』即可被召回）")
         m = n.get("mount")
         if not m:
             continue
@@ -237,6 +290,10 @@ def hints(data: dict, root: Path) -> list[str]:
         if p.is_dir() and not ((p / "SKILL.md").exists() or (p / "README.md").exists()):
             out.append(f"{n.get('id')}: 未附入口文档（SKILL.md / README.md）→ {m}"
                        "（提示，非问题：资料型资产可忽略；需按文档调用时建议补一个）")
+    tops = data.get("nodes") or []
+    if len(tops) > INLINE_KIDS_MAX:
+        out.append(f"顶层节点 {len(tops)} 个（> {INLINE_KIDS_MAX}）→ 建议建容器节点分组："
+                   "分组后自动分片出局部图，总图保持一屏可读")
     return out
 
 
@@ -251,53 +308,118 @@ def find_orphans(data: dict) -> list[str]:
                 used.add(seg)
     if not ASSETS.is_dir():
         return []
+    # 只认"像资产的目录"：跳过点开头目录（隐藏/运行态，如资产误写在包内的 `.leyao-kb` ✗）——
+    # 它们不是资产，不该出现在孤儿报告里；包内运行态另由 `run_checks.paths_external` 拦截（分工不重复）。
     return [ASSETS_MOUNT + p.name + "/" for p in sorted(ASSETS.iterdir())
-            if p.is_dir() and p.name not in used]
+            if p.is_dir() and not p.name.startswith(".") and p.name not in used]
 
 
 # ---------- 渲染 ----------
 
 def render(data: dict) -> str:
-    types = " / ".join(f"`{t}`" for t in DEFAULT_TYPES)
+    """渲染 **agent 路由面**（瘦身版：只留路由必需信息）。
+
+    设计依据见 `参考/工具引导调研/04-深挖与实验.md`：①顶部不放"快照/更新时间"——保持**稳定前缀**
+    （提示缓存友好，改一行即失效）；②散文开销曾是 agent 读入量的 30%（903 token）→ 图例压缩到 4 行；
+    ③维护命令块移入 `library/admin/README.md`（agent 不需要）。
+    """
     lines = [
         "# 资产管理层 · 总路由地图",
-        "",
-        f"> 快照：{data.get('updated')} ｜ 事实源：`routes.json`（v{data.get('version')}）｜"
-        "本文件由 `engine.py` 生成，勿手工编辑；增删改走同步命令或管理台。",
-        "",
-        f"图例：类型为自由文本（默认 {types}）；`→ 挂载` 即该节点在仓库内的资产目录（相对项目根，如 `{ASSETS_MOUNT}…`）。",
-        "",
-        "> 路由方式：按各节点**描述**匹配任务场景 → 命中即进其 `→ 挂载` 目录，读 `SKILL.md`／`README.md` 按其指引调用；"
-        "无命中则按任务处理层自带判据亲自动手（不依赖任何资产）。",
-        "> 同读用户区记忆 `.leyao-data/data/memory.md`（与 skill 同级）：命中「失效模式」先规避，命中「有效做法」直接复用。",
-        "> 回写契约：交付后追加轨迹时 `--routed` 写**命中的节点 id**（各节点行首反引号内）；"
-        "无命中（自带判据亲做）写 `none`——该字段是规则归属与命中率统计的唯一依据。",
+        "> 读者：agent 与审阅者；**维护**请用管理台（`library/admin/`）或 `routes.json`（唯一事实源，本图由 `engine.py` 生成）。",
+        "> 路由：按节点**描述**匹配 → 命中进其 `→ 挂载` 目录读 `SKILL.md`／`README.md` 调用；无命中按自带判据亲做。"
+        "描述形态：六段齐备=判据链全能力；`（自由描述·降级匹配）`=关键词级；`（无描述·不可路由）`（模板见 `processor/shapes.md` 第 7 节）。",
+        f"> 级联：`（N 个子节点 → 局部图 library/routes/<id>.md）` → 读局部图继续匹配（可再分片 → 任意级联），叶节点执行"
+        f"（分片阈值：子节点 > {INLINE_KIDS_MAX} 或 子树节点 > {INLINE_SUBTREE_MAX}）。",
+        "> 回写：交付后 `--routed <命中节点id>`；无命中写 `none`。同读用户区 `.leyao-data/data/memory.md`"
+        "（命中「失效模式」先规避、命中「有效做法」直接复用）。",
         "",
     ]
 
-    for n, depth in iter_nodes(data.get("nodes")):
-        indent = "  " * depth
-        mount = f" → `{n['mount']}`" if n.get("mount") else ""
-        children = n.get("children") or []
-        suffix = f"（{len(children)} 个子节点）" if children else ""
-        lines.append(f"{indent}- `{n.get('id')}` **{n.get('title')}** `{n.get('type')}`{mount}{suffix}")
-        if n.get("description"):
-            lines.append(f"{indent}  - _{n['description']}_")
-    lines += [
+    sizes = subtree_sizes(data.get("nodes"))
+
+    def walk(ns, depth):
+        for n in ns:
+            indent = "  " * depth
+            mount = f" → `{n['mount']}`" if n.get("mount") else ""
+            kids = n.get("children") or []
+            split = bool(kids) and needs_split(n, sizes)
+            suffix = ""
+            if kids:
+                # 分形路由：超阈值（宽 / 深）的子树收进局部图，总图只留指针（可任意级联，规模与总图行数解耦）
+                suffix = (f"（{len(kids)} 个子节点 → 局部图 `{local_map_rel(n)}`）" if split
+                          else f"（{len(kids)} 个子节点）")
+            st = desc_state(n.get("description"))
+            flag = {"empty": "（无描述·不可路由）", "free": "（自由描述·降级匹配）"}.get(st, "")
+            lines.append(f"{indent}- `{n.get('id')}` **{n.get('title')}** `{n.get('type')}`{mount}{suffix}{flag}")
+            if n.get("description"):
+                lines.append(f"{indent}  - _{n['description']}_")
+            if kids and not split:
+                walk(kids, depth + 1)
+
+    walk(data.get("nodes") or [], 0)
+    return "\n".join(lines)          # 维护命令块已移入 library/admin/README.md（agent 不需要；保持路由面瘦身）
+
+
+def local_map_rel(node: dict) -> str:
+    """局部图在仓库内的相对路径（总图指针与局部图互引的唯一写法；`<id>` 占位符由 doc_refs 跳过）。"""
+    return (LOCAL_MAPS / f"{node.get('id')}.md").relative_to(LIB.parent).as_posix()
+
+
+def local_map(data: dict, node: dict) -> str:
+    """局部路由图（纯函数）：分片节点的子树；子层同样按阈值再分片 → **任意级联**。"""
+    kids = node.get("children") or []
+    sizes = subtree_sizes(kids)
+    lines = [
+        f"# 局部路由图 · {node.get('title')}（`{node.get('id')}`）",
         "",
-        "## 维护",
-        "",
-        "```text",
-        "python library/engine.py                      # 重绘本地图 + 契约校验（挂载/id；入口文档缺失仅提示）",
-        'python library/engine.py add --id <新id> --type <类型> --title "<标题>" [--parent <父id>] [--mount 挂载] [--description "<何时用>"]',
-        "python library/engine.py remove --id <节点id>",
-        "python library/engine.py move --id <节点id> [--parent <父id>]   # 移动节点（省略即移到根）",
-        'python library/engine.py update --id <节点id> [--title 新标题] [--mount 挂载] [--description "<何时用>"]',
-        "python library/admin/console.py                     # 可视化管理台（推荐给日常维护）",
-        "```",
+        f"> 属于总图 `library/ROUTES.md` ｜ 本层 {len(kids)} 个子节点 ｜ 由 `library/engine.py` 生成，勿手工编辑。",
+        "> 级联下钻：本层仍按描述匹配；命中带指针的子节点 → 再读其局部图（可任意级联），叶节点进 `→ 挂载` 执行。",
         "",
     ]
+
+    def walk(ns, depth):
+        for n in ns:
+            indent = "  " * depth
+            mount = f" → `{n['mount']}`" if n.get("mount") else ""
+            sub = n.get("children") or []
+            split = bool(sub) and needs_split(n, sizes)
+            suffix = ""
+            if sub:
+                suffix = (f"（{len(sub)} 个子节点 → 局部图 `{local_map_rel(n)}`）" if split
+                          else f"（{len(sub)} 个子节点）")
+            st = desc_state(n.get("description"))
+            flag = {"empty": "（无描述·不可路由）", "free": "（自由描述·降级匹配）"}.get(st, "")
+            lines.append(f"{indent}- `{n.get('id')}` **{n.get('title')}** `{n.get('type')}`{mount}{suffix}{flag}")
+            if n.get("description"):
+                lines.append(f"{indent}  - _{n['description']}_")
+            if sub and not split:
+                walk(sub, depth + 1)
+
+    walk(kids, 0)
     return "\n".join(lines)
+
+
+def render_all(data: dict) -> tuple[list[str], list[str]]:
+    """写总图 + 分片节点的局部图，并清理不再分片的旧图（包内零残留）→ (已写, 已删)。"""
+    _write_atomic(ROUTES_MD, render(data))
+    sizes = subtree_sizes(data.get("nodes"))
+    wanted = {}
+    for n, _ in iter_nodes(data.get("nodes")):
+        if n.get("id") and needs_split(n, sizes):
+            wanted[n["id"]] = local_map(data, n)
+    removed = []
+    if LOCAL_MAPS.exists():
+        for f in sorted(LOCAL_MAPS.glob("*.md")):
+            if f.stem not in wanted:
+                f.unlink()
+                removed.append(f.stem)
+    if wanted:
+        LOCAL_MAPS.mkdir(parents=True, exist_ok=True)
+        for nid, txt in sorted(wanted.items()):
+            _write_atomic(LOCAL_MAPS / f"{nid}.md", txt)
+    elif LOCAL_MAPS.exists() and not any(LOCAL_MAPS.iterdir()):
+        LOCAL_MAPS.rmdir()                 # 无可分片节点：不留空目录
+    return sorted(wanted), sorted(removed)
 
 
 # ---------- 节点增删（唯一实现；CLI 与管理台共用） ----------
@@ -366,7 +488,11 @@ def node_remove(data: dict, node_id: str):
 
 def _report(issues: list[str]) -> int:
     """统一输出：硬契约结果 + 软提示 + 孤儿提示。"""
-    print("[routes] ROUTES.md 已重绘")
+    data_now = load()
+    sizes = subtree_sizes(data_now.get("nodes"))
+    local = [n["id"] for n, _ in iter_nodes(data_now.get("nodes"))
+             if n.get("id") and needs_split(n, sizes)]
+    print("[routes] ROUTES.md 已重绘" + (f"（局部图 {len(local)} 张：{', '.join(local)}）" if local else ""))
     if issues:
         print("[routes] 契约问题（硬）：")
         for i in issues:
@@ -386,6 +512,64 @@ def _report(issues: list[str]) -> int:
     return 0
 
 
+# ---------- 描述六段模板（路由判据 H1：**推荐**的能力等级，非写入门槛） ----------
+# 自由描述合法（用户/管理员怎么写都行）→ 路由按关键词降级匹配，且降级在 hints 与 ROUTES.md 显式标注。
+
+DESC_FIELDS = ("【何时用】", "【不适用】", "【别名】", "【输入前置】", "【时效性】", "【回退】")
+DESC_FIELD_MAX = 120      # 每段字符软上限（超出仅在 hints 里提醒，不拦截）
+
+
+def desc_problems(desc: str) -> list[str]:
+    """**结构化检查（软）**：缺哪些六段字段；不拦截写入（模板与依据见 processor/shapes.md 第 7 节）。"""
+    desc = desc or ""
+    return ["缺字段 %s" % f for f in DESC_FIELDS if f not in desc]
+
+
+def desc_state(desc: str) -> str:
+    """描述形态（路由能力等级）：structured（六段齐备）｜ free（自由文本）｜ empty（未写）。"""
+    d = (desc or "").strip()
+    if not d:
+        return "empty"
+    return "structured" if not desc_problems(d) else "free"
+
+
+def alias_problems(desc: str, title: str = "") -> list[str]:
+    """【别名】自查（SKOS 精神）：别名不得与正式名（标题）相同；别名之间不得重复。"""
+    import re as _re
+    m = _re.search(r"【别名】([^｜|【\n]*)", desc or "")
+    if not m:
+        return []
+    raw = m.group(1).strip(" 　")
+    items = [x.strip(" 　") for x in _re.split(r"[、,，/／]", raw) if x.strip(" 　")]
+    probs = []
+    if title and title.strip() and title.strip() in items:
+        probs.append("别名不得与节点标题相同：%s" % title.strip())
+    dup = sorted({x for x in items if items.count(x) > 1})
+    if dup:
+        probs.append("别名内部重复：%s" % dup)
+    return probs
+
+
+def desc_length_notes(desc: str) -> list[str]:
+    """六段各自的字符数超软上限 → 提示（不拦截）。"""
+    import re as _re
+    out = []
+    for f in DESC_FIELDS:
+        m = _re.search(_re.escape(f) + r"([^｜|【\n]*)", desc or "")
+        if m and len(m.group(1).strip(" 　")) > DESC_FIELD_MAX:
+            out.append("%s 段落超过 %d 字（建议精简）" % (f, DESC_FIELD_MAX))
+    return out
+
+
+def _note_desc(desc: str, title: str = "") -> None:
+    """描述写入后的**软提示**（不拦截）：自由文本合法，但路由按关键词降级匹配。"""
+    if desc_state(desc) != "structured":
+        print("[routes] 提示：描述为自由文本（未按六段模板）→ 路由按关键词降级匹配"
+              "（不保证『不适用 / 回退』判断）；模板见 processor/shapes.md 第 7 节")
+    for p in alias_problems(desc, title):
+        print("[routes] 提示：%s" % p)
+
+
 def cmd_render() -> int:
     ok, payload = commit(lambda data: (True, ""))
     return _report(payload)
@@ -397,6 +581,7 @@ def cmd_add(args) -> int:
         node["mount"] = args.mount
     if args.description:
         node["description"] = args.description
+        _note_desc(args.description, args.title)
     ok, payload = commit(lambda data: node_add(data, args.parent, node))
     if not ok:
         print(f"[routes] {payload}")
@@ -437,7 +622,7 @@ def cmd_update(args) -> int:
         if args.mount:
             node["mount"] = args.mount
         if args.description:
-            node["description"] = args.description
+            node["description"] = args.description          # 自由/结构化均可写入（不拦截）
         return True, ""
 
     ok, payload = commit(mutate)
@@ -445,6 +630,8 @@ def cmd_update(args) -> int:
         print(f"[routes] {payload}")
         return 1
     print(f"[routes] 已更新：{args.id}")
+    if args.description:
+        _note_desc(args.description, (find(load(), args.id) or {}).get("title", ""))
     return _report(payload)
 
 

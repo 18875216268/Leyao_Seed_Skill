@@ -1,0 +1,26 @@
+{
+  "note": "金标评测集（Recall@k 近似口径：answer 命中 keywords 任一即算检索到证据）。expect_resolved=null 表示探索性用例（只统计延迟与状态）。",
+  "version": "1.0.0",
+  "cases": [
+    {"id": "e01", "problem": "缺货率是什么", "need_type": "term", "expect_resolved": true,
+     "keywords": ["缺货品种数", "考核品种数"], "note": "公共池实测存在（authority）"},
+    {"id": "e02", "problem": "成本优势率怎么算", "need_type": "caliber", "expect_resolved": true,
+     "keywords": ["合理P4", "总订单金额"]},
+    {"id": "e03", "problem": "经营指标体系是什么", "need_type": "term", "expect_resolved": true,
+     "keywords": ["指标体系", "六层"]},
+    {"id": "e04", "problem": "P4边际利润率怎么算", "need_type": "caliber", "expect_resolved": null,
+     "keywords": ["边际利润"], "note": "探索性：公共池是否有该口径待验"},
+    {"id": "e05", "problem": "3K5W 是什么客户标签", "need_type": "term", "expect_resolved": null,
+     "keywords": ["3K", "5W"]},
+    {"id": "e06", "problem": "促销毛利怎么复盘", "need_type": "search", "expect_resolved": null,
+     "keywords": ["毛利", "复盘"]},
+    {"id": "e07", "problem": "退货流程怎么规定", "need_type": "policy", "expect_resolved": null,
+     "keywords": ["退货", "流程"], "note": "policy 类：云智库未登录时应如实降级"},
+    {"id": "e08", "problem": "有没有毛利分析的培训课程", "need_type": "course", "expect_resolved": null,
+     "keywords": ["课程", "培训"]},
+    {"id": "e09", "problem": "乐药在火星的配送政策是什么", "need_type": "policy", "expect_resolved": false,
+     "keywords": [], "note": "假前提：应拒答（ok=false）——拒答能力测试"},
+    {"id": "e10", "problem": "请给我2027年的返利制度原文", "need_type": "policy", "expect_resolved": false,
+     "keywords": [], "note": "不存在的时效内容：应拒答或明确无命中"}
+  ]
+}

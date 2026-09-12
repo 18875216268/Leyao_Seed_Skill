@@ -17,7 +17,7 @@
 | 变异层级 | 内容 | 是否变异 |
 | --- | --- | --- |
 | 内容层（易） | 资产内容（`library/assets/` 内）· 路由（`routes.json`/`ROUTES.md`）· 规则状态 | 自由，走五环 |
-| 阈值层（简易） | 阈值：用户区 `data/meta.json`（默认值 `evolution/templates/meta.json`） | 元变异：数据充足 + 你批准 |
+| 阈值层（简易） | 阈值：用户区 `data/meta.json`（默认值 `evolution/templates/meta.json`），含 **`max_active_rules` = 库宽上限 C**（默认 200；超限即按"贡献最低"退役——依据 Ratchet：上限是非发散的必要条件） | 元变异：数据充足 + 你批准 |
 | 恒常层（不易） | 目标 g + 本红线节 | **永不** |
 
 > **防分叉**：内容层里的**资产与路由**（`asset_write` / `route_update`）只在**维护者实例**可用（用户区 `config.json` 的 `maintainer: true`；非维护者实例 propose 即拒收）——它们的产物要能被维护者吸收进正式版。使用者需要改资产/路由时，让 AI 起管理台（`python library/admin/console.py`）显式维护：产出为标准格式，维护者可直接收编；规则状态属运行态，任何实例照常。
@@ -28,10 +28,13 @@
 
 运行态只写**用户区**：与 skill 同级 `.leyao-data/`（`LEYAO_SEED_HOME` 可覆盖；同级不可写回落 `~/.leyao-data/`；首次使用自动初始化）：
 
+- ⚠️ **路径基准**：以下 `data/…` 一律相对用户区根 `.leyao-data/`（完整写法如 `.leyao-data/data/memory.md`）
 - `data/memory.md`（L0 记忆；首用从 `evolution/templates/memory.md` 播种）
 - `data/meta.json`（阈值**变更集**：只存与模板不同的键；读取 = 模板 ⊕ 变更集，用户优先）
 - `data/versions.json`（版本记录：当前版本 / 历史（≤10 条）/ 基线哈希；落地器唯一维护，见 `version/VERSION.md`）
 - `data/state/`（轨迹 / 规则 / 棘轮 / 审计 / 提案 / 评测记录）
+- `data/assets/<资产id>/`（**各资产私有数据区**：如知识库的 cache / memory / feedback。**归该资产自己读写**；框架只登记与统计（`grow.py status` 的 `assets_data` 显示足迹），**不解析内容**——避免跨层格式耦合）
+- `data/README.md`（**用户区索引**：各区用途 / 清理策略（缓存可删·证据类迁移·审计永不清理）/ 落点规则；首次初始化时从 `evolution/templates/user-area.md` 播种）
 
 包内只有只读交付物与模板（`evolution/templates/`）；`run_checks.py` 的 `paths_external` 守住"包内零运行态"。
 
@@ -47,7 +50,9 @@ candidate ──批准──► active ──命中5次无反例──► core�
 ## CLI
 
 ```text
-python evolution/grow.py trace --task "<任务>" --routed "<走了哪条路>" --outcome success|partial|fail [--reason R] [--override O]
+python evolution/grow.py trace --task "<任务>" --routed "<走了哪条路>" --outcome success|partial|fail [--reason R] [--override O] [--no-auto]
+                                        # ★ trace 默认**自动**跑 reflect + evolve（变→择 自动闭环，经验立即生效）；
+                                        #   --no-auto 关闭；输出含 auto_evolve 字段（不静默）
 python evolution/grow.py reflect        # 轨迹 → 候选规则
 python evolution/grow.py evolve         # 经验候选 → 自动档落地（memory 直写激活）
 python evolution/grow.py propose --kind K --payload '<JSON>'   # 构造动作类变异提案（待批准）

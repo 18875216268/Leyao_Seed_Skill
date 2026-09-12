@@ -4,7 +4,7 @@ description: "用这个 skill 处理需要成套流程与资产路由的任务�
 compatibility: "需要 Python 3.10+（仅标准库，无第三方依赖）；资产管理台在本地起 HTTP 服务（默认 127.0.0.1:8765，需要能开本地端口）"
 license: "MIT"
 metadata:
-  version: "0.7.0"
+  version: "0.9.9"
   architecture: "processor + library(routes + assets) + evolution(五环自举) + version(版本维护)"
   author: "Leyao"
   date: "2026-09-11"
@@ -20,8 +20,8 @@ metadata:
 | --- | --- | --- |
 | 1 主文档 | `SKILL.md`（本文件） | 版本信息 + 基础说明 + 层级导航；不含任何业务与流程细节 |
 | 2 任务处理层 | [processor/PROCESSOR.md](processor/PROCESSOR.md) | 处理任务：五步流程（理解→规划→执行→验收→交付）+ **工作区四区约定**（原始材料/任务执行/结果交付/归档）+ 实时控制纠偏 |
-| 3 资产管理层 | [library/ROUTES.md](library/ROUTES.md) | 总路由地图（级联）+ 资产根 `library/assets/` + 资产管理台（`library/admin/`）+ 引擎（`engine.py`）+ L0 经验沉淀（用户区 `data/memory.md`）；资产内容任意可扩展，框架不依赖 |
-| 4 自我进化层 | [evolution/EVOLUTION.md](evolution/EVOLUTION.md) | 五环自举（变择行证藏）：轨迹蒸馏 → 提案守门 → 棘轮落地 → 去糟粕取精华；阈值可元进化 |
+| 3 资产管理层 | [library/ROUTES.md](library/ROUTES.md) | 总路由地图（级联；大子树自动分片为 `library/routes/<id>.md` 局部图）+ 资产根 `library/assets/` + 资产管理台（`library/admin/`）+ 引擎（`engine.py`）+ L0 经验沉淀（用户区 `data/memory.md`）；资产内容任意可扩展，框架不依赖 |
+| 4 自我进化层 | [evolution/EVOLUTION.md](evolution/EVOLUTION.md) | 五环自举（变择行证藏）：轨迹蒸馏 → 提案守门 → 棘轮落地 → 去糟粕取精华；**轨迹写入即自动沉淀经验**（trace 自动触发 reflect/evolve；库宽上限 C 守卫）；阈值可元进化 |
 | 5 版本维护层 | [version/VERSION.md](version/VERSION.md) | 宿主常驻（写入宿主长期记忆）+ 版本检测与更新（准则与流程）；一切落地经唯一落地器（提案 + apply） |
 
 > 层内文档（`processor/PROCESSOR.md`、`library/ROUTES.md`、`evolution/EVOLUTION.md`、`version/VERSION.md`）由本框架**自行调度**：它们是层的入口说明，不是独立技能入口。宿主若把层内文档单独列出，仍以本文件的调用链为准——绕过它会让五步判据与路由契约失效。
@@ -33,6 +33,8 @@ metadata:
   → 会话首次：按 version/VERSION.md 执行两项检查（宿主常驻 + 版本；异步、失败降级，不阻塞任务）
   → 读 library/ROUTES.md（总路由地图：按节点描述匹配场景，定位可用资产；无资产也照常推进）
       同读用户区记忆 .leyao-data/data/memory.md（L0 经验：命中失效模式先规避、有效做法直接复用）
+      级联下钻：带「（N 个子节点 → 局部图 library/routes/<id>.md）」的节点 → 先读局部图继续匹配（可任意级联）；
+      容器节点（只挂子节点、无挂载）不直接执行，下钻其子节点；叶节点（有挂载 / 入口文档）执行
   → 进入 processor/（按五步流程执行；每步判据自带，见 flow/1~5 与 control.md）
       执行时：命中资产则进其挂载目录读 SKILL.md／README.md 原样调用；无命中按自带判据亲自动手
   → 交付后：`python evolution/grow.py trace --routed "<命中节点 id / 无命中写 none>" …` 追加轨迹（五环自举入口，见 evolution/EVOLUTION.md）
@@ -46,6 +48,7 @@ metadata:
 python library/admin/console.py                    # 资产管理台（新增 / 编辑 / 删除 / 获取复制源）
 python library/engine.py                      # 重绘 ROUTES.md + 契约校验（挂载存在/id 唯一）+ 入口文档缺失提示 + 报告孤儿
 python library/engine.py render               # 同上（显式子命令写法，与不带子命令完全等价）
+                                              # 分形路由：子树超阈值（子节点 > 5 或 子树节点 > 20）自动生成/清理局部图 library/routes/<id>.md
 python library/engine.py add --parent <节点id> --id <新id> --type <类型> --title "<标题>" [--mount <挂载>]
 python library/engine.py remove --id <节点id>
 python library/engine.py move --id <节点id> [--parent <父id>]     # 移动卡片（省略 --parent 即移到主页）

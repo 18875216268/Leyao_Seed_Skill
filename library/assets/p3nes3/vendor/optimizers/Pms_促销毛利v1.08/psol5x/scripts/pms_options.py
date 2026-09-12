@@ -85,7 +85,12 @@ def build_parser() -> argparse.ArgumentParser:
     operators = sub.add_parser("operators", help="List or resolve operating managers")
     operators.add_argument("--name", help="Return one exact erpName match")
     operators.add_argument("--provider-id")
-    operators.add_argument("--state-file", type=Path, default=default_state_path())
+    operators.add_argument(
+        "--state-file",
+        type=Path,
+        default=default_state_path(),
+        help="Credential file (optional): provided by the caller (--token / PMS_TOKEN also work)",
+    )
     operators.add_argument("--token")
     operators.add_argument("--output", type=Path)
     operators.add_argument("--insecure", action="store_true")
