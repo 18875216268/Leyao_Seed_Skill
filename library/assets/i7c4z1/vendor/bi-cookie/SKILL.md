@@ -11,7 +11,7 @@ description: "观远 BI Cookie 卡片通道（集团级通道1）：企微扫码
 
 ## 凭证（通道不实现登录，消费框架凭证）
 
-登录统一由父 skill 登录器提供：`python scripts/bi_login.py`（企微扫码，落库 `accounts/<loginId>.json`）。
+登录统一由父 skill 登录器提供：`python scripts/login_bi.py`（企微扫码，落库 `accounts/<loginId>.json`）。
 下方三工具自动从凭证仓库注入 Cookie：`bi_export.py` / `bi_index.py` 为本地检查、**绝不弹窗**；`bi_call.py` **默认允许弹窗**（本地凭证缺失/过期时会拉起扫码窗）——无界面环境请加 `--no-ui`。`--relogin` 强制重扫。
 换新凭证后重试一次原请求即可，不要因参数、权限、限流、网络错误触发登录。
 
@@ -55,5 +55,5 @@ AI 读契约文档后给出 URL/路径/请求体，本脚本只负责发送并�
 
 - 本通道只访问 `https://bi.leyopharm.com`（host 外置于根 `sync_config.json` 的 `host_endpoints.biHost`）。
 - 取数类故障（超时/键名/限流/数据量）以 [references/api查询文档.md](references/api查询文档.md) 错误表为准；
-  登录类故障（401/1017）回父 skill `scripts/bi_login.py`。
+  登录类故障（401/1017）回父 skill `scripts/login_bi.py`。
 - 板块级优化走 `vendor/optimizers/`（所属通道为本通道的优化板，路由见 `vendor/SUBSKILL_ROUTING.md` §5）。

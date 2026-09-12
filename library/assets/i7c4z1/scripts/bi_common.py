@@ -16,7 +16,7 @@ from typing import Any
 import requests
 
 DEFAULT_TIMEOUT = 90
-LOGIN_HINT = "Run scripts/bi_login.py to sign in (default opens the WeCom QR dialog)."
+LOGIN_HINT = "Run scripts/login_bi.py to sign in (default opens the WeCom QR dialog)."
 
 
 class BiError(RuntimeError):
@@ -47,7 +47,7 @@ def get_credential(
 
     绝不弹窗：``interactive=False`` 且凭证不可用时抛 ``BiError``，由调用方引导先登录。
     """
-    from bi_login import get_credential as _gc, BiError as _LoginError
+    from login_bi import get_credential as _gc, BiError as _LoginError
 
     try:
         return _gc(

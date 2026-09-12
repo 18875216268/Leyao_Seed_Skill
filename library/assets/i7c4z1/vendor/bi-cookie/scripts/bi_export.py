@@ -30,7 +30,7 @@ _FRAMEWORK_SCRIPTS = Path(__file__).resolve().parents[3] / "scripts"
 if str(_FRAMEWORK_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_FRAMEWORK_SCRIPTS))
 
-import bi_login as lb  # noqa: E402  登录模块入口：注入 vendor 路径并再导出公开 API
+import login_bi as lb  # noqa: E402  登录本体（自带 CLI）：注入 vendor 路径
 from bi_common import BiError, configure_stdio, error_payload  # noqa: E402
 
 TERMINAL_OK = {"FINISHED"}
@@ -62,7 +62,7 @@ class Exporter:
     def __init__(self) -> None:
         credential = lb.verify_credential(validate_remote=False)
         if not credential.get("authenticated"):
-            raise BiError("AUTH_REQUIRED", "本地凭证不可用，请先登录：python scripts/bi_login.py")
+            raise BiError("AUTH_REQUIRED", "本地凭证不可用，请先登录：python scripts/login_bi.py")
         self.base = str(credential.get("biBase") or "")
         self.headers = dict(credential.get("headers") or {})
         self.headers.setdefault("Content-Type", "application/json")

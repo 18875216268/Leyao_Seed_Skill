@@ -8,7 +8,7 @@
 ## 1. 通道准则（两条，Agent 必遵守）
 
 1. **bi-cookie 默认为主通道**：所有取数需求默认从主通道开始。
-   凭证两级：①父框架登录模块（`python scripts/bi_login.py` 企微扫码，默认）；
+   凭证两级：①父框架登录模块（`python scripts/login_bi.py` 企微扫码，默认）；
    ②用户有 token 时也可直接提供（`BI_UID_TOKEN` / `BI_UID_TOKEN_SIG` 环境变量或凭证文件）。
 2. **其他通道一律为备用通道**，仅两种情形启用：
    ①用户明确要求使用该通道（或提供该通道凭证——提供凭证即视为明确要求）；
@@ -71,7 +71,7 @@ Q4 通道降级：存在可用备用通道（用户已给凭证 / 可明确请�
 
 | 通道 | 优先级 | 触发条件 | 凭证 | 入口 |
 | --- | --- | --- | --- | --- |
-| bi-cookie | **主** | 默认（所有取数需求起点） | 框架登录器 `scripts/bi_login.py`；或用户直接给 token | `vendor/bi-cookie/SKILL.md` |
+| bi-cookie | **主** | 默认（所有取数需求起点） | 框架登录器 `scripts/login_bi.py`；或用户直接给 token | `vendor/bi-cookie/SKILL.md` |
 | bi-pat | 备 | **用户提供 PAT 通道秘钥（gdpat_），或主动要求使用时** | 用户传入（`BI_PAT_TOKEN` / 凭证文件 / `--token`） | `vendor/bi-pat/SKILL.md` |
 
 ---
@@ -120,7 +120,7 @@ vendor/
 └── SUBSKILL_ROUTING.md      # 本总路由（通道层 + 板块层，唯一路由文档）
 ```
 
-> 父 skill 根 `scripts/` 仅剩登录框架（`login_bi.py` 登录本体 + `bi_login.py` CLI 封装 + `bi_common.py` 底座 + `requirements.txt`）——纯登录框架，API 知识全部随通道/优化板交付。
+> 父 skill 根 `scripts/` 仅剩登录框架（`login_bi.py` 登录本体（自带 CLI）+ `bi_common.py` 底座 + `requirements.txt`）——纯登录框架，API 知识全部随通道/优化板交付。
 
 **接入新板块优化 skill**：放入 `vendor/optimizers/`（原样落盘不改名）→ §5 追加一行（含所属通道）。
 **接入新通道**：`vendor/` 下建自包含通道目录 → §1 补准则、§4 补行、§3 决策树同步 → 该通道的板块优化板同样登记 §5。

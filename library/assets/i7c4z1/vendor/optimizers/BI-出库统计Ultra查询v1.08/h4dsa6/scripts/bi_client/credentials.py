@@ -107,7 +107,7 @@ def load_credential() -> dict[str, Any]:
         "AUTH_REQUIRED",
         "无可用凭证。请传入凭证：设置 BI_UID_TOKEN / BI_UID_TOKEN_SIG 环境变量，"
         "或提供 resources/credential.local.json（或 BI_CREDENTIAL_FILE 指向的 JSON）；"
-        "在宿主父 skill 内也可由其登录器（scripts/bi_login.py）扫码后自动供给。",
+        "在宿主父 skill 内也可由其登录器（scripts/login_bi.py）扫码后自动供给。",
     )
 
 

@@ -524,7 +524,7 @@ curl -s -X POST "https://bi.leyopharm.com/api/write/file/{cardId}?typeOp=EXCEL" 
 
 ## 16. 登录换证（仅登录模块使用） — `GET /api/user/token`
 
-> 业务取数不需要调用本节；这是 `scripts/bi_login.py` 的换证链，此处记录只为契约完整。
+> 业务取数不需要调用本节；这是 `scripts/login_bi.py` 的换证链，此处记录只为契约完整。
 
 **正确顺序（实测 v1.02）**：
 

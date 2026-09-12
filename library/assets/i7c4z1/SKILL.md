@@ -17,7 +17,7 @@ metadata:
 
 ## 登录（唯一入口 · 先读这 4 行）
 
-- 命令：`python library/assets/i7c4z1/scripts/bi_login.py --reuse`（有效则复用；失效才弹企微扫码）
+- 命令：`python library/assets/i7c4z1/scripts/login_bi.py --reuse`（有效则复用；失效才弹企微扫码）
 - 只验证（**绝不弹窗**）：`--status`（默认不含令牌明文；`--show-token` 才输出完整凭证）｜ 无界面环境：`--no-ui`
 - 凭证仓库：`accounts/<loginId>.json`（登录一次即产出 token / headers / user；通道与优化板**消费**该凭证，不各自登录 ✓）
 - 铁律：**登录一律走本入口**——禁止自研登录 / 自取二维码 / 自拼鉴权 ✗；持有有效凭证时**不得再发起登录** ✗；参数 / 权限 / 限流 / 网络类报错**不触发登录** ✗（先按 `processor/control.md`〈卡壳处置〉）。
@@ -36,8 +36,8 @@ metadata:
 ```
 Bi skill（父：纯登录框架 + 裁决 + 路由引导）
 ├── 功能器官  scripts/（纯登录框架，不含任何 API 业务知识）
-│   ├── 登录器  bi_login.py     CLI 薄封装（企微扫码 → token + headers + user）
-│   ├── 登录本体 login_bi.py    登录逻辑单文件（被 bi_login.py 原样复用）
+│   ├── 登录器  login_bi.py     CLI 薄封装（企微扫码 → token + headers + user）
+│   ├── 登录本体 login_bi.py    登录逻辑单文件（被 login_bi.py 原样复用）
 │   └── 公共底座 bi_common.py    错误/stdio/凭证读取公共层
 └── vendor/（通道与子 skill，原样只读，接口知识全部随包自带）
     ├── bi-cookie/           通道1：Cookie 卡片通道（SKILL.md + references 契约 + scripts 三工具 + data 索引）
@@ -51,11 +51,11 @@ Bi skill（父：纯登录框架 + 裁决 + 路由引导）
 
 ## 1. 功能器官
 
-### 1.1 登录器（bi_login.py —— 自有登录组件，**主**）
-- **自有登录组件优先**：企微扫码获取凭证，为本 skill 的主登录路径（见 §0 裁决原则 2）。`scripts/bi_login.py` 是薄封装，登录逻辑 100% 原样复用同目录 `scripts/login_bi.py`（单文件自包含、配置内置，主机与端点白名单、禁止重定向、不走系统代理）。
+### 1.1 登录器（login_bi.py —— 自有登录组件，**主**）
+- **自有登录组件优先**：企微扫码获取凭证，为本 skill 的主登录路径（见 §0 裁决原则 2）。`scripts/login_bi.py` 是**登录本体**（单文件自包含、自带 CLI：`--status/--show-token/--reuse/--no-ui/--no-remote`）（单文件自包含、配置内置，主机与端点白名单、禁止重定向、不走系统代理）。
 - **备用路径**：自有组件不可用（如无界面且无法扫码）时，可按集团子包的鉴权流程走（见随包说明文档清单所列说明），操作细节完全遵照集团包文档——备用不等于转述，本框架不做任何假设。
 - 用法：
-  - CLI：`python scripts/bi_login.py`（默认弹扫码窗重新登录）/ `--status`（只验证，绝不弹窗；默认只输出元信息，**不含令牌明文**，`--show-token` 才输出完整凭证）/ `--reuse`（有效则复用，失效才弹窗）/ `--no-ui`（服务器/守护进程）/ `--no-remote`（跳过远端校验）；退出码 0 成功 / 1 业务错误 / 2 未分类错误
+  - CLI：`python scripts/login_bi.py`（默认弹扫码窗重新登录）/ `--status`（只验证，绝不弹窗；默认只输出元信息，**不含令牌明文**，`--show-token` 才输出完整凭证）/ `--reuse`（有效则复用，失效才弹窗）/ `--no-ui`（服务器/守护进程）/ `--no-remote`（跳过远端校验）；退出码 0 成功 / 1 业务错误 / 2 未分类错误
   - Python API：`relogin` / `verify_credential` / `get_credential` / `is_authenticated`
 - **凭证仓库**：按账号一文件，落在登录器仓库（明文 JSON、原子写）。同一账号再扫码 → 更新，换人扫码 → 新增，互不覆盖。
 - 登录产出完整凭证（`token` / 可直接使用的 `headers` / `user`），登录成功即按扫码人身份入库。
@@ -77,7 +77,7 @@ Cookie 卡片通道的三工具——发送器 `bi_call.py`、卡片索引 `bi_i
 
 ## 3. 取数流程（AI 主导，非固定脚本链）
 
-1. **登录**：`python scripts/bi_login.py`（弹扫码）或 `--status`（只验证不弹窗）。产出 user（登录人身份）。
+1. **登录**：`python scripts/login_bi.py`（弹扫码）或 `--status`（只验证不弹窗）。产出 user（登录人身份）。
 2. **路由**：读 `vendor/SUBSKILL_ROUTING.md` §3 决策树（先通道后板块），确定通道与板块优化板。
 3. **读通道/优化板文档并执行**：接口知识、工具用法、参数构造全部以所选包文档为准——
    通道1 入口 `vendor/bi-cookie/SKILL.md`，通道2 入口 `vendor/bi-pat/SKILL.md`，
@@ -86,7 +86,7 @@ Cookie 卡片通道的三工具——发送器 `bi_call.py`、卡片索引 `bi_i
 
 ## 4. 常见陷阱与故障处理（Agent 必读，仅框架级）
 
-- **401 / token 失效**：先 `python scripts/bi_login.py` 重新扫码登录（弹窗），不要改代码；弹窗失败可点容器重试。
+- **401 / token 失效**：先 `python scripts/login_bi.py` 重新扫码登录（弹窗），不要改代码；弹窗失败可点容器重试。
 - **1017 单点登录被顶**：重新企微扫码即可。
 - **代理报错（PROXY_ERROR）**：登录器本身不走系统代理；通道工具报代理错误时同命令加 `--no-proxy`，不要改系统代理设置。
 - **TLS 报错（TLS_ERROR）**：仅在受控环境用 `--insecure`；优先修复本地 CA 配置。

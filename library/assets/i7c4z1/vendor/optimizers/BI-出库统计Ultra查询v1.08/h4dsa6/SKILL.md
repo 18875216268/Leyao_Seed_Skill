@@ -30,7 +30,7 @@ description: "出库统计Ultra 板块优化 skill（自包含，可独立移植
 3. 宿主父 skill 回退（可选）：向上存在 `scripts/login_bi.py` 时自动取其登录仓。
 
 - 三级全空时返回 `AUTH_REQUIRED`，此时必须由用户直接传入凭证（窗口 1 或 2）。
-- **获取方式**：宿主父 skill 登录器扫码（若有，skill 根 `python scripts/bi_login.py`），或由用户直接提供 token。
+- **获取方式**：宿主父 skill 登录器扫码（若有，skill 根 `python scripts/login_bi.py`），或由用户直接提供 token。
 - 查询返回 `AUTH_*` 错误时先换新凭证再重试一次；不要因参数、权限、限流、网络错误触发换凭证。
 - API 契约自包含于 [references/api查询文档.md](references/api查询文档.md)，移植无需父 skill 文档。
 

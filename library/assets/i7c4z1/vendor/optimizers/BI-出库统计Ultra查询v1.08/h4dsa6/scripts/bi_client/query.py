@@ -197,7 +197,7 @@ class QueryService:
     def prepare(self) -> QueryContext:
         credentials = load_credential()
         if not credentials:
-            raise BiError("AUTH_REQUIRED", "父 skill 凭证不可用，请先运行父 skill 登录：python scripts/bi_login.py")
+            raise BiError("AUTH_REQUIRED", "父 skill 凭证不可用，请先运行父 skill 登录：python scripts/login_bi.py")
         if local_expired(credentials):
             raise BiError("AUTH_EXPIRED", "本地 BI 凭证已过期，请通过父 skill 登录器重新扫码。")
         default_range = tuple(_default_date_range())
