@@ -205,6 +205,11 @@ def main() -> int:
             task_id, display_name = str(args.task), "bi_export"
             _hint(f"复用已有任务 {task_id}")
         else:
+            if not payload.get("filters"):                 # 巨卡红线（与板内 export.py 同款硬校验 ✗ 无筛选会 20+ 分钟不终态）
+                print(json.dumps({"ok": False, "error": "EXPORT_FILTER_REQUIRED",
+                                  "msg": "导出请求体缺少筛选（至少带日期 BT）——请用 --payload-file 提供 filters；"
+                                         "无筛选导出实测 20+ 分钟不终态"}, ensure_ascii=False))
+                return 1
             task_id, display_name = exporter.submit(str(args.card), payload)
             _hint(f"已提交导出任务 {task_id}（{display_name}）")
 

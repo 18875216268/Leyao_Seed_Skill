@@ -85,6 +85,10 @@ def _update_params_md(catalog: dict, extras: dict[str, list[dict]]) -> None:
             else:
                 rows.append(f"| {s['name']} | 动态候选 | `candidates.py --filter` 实时获取 |")
         anchor = f_block.find("### 候选值获取")
+        if anchor < 0:                                    # 标题缺失（当前文档形态）→ 退回「候选值获取（」段首，防悬空插入 ✗
+            anchor = f_block.find("候选值获取（")
+        if anchor < 0:
+            anchor = len(f_block)
         head, tail = f_block[:anchor], f_block[anchor:]
         cut = head.rstrip().rfind("\n")
         f_block = head[:cut] + "\n" + "\n".join(rows) + "\n\n" + tail
@@ -99,7 +103,7 @@ def _update_params_md(catalog: dict, extras: dict[str, list[dict]]) -> None:
     dim_line = "、".join(str(f["name"]) for f in catalog["dimensions"]) + "。"
     lines = d_block.splitlines()
     for i, line in enumerate(lines):
-        if line.startswith("出库月份") and line.endswith("。"):
+        if "、出库日期、" in line and line.endswith("。"):   # 现行清单行形如「月、出库日期…」；用中段锚点，防静默跳过 ✗
             lines[i] = dim_line
             break
     d_block = "\n".join(lines) + "\n"

@@ -125,6 +125,7 @@
 | 药师帮单号 | 动态候选（千级，随业务变化） | 同上 |
 | 运单号 | 动态候选（千级，随业务变化） | 同上 |
 | 活动id | 动态候选（千级，随业务变化） | 同上 |
+| 是否促销补贴 | 动态候选 | `candidates.py --filter` 实时获取（语义：1=是；2026-09 运行时新发现筛选器，由 sync_fields 入册） |
 
 候选值获取（对所有**非时间、非树**筛选通用；选项中的空值 None/空串代表该维度缺失的历史数据行）：
 
@@ -150,7 +151,6 @@ curl -s -X POST "https://bi.leyopharm.com/api/selector/<筛选器cdId>/data" \
 - **支持条件返回**（实测 2026-09-09）：请求体带 `{"search":"<关键字>"}` 或
   `{"filters":[{"name":"<字段>","filterType":"IN","filterValue":[...]}]}`（简化 3 键即可）→ 返回**完整匹配子树**（`exceedLimit=false`），如 `search=重庆` → 重庆市→县/市辖区→各区县（count=51）。
 - 快捷命令：`python scripts/candidates.py --filter "省份-城市-区" --search 重庆`（结果按用户缓存）。
-| 是否促销补贴 | 动态候选 | `candidates.py --filter` 实时获取 |
 
 
 ## 聚合维度（50）

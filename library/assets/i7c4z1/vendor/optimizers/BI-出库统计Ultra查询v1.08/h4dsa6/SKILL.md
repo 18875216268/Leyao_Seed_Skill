@@ -142,7 +142,7 @@ python scripts/export.py --list 20            # 导出中心任务列表（找�
 - 请求体由引擎构造（`QueryService._build`，与在线取数完全同体——filters + zoneFilter 克隆），
   导出的就是**筛选+聚合后的定制视图**（KB 级小表）；契约细节见
   [references/api查询文档.md](references/api查询文档.md) §4 三步链。
-- **需要「明细 + 卡片默认布局」时（板材做不到 ✗）**：板内导出恒经 `QueryService._build`（**无条件带 `zoneFilter`**，结果只可能是自选透视体）→ 按 §2 板块降级，改用**通道导出器**（请求体**只带 `filters`、不带 `zoneFilter`** = 卡片保存布局 × 筛选后数据）：
+- **需要「明细 + 卡片默认布局」时（本板做不到 ✗）**：板内导出恒经 `QueryService._build`（**无条件带 `zoneFilter`**，结果只可能是自选透视体）→ 按 `vendor/SUBSKILL_ROUTING.md` §2 板块降级，改用**通道导出器**（请求体**只带 `filters`、不带 `zoneFilter`** = 卡片保存布局 × 筛选后数据）：
   `python vendor/bi-cookie/scripts/bi_export.py --card v37695c5612944a7baa0c6fa --payload-file body.json`（`body.json` 至少含日期筛选；必须带筛选 ✗ 见 §红线；超时用 `--task <taskId>` 续传）
   （**两条路线分清**：**聚合路线**→可整体复用引擎构造体（含 `zoneFilter`）交 `bi_export.py --payload-file`；**明细+默认布局路线**→必须剥离 `zoneFilter`、只带 `filters` ✗）
 

@@ -483,6 +483,8 @@ curl -s -X POST "https://bi.leyopharm.com/api/write/file/{cardId}?typeOp=EXCEL" 
   -H "Cookie: uIdToken=<UID_TOKEN>; uIdToken.sig=<UID_TOKEN_SIG>" \
   -H "Content-Type: application/json" \
   -d '{"offset":0,"limit":1000,"view":"GRID"}'
+
+> ⚠️ 上例为**最小结构示意**：**巨卡必须补 `filters`**（至少日期 BT 完整键组）——否则命中 §15.4「20+ 分钟不终态」✗
 ```
 
 **响应**（信封内 `response`）：
