@@ -44,9 +44,10 @@ REQUIRED = [
 MEMORY_SECTIONS = store.MEMORY_SECTIONS   # 单一来源：store（记忆四段；此处不另写一份，防静默漂移）
 
 DOC_REF = re.compile(r"`((?:library|processor|evolution|version|state|tests)/[^`\s]*)`")
-DOC_FILES = ("SKILL.md", "README.md", "processor/*.md", "processor/flow/*.md", "evolution/*.md", "version/*.md",
+DOC_FILES = ("SKILL.md", "README.md", "processor/*.md", "processor/flow/*.md", "processor/templates/*.md",
+             "evolution/*.md", "evolution/templates/*.md", "version/*.md",
              "library/ROUTES.md", "library/admin/README.md", "evolution/tests/README.md")
-ASSET_CLI_SCRIPTS = ("card.py", "hub.py", "run_term_eval.py")   # 框架/资产文档承诺其 CLI 的资产脚本（纳入同一护栏）
+ASSET_CLI_SCRIPTS = ("card.py", "hub.py", "run_term_eval.py", "run_eval.py")   # 框架/资产文档承诺其 CLI 的资产脚本（纳入同一护栏）
 DOC_CLI_FILES = DOC_FILES + ("library/assets/pp32an/SKILL.md",
                              "library/assets/pp32an/references/card.md",
                              "library/assets/pp32an/references/operations.md")
