@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]          # leyao-seed-core/
 sys.dont_write_bytecode = True                      # 运行期零写包（不在包内生成 __pycache__）
 FIELDS = ("【何时用】", "【不适用】", "【别名】", "【输入前置】", "【时效性】", "【回退】")
-PARENT = {"psol5x": "p3nes3", "h4dsa6": "i7c4z1"}
+PARENT = {}                                         # 父子关系：由**真实树**构建（见 _parent_map；勿硬编码 ✗）
 OLD_PHRASE = "有任何业务数据需求时"                 # 旧模板措辞（应已清除）
 
 
@@ -39,6 +39,18 @@ def load_nodes():
 NODES = load_nodes()
 DESC = {k: (v.get("description") or "") for k, v in NODES.items()}
 TITLE = {k: (v.get("title") or "") for k, v in NODES.items()}
+
+
+def _parent_map(nodes: dict) -> dict:
+    """父子关系由**真实树**构建（routes.json 的 children 边）——新增/改名资产自动覆盖，勿硬编码 ✗。"""
+    out = {}
+    for nid, n in nodes.items():
+        for c in (n.get("children") or []):
+            out[c["id"]] = nid
+    return out
+
+
+PARENT = _parent_map(NODES)
 # 描述分级（与 engine.desc_state 同判据）：structured=六段齐备（判据链全能力）；free=自由文本（降级匹配）；
 # empty=未写（不可路由）。六段属**推荐**——A 组只对结构化节点断言字段，自由节点改判"降级标注在场"。
 STRUCT = [k for k, d in DESC.items() if all(f in d for f in FIELDS)]
@@ -172,8 +184,10 @@ B = [
      [("取数", ["业务数据", "自定义"])], ("凭证",), "single", "i7c4z1"),
     ("B14 别名词面（'乐药 BI' → 父级）", ["乐药 BI"],
      [("取数", ["业务数据", "自定义"])], ("凭证",), "single", "i7c4z1"),
-    ("B15 整月目标拆解（方法论类子节点唯一命中）", ["月度目标拆解"],
+    ("B15 整月目标拆解（父子同时命中 → 折叠取子）", ["目标拆解"],
      [("目标拆解", ["拆解"])], ("原始素材",), "single", "g7k2m4"),
+    ("B16 通用套件检索（父子同时命中 → 覆盖在父 → 取父）", ["目标拆解"],
+     [("找技能", ["可复用技能"])], ("原始素材",), "single", "bvix9o"),
 ]
 
 # ---------------- C. 过程记录 D 区形状（可写性） ----------------

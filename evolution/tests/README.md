@@ -94,7 +94,7 @@ python evolution/tests/run_update_sandbox.py  # 更新链路回归（零联网�
 ## 人工清单（发布/交付前逐项过）
 
 1. `python evolution/tests/run_checks.py` —— `ok=true` 且 `score=1.0`
-2. `python evolution/tests/run_route_drill.py` —— 路由演练 28 项全过（**改描述 / 改判据 / 增删资产必跑**）
+2. `python evolution/tests/run_route_drill.py` —— 路由演练 29 项全过（**改描述 / 改判据 / 增删资产必跑**）
 3. `python evolution/tests/run_task_drill.py` —— 任务层演练 19 项全过（**改 `processor/` 判据 / 流程 / 模板必跑**）
 4. `python evolution/tests/run_task_set.py` —— 判定准确率 **7/7**（balanced；**改判据 / 改模板 / 新增工作区产物后必跑**）
 5. `python evolution/tests/run_update_sandbox.py` —— 更新链路回归全过 + `score=1.0`（**项数不作判据**；**改过落地器 / 版本维护层 / 证环必跑**）
