@@ -60,6 +60,7 @@ MEMORY_F = HOME / "memory.jsonl"
 FEEDBACK_F = HOME / "feedback.jsonl"
 REFLECT_F = HOME / "reflect.jsonl"
 CONFIG_F = HOME / "config.local.json"      # 本地配置（敏感/环境参数只存本地；包内零秘钥）
+LEYOU_TOKEN_F = HOME / "leyou_token.json"  # 云智库登录态（客户端 --token-file 目标；只落用户区）
 
 
 def ensure_home() -> Path:

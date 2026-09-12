@@ -20,6 +20,7 @@ AI 调用面（只暴露 4 个命令，数据库参数全部封在脚本内，AI
 配置（**包内零秘钥**：所有参数只存本地用户数据区）：
 - 数据区 `config.local.json` 的 `leyou_firebase` 段——`database_url` 与 `fangwen_miyue`（访问秘钥）必需，
   其余项目参数备查（字段见 `_FIR_KEYS`；路径与字段说明见 `references/leyou-cli.md`）；
+- 登录态：数据区 `leyou_token.json`（本脚本与客户端统一经全局参数 `--token-file` 指定；**包内零写入**）；
 - 未配置 → 数据库命令返回 `CONFIG_MISSING`（码3）；`auto` 自动降级为「本地凭证 + 扫码」，不阻断。
 
 安全边界（结构性保证，非靠确认）：
@@ -48,7 +49,7 @@ from urllib.parse import quote
 _SCRIPTS_DIR = Path(__file__).resolve().parents[2]     # …/scripts（复用 common 的本地配置读取：唯一实现）
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
-from common import CONFIG_F, load_config                # noqa: E402
+from common import CONFIG_F, LEYOU_TOKEN_F, load_config  # noqa: E402
 
 
 # ---------------- 云凭证库配置（**只存本地**：包内零秘钥） ----------------
@@ -104,7 +105,7 @@ def _fir() -> FirPeizhi:
 
 LEYOU_DIR = Path(__file__).resolve().parent
 LEYOU_SCRIPT = LEYOU_DIR / "leyou_cloud.py"
-TOKEN_FILE = LEYOU_DIR / "leyou_token.json"
+TOKEN_FILE = LEYOU_TOKEN_F                    # 登录态只落用户区（与客户端 --token-file 同目标；包内零写入）
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) leyou-firebase-login/0.3"
 
 KEY_RE = re.compile(r"^[0-9a-f]{12}$")  # 凭证键 = token 摘要，12 位十六进制
@@ -232,9 +233,9 @@ def fb_delete_entry(key):
 # ---------------- 委托 leyou_cloud.py ----------------
 
 def _run_leyou(*args):
-    """调用 leyou_cloud.py 并解析 JSON；兼容流式输出（取最后一个 JSON 行）。"""
+    """调用 leyou_cloud.py（登录态经 --token-file 指向用户区）并解析 JSON；兼容流式输出。"""
     r = subprocess.run(
-        [sys.executable, str(LEYOU_SCRIPT), *args],
+        [sys.executable, str(LEYOU_SCRIPT), "--token-file", str(TOKEN_FILE), *args],
         capture_output=True, text=True, timeout=360,
     )
     out = None
@@ -252,7 +253,7 @@ def _run_leyou(*args):
 
 
 def creds_to_local(creds):
-    """把凭证写入本地 leyou_token.json，字段与 leyou_cloud.py 兼容。"""
+    """把凭证写入用户区 `leyou_token.json`（TOKEN_FILE），字段与 leyou_cloud.py 兼容。"""
     c = json.loads(creds) if isinstance(creds, str) else (creds or {})
     store = {
         "token": c.get("token"), "uuid": c.get("uuid"),

@@ -1,9 +1,13 @@
 # 乐药云智库 CLI 速查（兜底源）
 
-> 客户端：`scripts/sources/leyou/leyou_cloud.py`（原生集成，原样复用）；登录态落同目录 `leyou_token.json`。
+> 客户端：`scripts/sources/leyou/leyou_cloud.py`（原生集成，原样复用）；**登录态只落用户数据区** `leyou_token.json`
+> （客户端经全局参数 `--token-file` 指定；包内零写入）。
 > **本 skill 只查不弹窗**：`status` 预检（scan=False 语义）→ 失效即返回 `LOGIN_REQUIRED` + 手动指引。
 
 ## 常用子命令
+
+> 直接手调客户端时必须带 `--token-file`（否则默认读写**包内**同目录 ✗）：桥接（`leyou_bridge.py`）与
+> 自动登录桥（`leyou_firebase_login.py`）已自动带上。
 
 ```text
 python scripts/sources/leyou/leyou_cloud.py status           # 登录态预检（只复用本地/库凭证）

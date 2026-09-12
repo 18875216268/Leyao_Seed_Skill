@@ -71,6 +71,6 @@ python scripts/hub.py contribute --all-candidates [--dry-run]   # 沉淀上传�
 
 - **换源/调超时/调 TTL**：只改 `registry.json`（地址、优先级、timeout_s、ttl_seconds、semantic_threshold、budget_seconds）；
 - **补别名/同义词**：`scripts/query_norm.py` 的 `ALIASES`（按真实未命中案例扩充，`reflect` 会给建议）；
-- **云智库客户端**：`scripts/sources/leyou/`（原生集成，原样复用；登录态落在其目录下）；
+- **云智库客户端**：`scripts/sources/leyou/`（原生集成，原样复用；**登录态只落用户数据区**（客户端经 `--token-file` 指定），包内零写入）；
 - **沉淀上传**：`contribute --memory-id <id>`（单条）/ `--all-candidates`（批量）/ `--inject --title … --content …`（权威注入，仅用户显式要求）；写令牌在**本地配置**（数据区 `config.local.json` → `pool.write_token`，不入包）；采纳上报开关 `registry.report_adopt`；
 - **自检**：`python tests/run_tests.py`（离线）→ `hub.py doctor`（连通）→ `hub.py ask --problem 缺货率`（真实样例）→ `contribute --all-candidates --dry-run`（沉淀预检，不写线上）。

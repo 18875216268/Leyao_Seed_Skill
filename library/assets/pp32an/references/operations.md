@@ -32,6 +32,7 @@
 | `feedback.jsonl` | ask-log 与采纳/否决审计 | ⚠️ 建议保留（可审计） |
 | `reflect.jsonl` | 反思历史 | ✅ 可重建 |
 | `config.local.json` | 本地配置（池写令牌 / 云智库凭证库参数；**不随包分发**） | ⚠️ 删除=需重新配置 |
+| `leyou_token.json` | 云智库登录态（客户端 `--token-file` 目标；**只落用户区**） | ⚠️ 删除=需重新扫码登录 |
 
 ## 维护动作
 

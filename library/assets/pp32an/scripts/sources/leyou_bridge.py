@@ -15,7 +15,7 @@ import sys
 import time
 from pathlib import Path
 
-from common import SKILL_ROOT
+from common import LEYOU_TOKEN_F, SKILL_ROOT
 
 CLI_DEFAULT = Path(__file__).resolve().parent / "leyou" / "leyou_cloud.py"
 
@@ -26,8 +26,10 @@ def _cli(cli: str | None = None) -> Path:
 
 
 def _run(cli: Path, args: list, timeout: float) -> tuple[int, str, str]:
+    # 登录态只落用户区：客户端默认路径在包内 ✗ → 统一以全局参数 --token-file 指定（须在子命令前）
     try:
-        p = subprocess.run([sys.executable, str(cli), *args], capture_output=True, text=True,
+        p = subprocess.run([sys.executable, str(cli), "--token-file", str(LEYOU_TOKEN_F), *args],
+                           capture_output=True, text=True,
                            encoding="utf-8", errors="replace", cwd=str(cli.parent), timeout=timeout,
                            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})   # 子进程零写包（不落 __pycache__）
         # 客户端在准备登录时可能生成二维码占位图；本 skill 绝不扫码 → 清掉运行产物，保持包干净
@@ -66,7 +68,9 @@ def status(timeout: float = 10.0, cli: str | None = None) -> dict:
         return {"ok": True, "detail": text[:200]}
     return {"ok": False, "reason": "LOGIN_REQUIRED",
             "detail": ("未登录（logged_in=false）" if logged is False else text[:160]) or "退出码 %d" % rc,
-            "next": "请人工在云智库目录（%s）完成扫码登录后重试（本 skill 不代扫、不弹窗）" % path.parent}
+            "next": "请人工扫码登录一次（本 skill 不代扫、不弹窗）："
+                    "`python scripts/sources/leyou/leyou_firebase_login.py auto`；"
+                    "登录态只落用户数据区（%s）" % LEYOU_TOKEN_F}
 
 
 def search(problem: str, *, timeout: float = 12.0, limit: int = 5, cli: str | None = None) -> dict:
