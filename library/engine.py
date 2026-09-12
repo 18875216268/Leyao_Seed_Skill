@@ -431,7 +431,7 @@ def render(data: dict) -> str:
                      "（卡落点由 `evolution/paths.py` 解析：挂载态/同级/独立态/覆盖态）读法与刷新见其 `references/card.md`，判据见 `processor/flow/3-execute.md` 0.5。")
         if d.get("layers"):
             _byname = {n.get("id"): n for n, _ in iter_nodes(data.get("nodes"))}
-        lines.append("> ★ 默认层（每次任务读入口 · ≤3）："
+            lines.append("> ★ 默认层（每次任务读入口 · ≤3）："
                          + " ｜ ".join(("`%s`→%s" % (x.get("id"), {"card": "卡", "index": "索引"}.get(x.get("read"), "非法") + ("（⚠ 缺）" if mount_missing(_byname.get(x.get("id")) or {}) else "")))
                                      for x in d["layers"] if isinstance(x, dict)))
     lines += [
@@ -451,9 +451,13 @@ def render(data: dict) -> str:
             indent = "  " * depth
             mount = f" → `{n['mount']}`" if n.get("mount") else ""
             miss = "（⚠ 挂载缺失 · 不可用）" if mount_missing(n) else ""
-            if not miss and n.get("mount"):
+            if not miss and n.get("mount") and not (n.get("children") or []):
                 _mp = LIB.parent / n["mount"]
-                if _mp.is_dir() and not any(_mp.iterdir()):
+                try:
+                    _empty = _mp.is_dir() and not any(_mp.iterdir())
+                except OSError:
+                    _empty = False
+                if _empty:
                     miss = "（⚠ 空目录 · 无可读内容）"
             kids = n.get("children") or []
             split = bool(kids) and needs_split(n, sizes)
@@ -493,9 +497,13 @@ def local_map(data: dict, node: dict) -> str:
             indent = "  " * depth
             mount = f" → `{n['mount']}`" if n.get("mount") else ""
             miss = "（⚠ 挂载缺失 · 不可用）" if mount_missing(n) else ""
-            if not miss and n.get("mount"):
+            if not miss and n.get("mount") and not (n.get("children") or []):
                 _mp = LIB.parent / n["mount"]
-                if _mp.is_dir() and not any(_mp.iterdir()):
+                try:
+                    _empty = _mp.is_dir() and not any(_mp.iterdir())
+                except OSError:
+                    _empty = False
+                if _empty:
                     miss = "（⚠ 空目录 · 无可读内容）"
             sub = n.get("children") or []
             split = bool(sub) and needs_split(n, sizes)

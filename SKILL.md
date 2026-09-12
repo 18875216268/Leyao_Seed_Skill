@@ -4,7 +4,7 @@ description: "用这个 skill 处理需要成套流程与资产路由的任务�
 compatibility: "需要 Python 3.10+（仅标准库，无第三方依赖）；资产管理台在本地起 HTTP 服务（默认 127.0.0.1:8765，需要能开本地端口）"
 license: "MIT"
 metadata:
-  version: "0.36.0"
+  version: "0.36.1"
   architecture: "processor + library(routes + assets) + evolution(五环自举) + version(版本维护)"
   author: "Leyao"
   date: "2026-09-13"
@@ -56,7 +56,7 @@ metadata:
   → 交付后：`python evolution/grow.py trace --routed "<命中节点 id / 无命中写 none>" …` 追加轨迹（五环自举入口，见 evolution/EVOLUTION.md）
 ```
 
-> **资产三层**（路由直觉 · 供判读）：① **默认层**——每次任务读**入口**（知识库 `pp32an`【卡】＋ 能力库 `bvix9o`【索引】）；
+> **资产三层**（路由直觉 · 供判读；**成员以 `library/ROUTES.md` 为准** ✗）：① **默认层**——每次任务读**入口**（知识库【卡】＋ 能力库【索引】）；
 > ② **数据能力层**——任务需要数据时才用（`p3nes3` / `i7c4z1`）；③ **其他按需**（`fmcq5n` 连通通道 / 场景文件 / 其他资产）。
 > 顺序：默认层 → 圈候选路由 → 能力阶梯（方法论 → 资产 → 工具 → 调研 → 亲做）。
 

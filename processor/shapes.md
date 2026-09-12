@@ -113,7 +113,7 @@
 ## 7. 路由节点描述（**推荐**模板 · 非门槛）
 
 > ⚠️ 本模板由 `library/engine.py`（描述形态标注）与 `processor/` 文档共同引用；改本节点请重绘
-> `library/ROUTES.md` 并跑 `python evolution/tests/run_route_drill.py`（A 组会查此处）。
+> `library/ROUTES.md` 并跑 `python evolution/tests/run_route_drill.py`。
 
 **性质**：写法**随你**——自由文本合法，**写入不拦截**（CLI 与管理台一致）。
 六段齐备只是**路由能力等级**：判据链（`flow/3-execute.md` 的路由判据）能读到的字段越多，判定越准。
