@@ -101,8 +101,11 @@ class Test:
     def checks(self, tag: str) -> dict:
         rc, data, txt, err = run(["evolution/tests/run_checks.py"], self.skill, self.home)
         data = data or {"ok": False, "raw": (txt[-200:] + err[-200:])}
-        self.ok("%s 自检 22/22" % tag, data.get("ok") and data.get("total") == 22,
-                "%s/%s" % (data.get("passed"), data.get("total")))
+        n = data.get("total")
+        # 计数无关断言：新增/删除证环检查项不会让本沙箱失效（全过 + score=1.0 才是判据）
+        self.ok("%s 自检 %s/%s（全过 · score=1.0）" % (tag, data.get("passed"), n),
+                bool(data.get("ok")) and data.get("passed") == n and data.get("score") == 1.0,
+                "%s/%s" % (data.get("passed"), n))
         return data
 
     def versions(self) -> dict:

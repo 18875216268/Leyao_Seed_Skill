@@ -34,6 +34,7 @@ REQUIRED = [
     "evolution/templates/memory.md", "evolution/templates/meta.json",
     "evolution/distiller.py", "evolution/gate.py", "evolution/actions.py", "evolution/grow.py",
     "evolution/tests/run_checks.py", "evolution/tests/README.md",
+    "processor/templates/过程记录.md",
     "version/VERSION.md",
 ]
 
@@ -225,6 +226,23 @@ def main() -> int:
                             "；".join(bad) if bad else "五步 flow 五段齐备 · 出口判据前置 · 判据分级在场"))
     except Exception as exc:
         checks.append(check("processor_sections", False, str(exc)))
+
+    try:
+        # 工作区四区约定（v0.7.0）：flow/2·3·5 与 shapes 必须齐备四区名；不得残留旧四区名；模板必须在场。
+        # 语义一致性由本检查守住——文档改名而别处漏改会在这里失败。
+        docs = [ROOT / "processor" / "flow" / "2-plan.md", ROOT / "processor" / "flow" / "3-execute.md",
+                ROOT / "processor" / "flow" / "5-deliver.md", ROOT / "processor" / "shapes.md"]
+        text = "\n".join(d.read_text(encoding="utf-8") for d in docs if d.is_file())
+        zones = ("01-原始材料区", "02-任务执行区", "03-结果交付区", "04-归档区")
+        missing = [z for z in zones if z not in text]
+        legacy = [old for old in ("`inputs/`", "`work/`", "`deliverables/`", "`archive/`") if old in text]
+        tpl = ROOT / "processor" / "templates" / "过程记录.md"
+        ok = not missing and not legacy and tpl.exists()
+        checks.append(check("workdir_conventions", ok,
+                            "四区约定齐备 · 无旧四区名残留 · 模板在场" if ok
+                            else "缺区: %s；旧名残留: %s；模板缺失: %s" % (missing, legacy, not tpl.exists())))
+    except Exception as exc:
+        checks.append(check("workdir_conventions", False, str(exc)))
 
     try:
         # Agent Skills 官方规范的本地回归护栏（对应 skills-ref validate 的字段/命名两条硬规则）：

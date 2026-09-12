@@ -36,6 +36,7 @@ python evolution/tests/run_update_sandbox.py  # 更新链路回归（零联网�
 | `routes_described` | 每个节点都有「何时用」描述（否则 AI 无法路由） |
 | `memory_sections` | 用户区记忆四段齐备（`.leyao-data/data/memory.md`） |
 | `processor_sections` | 任务处理层结构契约：五步 flow 五段（输入·动作·出口判据·红旗·引导）齐备 + 「判据分级」在场 |
+| `workdir_conventions` | 工作区**四区约定**：flow/2·3·5 与 `shapes.md` 齐备四区名、无旧四区名（`inputs/`·`work/`·`deliverables/`·`archive/`）残留、`processor/templates/过程记录.md` 在场 |
 | `meta_sanity` | 阈值层数值合法 |
 | `version_sync` | `manifest.json` 与 `SKILL.md` 声明版本一致（发版口径：改一处必改另一处） |
 | `versions_shape` | 用户区版本记录结构合法（`local` / `history`≤10 / `baseline`；未生成时计入项数并标注跳过） |

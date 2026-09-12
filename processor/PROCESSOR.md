@@ -17,7 +17,7 @@
 | 步骤 | 文档 | 一句话 |
 | --- | --- | --- |
 | ① 理解 | [flow/1-understand.md](flow/1-understand.md) | 需求、口径、资源盘点；思路不清不动手 |
-| ② 规划 | [flow/2-plan.md](flow/2-plan.md) | 最小充分口径；歧义交用户；定路线与 `<work-dir>`；自检逐条核对出口判据 |
+| ② 规划 | [flow/2-plan.md](flow/2-plan.md) | 最小充分口径；歧义交用户；定路线与 `<work-dir>`（**建齐四区**：原始材料/任务执行/结果交付/归档）；自检逐条核对出口判据 |
 | ③ 执行 | [flow/3-execute.md](flow/3-execute.md) | 查总路由按描述匹配 → 调资产 / 按自带判据做；全程留证 |
 | ④ 验收 | [flow/4-accept.md](flow/4-accept.md) | 对照需求逐项验收；不合格回到 ③ |
 | ⑤ 交付 | [flow/5-deliver.md](flow/5-deliver.md) | 按报告框架交付；口径随行；沉淀经验 |

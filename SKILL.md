@@ -4,7 +4,7 @@ description: "用这个 skill 处理需要成套流程与资产路由的任务�
 compatibility: "需要 Python 3.10+（仅标准库，无第三方依赖）；资产管理台在本地起 HTTP 服务（默认 127.0.0.1:8765，需要能开本地端口）"
 license: "MIT"
 metadata:
-  version: "0.6.4"
+  version: "0.7.0"
   architecture: "processor + library(routes + assets) + evolution(五环自举) + version(版本维护)"
   author: "Leyao"
   date: "2026-09-11"
@@ -19,7 +19,7 @@ metadata:
 | 层级 | 路径 | 职责 |
 | --- | --- | --- |
 | 1 主文档 | `SKILL.md`（本文件） | 版本信息 + 基础说明 + 层级导航；不含任何业务与流程细节 |
-| 2 任务处理层 | [processor/PROCESSOR.md](processor/PROCESSOR.md) | 处理任务：五步流程（理解→规划→执行→验收→交付）+ 实时控制纠偏 |
+| 2 任务处理层 | [processor/PROCESSOR.md](processor/PROCESSOR.md) | 处理任务：五步流程（理解→规划→执行→验收→交付）+ **工作区四区约定**（原始材料/任务执行/结果交付/归档）+ 实时控制纠偏 |
 | 3 资产管理层 | [library/ROUTES.md](library/ROUTES.md) | 总路由地图（级联）+ 资产根 `library/assets/` + 资产管理台（`library/admin/`）+ 引擎（`engine.py`）+ L0 经验沉淀（用户区 `data/memory.md`）；资产内容任意可扩展，框架不依赖 |
 | 4 自我进化层 | [evolution/EVOLUTION.md](evolution/EVOLUTION.md) | 五环自举（变择行证藏）：轨迹蒸馏 → 提案守门 → 棘轮落地 → 去糟粕取精华；阈值可元进化 |
 | 5 版本维护层 | [version/VERSION.md](version/VERSION.md) | 宿主常驻（写入宿主长期记忆）+ 版本检测与更新（准则与流程）；一切落地经唯一落地器（提案 + apply） |
