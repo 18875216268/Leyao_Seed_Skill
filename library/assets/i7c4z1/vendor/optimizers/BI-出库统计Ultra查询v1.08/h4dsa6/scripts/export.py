@@ -6,8 +6,8 @@
   ② GET  /api/task/{taskId}                      轮询至 FINISHED（失败 FAILED）
   ③ POST /api/export/file/common/{taskId}        体 {"time","fileNameWithTime","downloadFileName"} → xlsx 二进制流
 
-用法（stdin 与 query.py 同款 DSL 批次，取首个查询构造请求体）：
-  python scripts/export.py --out <输出.xlsx> [--timeout 300] [--poll-interval 5]
+用法（输入同 query.py 的 DSL 批次：--payload-file 或 stdin，取首个查询构造请求体）：
+  python scripts/export.py --payload-file plan.json --out <输出.xlsx> [--timeout 300] [--poll-interval 5]
   python scripts/export.py --task <taskId>            # 超时/中断后续传（轮询+下载）
   python scripts/export.py --list 20                  # 导出中心任务列表（找回 taskId）
 
@@ -42,16 +42,23 @@ def _hint(message: str) -> None:
     print(f"[export] {message}", file=sys.stderr, flush=True)
 
 
-def _read_plan() -> dict[str, Any]:
-    raw = sys.stdin.buffer.read(MAX_INPUT_BYTES + 1)
+def _read_plan(source: Path | None = None) -> dict[str, Any]:
+    if source is None:
+        raw = sys.stdin.buffer.read(MAX_INPUT_BYTES + 1)
+    else:
+        path = Path(source).expanduser()
+        if not path.is_file():
+            raise BiError("INPUT_NOT_FOUND", f"输入文件不存在：{path}")
+        with open(path, "rb") as handle:
+            raw = handle.read(MAX_INPUT_BYTES + 1)
     if len(raw) > MAX_INPUT_BYTES:
         raise BiError("INPUT_TOO_LARGE", "输入 JSON 超过 1 MB 限制。")
     if not raw.strip():
-        raise BiError("INPUT_REQUIRED", "请通过 stdin 传入 JSON 查询参数。")
+        raise BiError("INPUT_REQUIRED", "请输入 JSON 查询参数（--payload-file <文件>，或从 stdin 传入）。")
     try:
-        value = json.loads(raw.decode("utf-8"))
+        value = json.loads(raw.decode("utf-8-sig"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise BiError("INPUT_INVALID_JSON", "stdin 不是有效的 UTF-8 JSON。") from exc
+        raise BiError("INPUT_INVALID_JSON", "输入不是有效的 UTF-8 JSON。") from exc
     if not isinstance(value, dict):
         raise BiError("BATCH_INVALID", "输入必须是 JSON 对象。")
     queries = value.get("queries")
@@ -117,6 +124,7 @@ def _download(transport: DirectTransport, task_id: str, out_path: Path, name: st
 def main() -> int:
     configure_stdio()
     parser = argparse.ArgumentParser(description="导出本板聚合查询结果为 xlsx（三步异步链）")
+    parser.add_argument("--payload-file", type=Path, help="JSON 查询参数文件（不传则从 stdin 读；--task/--list 模式不需要）")
     parser.add_argument("--out", help="输出 xlsx 路径（默认 ./<卡名>_<时间戳>.xlsx）")
     parser.add_argument("--task", help="已有导出任务 id（跳过提交，直接轮询+下载）")
     parser.add_argument("--list", type=int, default=None, metavar="LIMIT", help="查看导出中心任务列表，不提交/下载")
@@ -125,6 +133,7 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
+        plan = _read_plan(args.payload_file) if (args.list is None and not args.task) else {}
         require_requests()
         profile, catalog = load_profile(), load_catalog()
         transport = DirectTransport(profile, load_credential())
@@ -143,7 +152,6 @@ def main() -> int:
             task_id, name = str(args.task), default_name
             _hint(f"续传任务 {task_id}")
         else:
-            plan = _read_plan()
             service = QueryService(profile, catalog)
             context = service.prepare()
             body, _effective, warnings = service._build(plan, context.metadata, context.default_date_range)

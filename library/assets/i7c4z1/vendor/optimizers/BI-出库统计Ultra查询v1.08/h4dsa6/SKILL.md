@@ -37,10 +37,11 @@ description: "出库统计Ultra 板块优化 skill（自包含，可独立移植
 ## 查询
 
 先读 [references/parameters.md](references/parameters.md)，把用户需求转换为查询参数，
-再将一个 UTF-8 JSON 对象通过 stdin 传入：
+再将一个 UTF-8 JSON 对象传入（`--payload-file` 或 stdin 二选一；UTF-8，BOM 可选）：
 
 ```text
-python scripts/query.py          # cwd = 本板根（h4dsa6/）
+python scripts/query.py --payload-file plan.json     # cwd = 本板根（h4dsa6/）；推荐：免管道
+python scripts/query.py < plan.json                  # stdin 管道（同款输入）
 ```
 
 单查询也使用单元素 `queries`：
@@ -133,8 +134,8 @@ python scripts/candidates.py --list                          # 当前用户的�
 （实测 2026-09-09，含内容交叉验证）：
 
 ```text
-stdin 传与 query.py 同款 DSL 批次（取首个查询构造请求体）：
-python scripts/export.py --out <输出.xlsx>
+输入同 query.py 的 DSL 批次（--payload-file 或 stdin，取首个查询构造请求体）：
+python scripts/export.py --payload-file plan.json --out <输出.xlsx>
 python scripts/export.py --task <taskId>      # 超时/中断续传
 python scripts/export.py --list 20            # 导出中心任务列表（找回 taskId）
 ```

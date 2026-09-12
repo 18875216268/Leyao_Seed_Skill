@@ -288,6 +288,8 @@ def main() -> int:
             return 0
 
         if args.search:
+            if not index["cards"]:
+                _hint("索引为空：先跑 --build 全量构建（或改用 --card <cardId>，它会自动补新）")
             print(json.dumps(cmd_search(index, args.search), ensure_ascii=False, indent=2))
             return 0
 
