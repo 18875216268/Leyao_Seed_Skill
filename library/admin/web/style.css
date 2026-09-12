@@ -345,6 +345,7 @@ body {
     transition: background .12s, color .12s, border-color .12s, transform .1s;
 }
 .c-btn:active { transform: scale(.94); }
+.c-btn:disabled { opacity: .45; cursor: default; }    /* 受保护卡片（基础卡片及其祖先）：删除按钮禁用态 */
 .c-btn.link { background: #eaf6f1; border-color: #bfe2d3; color: #0a7d5c; }
 .c-btn.link:hover { background: #d9efe6; color: #065c43; }
 .c-btn.del { background: #fdeeec; border-color: #f3c9c4; color: #c0392b; }

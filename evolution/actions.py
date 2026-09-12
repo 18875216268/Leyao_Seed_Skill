@@ -23,6 +23,9 @@ import gate
 import paths
 import store
 
+sys.path.insert(0, str(store.ROOT / "library"))
+import engine  # noqa: E402  （复用引擎的路径常量，防两套硬编码漂移；只读）
+
 META_F = paths.META_F
 
 
@@ -222,12 +225,12 @@ def apply(pid: str, approved_by: str = "user") -> dict:
         return {"ok": False, "discarded": True, "error": "%s；该提案已作废并留审计" % err}
 
     if kind == "route_update":
-        lmap_d = store.ROOT / "library" / "routes"                # 分片节点的局部图（分形路由）
+        lmap_d = engine.LOCAL_MAPS                                # 分片节点的局部图（分形路由）
         pre_maps = {f.name for f in lmap_d.glob("*.md")} if lmap_d.exists() else set()
-        files = [store.ROOT / "library" / "routes.json", store.ROOT / "library" / "ROUTES.md"]
+        files = [engine.ROUTES_JSON, engine.ROUTES_MD]
         files += sorted(lmap_d.glob("*.md")) if lmap_d.exists() else []
         before = gate.capture(files)
-        args = [sys.executable, str(store.ROOT / "library" / "engine.py"), payload["cmd"]] + payload["args"]
+        args = [sys.executable, str(Path(engine.__file__)), payload["cmd"]] + payload["args"]
         proc = subprocess.run(args, capture_output=True,
                               env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})   # 子进程零写包
         if proc.returncode != 0:
@@ -263,7 +266,7 @@ def apply(pid: str, approved_by: str = "user") -> dict:
         # 内容变更只允许落在资产根内（框架代码与文档不在此列，防扩权；目录边界校验防 assetsX/ 这类前缀绕过）
         target = store.ROOT / payload["file"]
         resolved = target.resolve()
-        assets_root = (store.ROOT / "library" / "assets").resolve()
+        assets_root = engine.ASSETS.resolve()
         if assets_root not in resolved.parents:
             store.audit("apply.rejected", proposal=pid, kind=kind, file=payload.get("file"),
                         reason="越权：只允许写资产根 library/assets/ 内")
@@ -272,8 +275,19 @@ def apply(pid: str, approved_by: str = "user") -> dict:
                     "error": "越权：只允许写资产根（library/assets/）内的文档；该提案已作废并留审计"}
         before = gate.capture([target])
         current = target.read_text(encoding="utf-8") if target.exists() else ""
+        find = payload.get("find") or ""
+        if find:
+            if find not in current:                             # 就地修正：原文必须命中，否则作废（不猜、不猜错）
+                store.audit("apply.rejected", proposal=pid, kind=kind, file=payload.get("file"),
+                            reason="find 原文未命中，就地修正无法安全执行")
+                store.remove_proposal(pid)
+                return {"ok": False, "discarded": True,
+                        "error": "就地修正失败：find 原文在该文件中未找到；提案已作废并留审计"}
+            new_text = current.replace(find, payload["text"], 1)   # 只替换首个命中
+        else:
+            new_text = current.rstrip() + "\n\n" + payload["text"].rstrip() + "\n"
         target.parent.mkdir(parents=True, exist_ok=True)
-        store.atomic_write(target, current.rstrip() + "\n\n" + payload["text"].rstrip() + "\n")
+        store.atomic_write(target, new_text)
         return _finish_apply(pid, kind, before, payload.get("note", ""))
 
     if kind == "core_demote":

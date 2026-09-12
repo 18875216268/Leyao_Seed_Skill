@@ -29,7 +29,7 @@ python library/admin/console.py --no-browser   # 只起后端（脚本 / 无界�
 
 - 顶部：标题「资产の管理」、搜索框（按名称/ID/描述/路径实时过滤）、类型筛选下拉。
 - 结果行：`当前共 N 项 — 主页(assets)/…`（面包屑可点击跳转）；异常时显示 `⚠ N 个孤儿资产` / `⚠ N 项契约问题`（点击看详情）。
-- 卡片：`#id + 删除/编辑` → 标题 → 类型胶囊 → 位置路径 → 描述（单击弹面板，30 字/行）。
+- 卡片：`#id + 删除/编辑` → 标题 → 类型胶囊 → 位置路径 → 描述（单击弹面板，30 字/行）；**基础卡片**（名称首个字符 `@`）的删除按钮禁用。
 - 右下角：📝 重绘 ROUTES.md、⟳ 刷新、＋ 新增。
 - 单击选中（淡蓝高亮），`Ctrl` 多选、`Shift` 连选；单击 `#id` 复制；双击文件夹进入。
 
@@ -68,6 +68,10 @@ python library/admin/console.py --no-browser   # 只起后端（脚本 / 无界�
 
 确认弹窗可勾选「同时删除其资产文件夹」：勾选后连同 `library/assets/<...>/` 一并删除，避免留下孤儿资产。
 
+**基础卡片不可删除**：名称首个字符为 `@`（兼容全角 `＠`；忽略首尾空白）的卡片是路由树地基（如 `@行业知识库`、`@通用导航库`），
+删除按钮禁用；服务端与 CLI（`engine.py remove`）**结构性强拦**——自身拒绝，**子树含基础卡片的父级同样拒绝整体删除**
+（先把基础卡片移出该子树再删）。解除保护 = 改名去掉 `@` 前缀。
+
 ## 孤儿资产
 
 资产根下**未被任何卡片挂载引用**的目录（多为移动 / 删除后的遗留）——顶部提示条出现 `⚠ N 个孤儿资产` 时点击进入处理面板：
@@ -103,22 +107,25 @@ POST   /api/node                       op=add|update（归属由位置推导；�
 POST   /api/render                     重绘 ROUTES.md
 GET    /api/pick-folder                就绪探针
 POST   /api/pick-folder                调起原生文件夹对话框（mode=source|dest）
-DELETE /api/node?id=<id>[&purge=1]     删除节点（purge=1 同时删资产目录）
+DELETE /api/node?id=<id>[&purge=1]     删除节点（purge=1 同时删资产目录；基础卡片及其祖先拒绝）
 DELETE /api/orphan?path=<挂载路径>      删除孤儿资产目录（限资产根内 · 未被挂载引用）
 ```
 
 ## CLI 维护命令（从 `library/ROUTES.md` 移入 · 给维护者，agent 不需要）
 
 ```text
-python library/engine.py                      # 重绘 ROUTES.md + 契约校验（挂载/id；入口文档缺失仅提示）
+python library/engine.py                      # 重绘 ROUTES.md + 契约校验（挂载/id/分形/默认资产）+ 入口文档缺失提示 + 报告孤儿
 python library/engine.py add --id <新id> --type <类型> --title "<标题>" [--parent <父id>] [--mount 挂载] [--description "<何时用>"]
-python library/engine.py remove --id <节点id>
+python library/engine.py remove --id <节点id>     # 连同子树摘除（基础卡片拒绝）
 python library/engine.py move --id <节点id> [--parent <父id>]   # 移动节点（省略即移到根）
 python library/engine.py update --id <节点id> [--title 新标题] [--mount 挂载] [--description "<何时用>"]
+python library/engine.py default --id <节点id>    # 设默认资产（每次任务必读；hook 当前仅 read）
+python library/engine.py default --clear          # 取消默认资产
 python library/admin/console.py               # 可视化管理台（推荐给日常维护）
 ```
 
 - 描述：怎么写都行（自由文本合法）；六段齐备 → 路由判据链全能力（模板见 `processor/shapes.md` 第 7 节）。
+- 挂载目录必须**先存在**：CLI `add` 只登记不建目录（缺目录 → 契约校验报「mount 路径不存在」）；管理台新建时会自动建占位目录。
 - 分形路由：子树超阈值（子节点 > 5 或 子树节点 > 20）→ 自动收进 `library/routes/<id>.md`（局部图），总图只留指针。
 - 管理台每笔改动自动重绘（总图 + 局部图）；框架更新后长驻管理台会自愈重载引擎并重绘。
 - `library/ROUTES.md` 是 **agent 路由面**（瘦身版）；事实源永远是 `library/routes.json`。
@@ -127,6 +134,7 @@ python library/admin/console.py               # 可视化管理台（推荐给�
 
 | 字段 | 含义 | 界面处理 |
 | --- | --- | --- |
-| `issues` | **硬契约问题**：挂载路径不存在 / id 重复 / 分形局部图缺链（引擎 `validate`） | 「⚠ N 项契约问题」→ 必须修（会拦截/报警） |
+| `issues` | **硬契约问题**：挂载路径不存在 / id 重复 / 分形局部图缺链 / 默认资产注册不合法（引擎 `validate`） | 「⚠ N 项契约问题」→ 必须修（会拦截/报警） |
 | `hints` | **软建议**：未附入口文档 / 描述未结构化（→ 路由降级匹配）/ 六段某段超长 / 顶层过多建议分组（引擎 `hints`） | 「💡 N 项建议」→ **非问题、不拦截** |
 | `orphans` | 资产根下未被任何卡片引用的目录（可能是"已放入、待挂载"的合法中间态） | 「⚠ N 个孤儿资产」→ 可清理或挂载 |
+| `base`（节点级） | 基础卡片标记（名称 `@` 开头；判定唯一实现在引擎 `is_base`） | 该卡片删除按钮禁用；其祖先因含基础卡片同样不可整删 |

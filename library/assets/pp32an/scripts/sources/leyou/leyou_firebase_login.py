@@ -42,7 +42,7 @@ import sys
 import time
 import urllib.request
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 from pathlib import Path
 from urllib.parse import quote
 
@@ -54,7 +54,7 @@ from common import CONFIG_F, LEYOU_TOKEN_F, load_config  # noqa: E402
 
 # ---------------- 云凭证库配置（**只存本地**：包内零秘钥） ----------------
 
-class FirGuizeLeixing(StrEnum):
+class FirGuizeLeixing(str, Enum):
     """云端保存的规则类型。"""
 
     LEYOU_ZHIKU = "leyou_zhiku"  # 云智库登录凭证列表
@@ -396,7 +396,7 @@ def main(argv=None):
         if args.cmd == "auto":
             out = auto_login(scan=not args.no_scan, id_field=args.id_field)
             print(json.dumps(out, ensure_ascii=False, indent=2))
-            return 0 if out.get("ok") else (3 if out.get("error") in ("LOGIN_REQUIRED", "DB_READ_FAIL") else 5)
+            return 0 if out.get("ok") else (3 if out.get("error") in ("LOGIN_REQUIRED", "DB_READ_FAIL", "CONFIG_MISSING", "LOGIN_FAIL") else 2)
         if args.cmd == "check-db":
             container = fb_get_container()
             if not container:

@@ -9,7 +9,7 @@
 | 变 | `grow.py reflect` | 轨迹/用户纠正 → 经验候选（每次重建，防 stale 堆积）；库体检与探索信号 → `status` 实时诊断（不入库，修复即自动消解） | 统计类候选 support≥min_support；诊断类为实时条件；候选不影响任何行为 |
 | 择 | `grow.py evolve` | 经验候选（route/avoid）→ 自动档 memory 直写激活；动作类变异（路由 / 资产内容 / 阈值 / 降级）由 AI 用 `grow.py propose` 构造提案，经你 `apply` 批准或 `reject` 否决（**两个终态**） | 每个变异带 evidence（support/success_rate）；提案 payload 走契约校验 |
 | 行 | `grow.py apply --id <p_x>` | 执行**你已批准**的提案 | 先快照、后写入、跑评分、失败即回滚 |
-| 证 | `grow.py review` | 观察期结算：促进/降级/淘汰/回滚 | `evolution/tests` 一票否决（结构自检 `run_checks.py` + 触发评测 `run_trigger_eval.py` + 更新链路回归 `run_update_sandbox.py`）；分数降自动回滚 |
+| 证 | `grow.py review` | 观察期结算：促进/降级/淘汰（回滚属「行」环的失败路径） | `evolution/tests` 一票否决（结构自检 `run_checks.py` + 触发评测 `run_trigger_eval.py` + 更新链路回归 `run_update_sandbox.py`）；分数降自动回滚 |
 | 藏 | 自动 | 精华升 memory「有效做法」/ 提案提炼进正文；糟粕入墓碑 | 用户区 `data/state` 不膨胀：提炼后移除、轨迹滚动 200 条 |
 
 ## 变异分级（易之三义）
@@ -58,7 +58,7 @@ python evolution/grow.py evolve         # 经验候选 → 自动档落地（mem
 python evolution/grow.py propose --kind K --payload '<JSON>'   # 构造动作类变异提案（待批准）
 python evolution/grow.py apply --id p_x # 执行已批准提案
 python evolution/grow.py reject --id p_x [--reason R]   # 否决提案（关闭 pending，留审计）
-python evolution/grow.py review         # 观察期结算（促进/降级/淘汰/回滚）
+python evolution/grow.py review         # 观察期结算（促进/降级/淘汰；证环不过则退出码非零）
 python evolution/grow.py status         # 全景：轨迹/规则/提案/棘轮/自动开启进度
 ```
 
@@ -70,7 +70,7 @@ python evolution/grow.py status         # 全景：轨迹/规则/提案/棘轮/�
 | kind | 改什么 | payload |
 | --- | --- | --- |
 | `route_update` | 路由表（`routes.json` → `ROUTES.md`） | `{"cmd": "add\|update\|remove", "args": [引擎同名参数...]}` |
-| `asset_write` | 资产内容（仅 `library/assets/` 内，追加写入） | `{"file": "library/assets/<id>/SKILL.md", "text": "…"}` |
+| `asset_write` | 资产内容（仅 `library/assets/` 内；只给 `text` = 追加；再给 `find` = **就地修正**，替换首个命中、未命中即作废） | `{"file": "library/assets/<id>/SKILL.md", "text": "…"}` 或 `{"file": "…", "find": "<原文>", "text": "<新文>"}` |
 | `meta_update` | 阈值层（用户区 `data/meta.json`，需元变异已开启） | `{"key": "thresholds.min_support", "value": 3}` |
 | `core_demote` | 规则 core → demoted | `{"rule": "<规则 id>"}` |
 | `framework_update` | 整包更新（版本维护层：staging 对齐全包；快照 / 证环 / 整体回滚） | `{"staging": "<新版包目录>", "version": "x.y.z", "summary": "…"}` |
@@ -80,7 +80,7 @@ python evolution/grow.py status         # 全景：轨迹/规则/提案/棘轮/�
 
 ## 记忆文件（用户区 `data/memory.md` 四段 ↔ 状态机）
 
-`待验证`=active(route) ｜ `失效模式`=active(avoid) ｜ `有效做法`=core ｜ `墓碑`=retired（指纹+否定理由，防糟粕复活）。
+`失效模式`=active(avoid) ｜ `有效做法`=core ｜ `待验证`=active(route) ｜ `墓碑`=retired（指纹+否定理由，防糟粕复活）。
 
 ## 自动开启（无需人工干预）
 

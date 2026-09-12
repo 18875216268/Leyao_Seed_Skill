@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]      # evolution/tests/run_checks.py 
 
 sys.path.insert(0, str(ROOT / "evolution"))
 import paths  # noqa: E402  （导入即初始化用户区；用户区路径的唯一事实源）
-import store  # noqa: E402  （仅取 deep_merge 与运行态路径常量）
+import store  # noqa: E402  （取 deep_merge、运行态路径常量与 MEMORY_SECTIONS——同源复用防漂移）
 
 REQUIRED = [
     "SKILL.md", "manifest.json",
@@ -41,11 +41,15 @@ REQUIRED = [
     "version/VERSION.md",
 ]
 
-MEMORY_SECTIONS = ("失效模式", "有效做法", "待验证", "墓碑")
+MEMORY_SECTIONS = store.MEMORY_SECTIONS   # 单一来源：store（记忆四段；此处不另写一份，防静默漂移）
 
 DOC_REF = re.compile(r"`((?:library|processor|evolution|version|state|tests)/[^`\s]*)`")
 DOC_FILES = ("SKILL.md", "processor/*.md", "processor/flow/*.md", "evolution/*.md", "version/*.md",
              "library/ROUTES.md", "library/admin/README.md", "evolution/tests/README.md")
+ASSET_CLI_SCRIPTS = ("card.py", "hub.py", "run_term_eval.py")   # 框架/资产文档承诺其 CLI 的资产脚本（纳入同一护栏）
+DOC_CLI_FILES = DOC_FILES + ("library/assets/pp32an/SKILL.md",
+                             "library/assets/pp32an/references/card.md",
+                             "library/assets/pp32an/references/operations.md")
 CMD_REF = re.compile(r"python\s+([\w./-]+\.py)")
 CMD_SEG = re.compile(r"python\s+([\w./-]+\.py[^\n`]*)")
 
@@ -96,8 +100,8 @@ def doc_cli_args() -> list[str]:
 
     opts, subs = {}, {}
     for p in ROOT.rglob("*.py"):
-        if "assets" in p.parts:
-            continue
+        if "assets" in p.parts and p.name not in ASSET_CLI_SCRIPTS:
+            continue                    # 资产实现默认不扫（各资产自己的事）；例外 = 框架文档承诺其 CLI 的脚本
         try:
             tree = _ast.parse(p.read_text(encoding="utf-8"))
         except Exception:
@@ -115,7 +119,7 @@ def doc_cli_args() -> list[str]:
             opts[p.name], subs[p.name] = o, s
 
     bad = []
-    for pat in DOC_FILES:
+    for pat in DOC_CLI_FILES:
         for doc in sorted(ROOT.glob(pat)):
             if not doc.is_file():
                 continue
@@ -223,6 +227,48 @@ def main() -> int:
         checks.append(check("routes_alias", not bad, "；".join(bad) if bad else "别名规范（≠标题 · 跨节点唯一）"))
     except Exception as exc:
         checks.append(check("routes_alias", False, str(exc)))
+
+    try:
+        # 默认资产：**呈现面 + 判据面**（注册合法性归 routes_contract→engine.validate，不重复判 ✗）；
+        # 卡文件健康检查归资产（card.py check）——本层不解析资产内容 ✗（分层纪律）
+        _eng = _engine()
+        _data = _eng.load()
+        _did = (_data.get("defaults") or {}).get("default")
+        _problems = []
+        if _did:
+            _md = (ROOT / "library" / "ROUTES.md").read_text(encoding="utf-8")
+            _flow = (ROOT / "processor" / "flow" / "3-execute.md").read_text(encoding="utf-8")
+            if "★ 默认资产" not in _md or ("`%s`" % _did) not in _md:
+                _problems.append("ROUTES.md 缺 ★ 默认资产 行或节点 id 不符（跑 engine.py 重绘即修）")
+            if "0.5" not in _flow or "默认资产预检" not in _flow:
+                _problems.append("processor/flow/3-execute.md 缺 判据 0.5（默认资产预检）")
+        checks.append(check("default_asset", not _problems,
+                            "；".join(_problems) if _problems else
+                            ("默认资产 = %s：★ 行与判据 0.5 一致" % _did if _did
+                             else "未注册默认资产（合法：判据 0.5 自动跳过）")))
+    except Exception as exc:
+        checks.append(check("default_asset", False, str(exc)))
+
+    try:
+        # 基础卡片守卫（名称 @ 开头 = 路由树地基）：**行为级**回归（纯内存、零写入）——
+        # 自身拒绝删除 · 子树含基础卡片的祖先拒绝整体删除 · 普通卡可删；判定兼容全角 ＠
+        guard = _engine()
+        t = {"nodes": [
+            {"id": "zzb1", "title": "@基础卡", "type": "公共"},
+            {"id": "zzp1", "title": "容器卡", "type": "公共",
+             "children": [{"id": "zzb2", "title": "＠全角基础卡", "type": "公共"}]},
+            {"id": "zzn1", "title": "普通卡", "type": "公共"},
+        ]}
+        g1, _, _ = guard.node_remove(t, "zzb1")
+        g2, _, _ = guard.node_remove(t, "zzp1")
+        g3, _, _ = guard.node_remove(t, "zzn1")
+        g_ok = ((not g1) and (not g2) and g3
+                and guard.is_base({"title": " ＠全角"}) and not guard.is_base({"title": "普通"}))
+        checks.append(check("base_card_guard", g_ok,
+                            "基础卡片（@ 开头，兼容全角 ＠）不可删除：自身拒绝 · 含其子树拒绝 · 普通卡可删"
+                            if g_ok else "守卫失效：自身=%s 子树=%s 普通=%s" % (g1, g2, g3)))
+    except Exception as exc:
+        checks.append(check("base_card_guard", False, str(exc)))
 
     try:
         memory = paths.MEMORY_F.read_text(encoding="utf-8")

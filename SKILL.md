@@ -4,10 +4,10 @@ description: "用这个 skill 处理需要成套流程与资产路由的任务�
 compatibility: "需要 Python 3.10+（仅标准库，无第三方依赖）；资产管理台在本地起 HTTP 服务（默认 127.0.0.1:8765，需要能开本地端口）"
 license: "MIT"
 metadata:
-  version: "0.11.0"
+  version: "0.16.0"
   architecture: "processor + library(routes + assets) + evolution(五环自举) + version(版本维护)"
   author: "Leyao"
-  date: "2026-09-11"
+  date: "2026-09-13"
 ---
 
 # leyao-seed-core · 任务处理核心
@@ -22,7 +22,7 @@ metadata:
 | 2 任务处理层 | [processor/PROCESSOR.md](processor/PROCESSOR.md) | 处理任务：五步流程（理解→规划→执行→验收→交付）+ **工作区四区约定**（原始材料/任务执行/结果交付/归档）+ 实时控制纠偏 |
 | 3 资产管理层 | [library/ROUTES.md](library/ROUTES.md) | 总路由地图（级联；大子树自动分片为 `library/routes/<id>.md` 局部图）+ 资产根 `library/assets/` + 资产管理台（`library/admin/`）+ 引擎（`engine.py`）+ L0 经验沉淀（用户区 `data/memory.md`）；资产内容任意可扩展，框架不依赖 |
 | 4 自我进化层 | [evolution/EVOLUTION.md](evolution/EVOLUTION.md) | 五环自举（变择行证藏）：轨迹蒸馏 → 提案守门 → 棘轮落地 → 去糟粕取精华；**轨迹写入即自动沉淀经验**（trace 自动触发 reflect/evolve；库宽上限 C 守卫）；阈值可元进化 |
-| 5 版本维护层 | [version/VERSION.md](version/VERSION.md) | 宿主常驻（写入宿主长期记忆）+ 版本检测与更新（准则与流程）；一切落地经唯一落地器（提案 + apply） |
+| 5 版本维护层 | [version/VERSION.md](version/VERSION.md) | 就绪两件：宿主常驻（**引导式**：自行定位本宿主的记忆与自动化机制再写入）+ 版本检测与更新（准则与流程）；时机 = 会话首次 + 每日 14:00；一切落地经唯一落地器（提案 + apply） |
 
 > 层内文档（`processor/PROCESSOR.md`、`library/ROUTES.md`、`evolution/EVOLUTION.md`、`version/VERSION.md`）由本框架**自行调度**：它们是层的入口说明，不是独立技能入口。宿主若把层内文档单独列出，仍以本文件的调用链为准——绕过它会让五步判据与路由契约失效。
 
@@ -30,9 +30,11 @@ metadata:
 
 ```text
 接到任务
-  → 会话首次：按 version/VERSION.md 执行两项检查（宿主常驻 + 版本；异步、失败降级，不阻塞任务）
+  → 会话首次（及每日 14:00 定时任务唤醒）：按 version/VERSION.md 执行两项**就绪检查**（宿主常驻 + 版本检测；引导式自行定位本宿主文件；异步、失败降级，不阻塞任务）
   → 读 library/ROUTES.md（总路由地图：按节点描述匹配场景，定位可用资产；无资产也照常推进）
       同读用户区记忆 .leyao-data/data/memory.md（L0 经验：命中失效模式先规避、有效做法直接复用）
+      同读**默认资产卡**（★ 行指向；卡在用户数据区 `card.md`）：每次任务必读、只做"识别与定位"；
+      缺失/过期不阻断（如实标注 + 提示刷新）——任务层判据 0.5；未注册默认资产则跳过
       级联下钻：带「（N 个子节点 → 局部图 library/routes/<id>.md）」的节点 → 先读局部图继续匹配（可任意级联）；
       容器节点（只挂子节点、无挂载）不直接执行，下钻其子节点；叶节点（有挂载 / 入口文档）执行
   → 进入 processor/（按五步流程执行；每步判据自带，见 flow/1~5 与 control.md）
@@ -46,17 +48,19 @@ metadata:
 
 ```text
 python library/admin/console.py                    # 资产管理台（新增 / 编辑 / 删除 / 获取复制源）
-python library/engine.py                      # 重绘 ROUTES.md + 契约校验（挂载存在/id 唯一）+ 入口文档缺失提示 + 报告孤儿
+python library/engine.py                      # 重绘 ROUTES.md + 契约校验（挂载/id/分形/默认资产）+ 入口文档缺失提示 + 报告孤儿
 python library/engine.py render               # 同上（显式子命令写法，与不带子命令完全等价）
                                               # 分形路由：子树超阈值（子节点 > 5 或 子树节点 > 20）自动生成/清理局部图 library/routes/<id>.md
-python library/engine.py add --parent <节点id> --id <新id> --type <类型> --title "<标题>" [--mount <挂载>]
+python library/engine.py add --id <新id> --type <类型> --title "<标题>" [--parent <父id>] [--mount <挂载>] [--description "<何时用>"]
 python library/engine.py remove --id <节点id>
-python library/engine.py move --id <节点id> [--parent <父id>]     # 移动卡片（省略 --parent 即移到主页）
-python library/engine.py update --id <节点id> [--title "<新标题>"] [--mount "<新挂载>"]
+python library/engine.py move --id <节点id> [--parent <父id>]     # 移动节点（省略 --parent 即移到根）
+python library/engine.py update --id <节点id> [--title "<新标题>"] [--mount "<新挂载>"] [--description "<何时用>"]
+python library/engine.py default --id <节点id>    # 设默认资产（每次任务必读；hook 当前仅 read）
+python library/engine.py default --clear          # 取消默认资产
 ```
 
 类型为**自由文本**：默认登记 `方法论` / `Skill包`，用户新增的类型自动汇入登记表（`known_types`）。
-资产根＝`library/assets/`（"主页"）；节点挂载即资产目录：`library/assets/<位置>/<卡片id>/`（目录名即卡片 id，天然唯一）。资产是**可选内容**：有则按描述路由取用，无则按本框架自带判据亲做；资产根内的子目录只是组织方式，框架不感知、不依赖。**新挂载资产的目录名建议用 kebab-case 且与该资产的 skill `name` 一致**（如 `vendor/bi-cookie/`），这样它既能被本框架路由，也能独立通过 Agent Skills 官方校验。
+资产根＝`library/assets/`（"主页"）；节点挂载 = 资产目录，路径**自由**（`library/assets/` 下的任意相对路径，且**必须已存在**——`add` 只登记不建目录，管理台新建时会建占位目录）：管理台/引擎登记时的**默认目录名 = 卡片 id**（6 位随机、天然唯一），也可自定义为与该资产 skill `name` 一致的 kebab-case（如 `vendor/bi-cookie/`）——挂载目录名与官方校验的 `name` **互不约束**。资产是**可选内容**：有则按描述路由取用，无则按本框架自带判据亲做；资产根内的子目录只是组织方式，框架不感知、不依赖。
 
 ## 红线
 

@@ -1,7 +1,7 @@
 ---
 name: leyao-knowledge
 description: "查询乐药业务知识：术语定义、指标口径、公司清单、制度规定、课程资料。当需要确认『某个词什么意思』『某指标怎么算』『制度怎么规定』『有没有相关培训/资料』，或任何业务判断前需要权威依据时使用。先查运营知识库（公共池，authority 优先），查不到再走乐药云智库兜底；无命中会如实说不知道，并给出下一步建议。触发词：术语、口径、定义、怎么算、制度、规定、流程、制度依据、课程、培训、知识库、查一下、有没有资料。"
-compatibility: "Python 3.10+（标准库；云智库检索需 requests）；需访问 lyzsk.cfdaili.top（公共池）与乐药云智库（登录态）；运行数据写入 <skill 同级>/.leyao-kb 或 LEYAO_KB_HOME 指向的目录（不写包内）"
+compatibility: "Python 3.10+（标准库；云智库检索需 requests）；需访问 lyzsk.cfdaili.top（公共池）与乐药云智库（登录态）；运行数据写入 LEYAO_KB_HOME 指向的目录（默认 ~/.leyao-kb/；被框架挂载时归口 <包父级>/.leyao-data/data/assets/<卡片id>/；均不写包内）"
 license: "MIT"
 metadata:
   version: "1.0.0"
@@ -74,3 +74,22 @@ python scripts/hub.py contribute --all-candidates [--dry-run]   # 沉淀上传�
 - **云智库客户端**：`scripts/sources/leyou/`（原生集成，原样复用；**登录态只落用户数据区**（客户端经 `--token-file` 指定），包内零写入）；
 - **沉淀上传**：`contribute --memory-id <id>`（单条）/ `--all-candidates`（批量）/ `--inject --title … --content …`（权威注入，仅用户显式要求）；写令牌在**本地配置**（数据区 `config.local.json` → `pool.write_token`，不入包）；采纳上报开关 `registry.report_adopt`；
 - **自检**：`python tests/run_tests.py`（离线）→ `hub.py doctor`（连通）→ `hub.py ask --problem 缺货率`（真实样例）→ `contribute --all-candidates --dry-run`（沉淀预检，不写线上）。
+
+## 7. 卡（常驻速查 · 可选增强）
+
+> **定位**：运营知识库的「**目录页 + 最热结论页**」——术语名 → 一句话 → 池 id 指向；供 AI **每任务必读、一眼识别**。
+> 只读、极薄（≤1500 字）、离线可用；**不是知识库副本** ✗（全文永远在池里）。规范与蒸馏插槽见 `references/card.md`。
+> **卡源两类**：共享池（知识条目 `pool#id`）+ `@` 基础卡（地基条目 `node#id`，由卡宿主代蒸，与知识条目一并蒸）；**云智库永不蒸馏** ✗（大库 · 只查——仅作按需查询兜底）。
+
+```bash
+python scripts/card.py status     # 快照诊断（missing / fresh / stale / unchecked；仅报告，不触发刷新）
+python scripts/card.py fetch      # 拉池候选（分类分页 ≤50，只读）→ <数据区>/card.candidates.json
+python scripts/card.py check      # 校验卡（唯一验收：格式/≤25字/条数/总量/两类指针/无凭据；--nodes 可离线核验基础卡指针）
+python scripts/card.py render     # card.json → card.md（AI 每任务读的渲染物，稳定排序）
+python scripts/card.py read --id <pool#id>   # 按指针读全文（规则类条目命中后的"回池读全文"；只读、不写状态）
+```
+
+- **生成**：`fetch` → AI 按 `references/card.md` 蒸馏（**优先用路由中匹配的蒸馏类资产**；多个按判据 1b/2.6 选最优；无则自做；**业务条目 + `@` 基础卡条目一并蒸**）→ 写 `card.json` → `check` → `render`；
+- **刷新（唯一蒸馏时点 = 每日 14:00）**：**首次使用** = 生成卡 + **创建每日 14:00 定时任务**（幂等；宿主无自动化能力 → 如实告知用户，不假装 ✗）+ 就绪另两件（宿主常驻 / 版本检测，见 `version/VERSION.md`）；每日 14:00 唤起跑四步并复核就绪（在位则静默），无变更不动卡；**增量**：只处理变更条目，原位替换/尾部追加；
+- **落点**：产物只在用户数据区 `data/assets/<id>/`（`card.json` / `card.md` / `card.meta.json`）——包内零写入 ✓；
+- **失败降级**：拉不到池/无卡 → 用旧卡或如实标注「卡不可用」，**不阻断任务**。

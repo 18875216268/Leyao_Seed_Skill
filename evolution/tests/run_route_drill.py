@@ -137,9 +137,9 @@ A = [
      all(("并选" in DESC[n] or "同时成立" in DESC[n]) for n in ("p3nes3", "i7c4z1")), None),
     ("A7 判据链含 1c 覆盖核对（flow/3）",
      "1c. **覆盖核对" in (ROOT / "processor" / "flow" / "3-execute.md").read_text(encoding="utf-8"), None),
-    ("A8 过程记录形状含路由决策记录（shapes.md 第 6 节）",
+    ("A8 过程记录形状含路由决策记录（shapes.md 第 5 节）",
      all(k in (ROOT / "processor" / "shapes.md").read_text(encoding="utf-8")
-         for k in ("## 6. 路由决策记录", "四格", "成因")), None),
+         for k in ("## 5. 路由决策记录", "四格", "成因")), None),
     ("A9 自由/无描述节点在 ROUTES.md 带降级标注（不静默降级）",
      _flag_ok(FREE, "（自由描述·降级匹配）") and _flag_ok(EMPTY, "（无描述·不可路由）"), None),
 ]
@@ -184,7 +184,7 @@ C = [
 
 
 def section_d():
-    """D 段：把一条"路由决策记录"按 shapes 第 6 节落到四区工作区的过程记录里（临时目录，跑完即清）。"""
+    """D 段：把一条"路由决策记录"按 shapes 第 5 节落到四区工作区的过程记录里（临时目录，跑完即清）。"""
     import shutil
     import tempfile
     out = []

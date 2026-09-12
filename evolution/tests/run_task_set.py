@@ -9,7 +9,7 @@
 - 阈值档（`--profile`）：`strict`（§6 也算硬）· `balanced`（默认，推荐）· `loose`（只查结构最小集）。
   三档跑同一批用例，用数据选"最佳平衡"。
 
-诚实边界：本回归**不度量 AI 行为**；pass^k 由 `--record` 在真实使用中逐次累积（见 task_set.json 的 results）。
+诚实边界：本回归**不度量 AI 行为**；pass^k 由 `--record` 在真实使用中逐次累积（写用户区 `.leyao-data/data/state/task_set_results.jsonl`）。
 
 用法：
   python evolution/tests/run_task_set.py                   # balanced（默认）
@@ -111,7 +111,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="任务集回归（判定器校准 + pass^k 台账）")
     ap.add_argument("--profile", choices=["strict", "balanced", "loose"], default="balanced")
     ap.add_argument("--json", action="store_true")
-    ap.add_argument("--record", action="store_true", help="把本次结果追加到 task_set.json 的 results")
+    ap.add_argument("--record", action="store_true", help="把本次结果追加到用户区 data/state/task_set_results.jsonl")
     args = ap.parse_args()
 
     spec = json.loads(SET_FILE.read_text(encoding="utf-8"))

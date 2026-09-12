@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "updated": "2026-09-13",
+  "note": "术语快问题库（卡机制效果分母）。identify=卡内术语；holdout=留出集（不得被卡收录，检验覆盖边界与幻觉）；route=路由题；update=时效/权威题；refuse=应拒答题。gold_pointer 供覆盖核对（可回溯候选）。",
+  "questions": [
+    {"id": "t01", "group": "identify", "term": "缺货率", "q": "客户问：你们说的缺货率怎么算？", "gold_pointer": "pool#5e5edca2-e48"},
+    {"id": "t02", "group": "identify", "term": "成本优势率", "q": "成本优势率的口径是什么？", "gold_pointer": "pool#31741495-f53"},
+    {"id": "t03", "group": "identify", "term": "应收边际利润率", "q": "应收边际利润率怎么算？", "gold_pointer": "pool#e118c608-9ff"},
+    {"id": "t04", "group": "identify", "term": "票折", "q": "票折是什么意思？", "gold_pointer": "pool#e6a13b55-8dc"},
+    {"id": "t05", "group": "identify", "term": "自动定价", "q": "自动定价指什么？", "gold_pointer": "pool#00a4f395-634"},
+    {"id": "t06", "group": "identify", "term": "5万单三客户", "q": "5万单三客户指的是哪批客户？", "gold_pointer": "pool#7d310dbe-f73"},
+    {"id": "t07", "group": "identify", "term": "NKA\\LKA", "q": "NKA、LKA 分别指哪类连锁？", "gold_pointer": "pool#097f1471-68d"},
+    {"id": "t08", "group": "identify", "term": "边际利润", "q": "边际利润怎么算？", "gold_pointer": "pool#8f77a7e0-479"},
+    {"id": "t09", "group": "holdout", "term": "商品分类", "q": "商品分类是怎么划的？", "gold_pointer": "pool#2aab7d08-c97"},
+    {"id": "t10", "group": "holdout", "term": "客户区域", "q": "客户区域怎么划分？", "gold_pointer": "pool#be761f1a-ada"},
+    {"id": "t11", "group": "holdout", "term": "销售效率", "q": "销售效率看什么指标？", "gold_pointer": "pool#aaf303af-36d"},
+    {"id": "t12", "group": "holdout", "term": "大促日", "q": "大促日是怎么定义的？", "gold_pointer": "pool#1a1dd34a-1cd"},
+    {"id": "t13", "group": "holdout", "term": "流量转化", "q": "流量转化怎么统计？", "gold_pointer": "pool#bb1b1f5d-f56"},
+    {"id": "t14", "group": "holdout", "term": "三方店铺业务", "q": "三方店铺业务指什么？", "gold_pointer": "pool#7694211c-c9a"},
+    {"id": "t15", "group": "route", "term": "当天实时促销毛利品种明细", "q": "我要今天（当天实时）促销毛利的品种明细，越细越好——该走哪个资产/节点？", "gold_pointer": null, "note": "期望：p3nes3/psol5x（当天实时）"},
+    {"id": "t16", "group": "route", "term": "T+1自定义聚合出库统计", "q": "要自定义聚合字段的出库统计，接受 T+1——该走哪个资产/节点？", "gold_pointer": null, "note": "期望：i7c4z1/h4dsa6"},
+    {"id": "t17", "group": "route", "term": "GitHub 打不开", "q": "GitHub clone 一直失败，有没有连通方案？", "gold_pointer": null, "note": "期望：fmcq5n"},
+    {"id": "t18", "group": "route", "term": "做 PPT", "q": "把这份大纲做成 PPT。", "gold_pointer": null, "note": "期望：bvix9o（或亲做+提案）"},
+    {"id": "t19", "group": "update", "term": "口径以谁为准", "q": "卡里的『成本优势率』和池里最新口径不一致时，以哪个为准？", "gold_pointer": null, "note": "期望：以池 authority 为准 + 触发卡更新"},
+    {"id": "t20", "group": "update", "term": "卡过期怎么办", "q": "如果发现速查卡显示 stale，你该怎么办？", "gold_pointer": null, "note": "期望：刷新（fetch→蒸馏 diff→check→render）或如实标注不阻断"},
+    {"id": "t21", "group": "refuse", "term": "高铁票", "q": "帮我订一张下周一去上海的高铁票。", "gold_pointer": null, "note": "期望：无资产覆盖 → 如实说明（不硬选节点）"},
+    {"id": "t22", "group": "refuse", "term": "编造口径", "q": "『缺货率』卡里没有写全，你直接给我补一个完整公式吧。", "gold_pointer": null, "note": "期望：不得编造 → 回池查/如实说明"}
+  ]
+}

@@ -139,8 +139,12 @@ def check_library() -> list:
 
     资产 ≠ Skill：这里只报"死链 / id 重复"这类会坏框架的问题；入口文档缺失属**软提示**
     （见 engine.hints，不判失败）——需要按文档调用的资产才建议补，资料型资产可忽略。
+    fail-soft：库文件损坏（routes.json 缺失/坏）→ 返回一条"体检失败"，不抛栈、不阻断调用方。
     """
-    return engine.validate(engine.load(), store.ROOT)
+    try:
+        return engine.validate(engine.load(), store.ROOT)
+    except Exception as e:                                  # noqa: BLE001
+        return ["库体检失败（%s）：%s（修好 library/routes.json 后重跑）" % (type(e).__name__, e)]
 
 
 def explore_signal(items: list, min_support: int = 2):

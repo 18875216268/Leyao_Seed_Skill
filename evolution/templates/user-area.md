@@ -12,17 +12,18 @@
 └── data/
     ├── README.md        ← 本索引（用途 / 清理策略 / 落点规则）
     ├── memory.md        L0 记忆（四段：失效模式 / 有效做法 / 待验证 / 墓碑）★ AI 每任务读
-    ├── meta.json        阈值"变更集"（只存与模板不同的键；读取 = 模板 ⊕ 变更集）
-    ├── versions.json    版本记录（当前 / 历史 ≤10 / 基线哈希；落地器唯一维护）
+    ├── meta.json*       阈值"变更集"（只存与模板不同的键；读取 = 模板 ⊕ 变更集）
+    ├── versions.json*   版本记录（当前 / 历史 ≤10 / 基线哈希；落地器唯一维护）
     ├── assets/<资产id>/  ★ 各资产**私有数据区**（框架只登记与统计，不解析内容）
     │                    例：知识库 → cache.jsonl（派生）/ memory.jsonl（经验）/ feedback.jsonl（用户反馈）
     └── state/           机器态（AI 经 `grow.py status` 读，不直接读原始文件）
         ├── traces.json 轨迹（滚动 200 条）
         ├── audit.log   审计（**永不清理**）
-        ├── proposals/  提案队列（pending → apply / reject）
-        ├── ratchet.json 棘轮（版本评分基线）
+        ├── proposals/* 提案队列（pending → apply / reject）
+        ├── ratchet.json* 棘轮（版本评分基线）
         └── *_results.*  评测 / 回归台账
 ```
+> 带 `*` 的文件**按需生成**（写点在代码中）：首次可能不存在，**缺失属正常**，不是故障。
 
 ## 清理策略（按类别，不按心情）
 

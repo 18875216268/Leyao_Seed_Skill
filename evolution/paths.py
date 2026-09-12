@@ -34,11 +34,17 @@ def _writable(d: Path) -> bool:
 
 
 def _resolve() -> Path:
+    """用户区落点：显式 LEYAO_SEED_HOME → 与 skill 同级（便携）→ 家目录；都不可写 → 可读报错（不裸抛 OSError）。"""
     env = (os.environ.get("LEYAO_SEED_HOME") or "").strip()
     if env:
         return Path(env).expanduser().resolve()   # 规范化为绝对长路径（消 ~、相对段与 Windows 8.3 短名）
     cand = SKILL_ROOT.parent / ".leyao-data"          # 与 skill 同级（便携；更新器作用域之外）
-    return cand if _writable(cand) else Path.home() / ".leyao-data"
+    if _writable(cand):
+        return cand
+    home = Path.home() / ".leyao-data"
+    if _writable(home):
+        return home
+    raise RuntimeError("用户区不可写：%s 与 %s 均失败——请把 LEYAO_SEED_HOME 指到一个可写目录" % (cand, home))
 
 
 HOME = _resolve()
@@ -96,4 +102,4 @@ def ensure() -> dict:
     return {"home": str(HOME), "actions": actions}
 
 
-LAST_ENSURE = ensure()                                   # 首次导入即就绪；本次初始化动作留档（诊断/测试用）
+ensure()                                                 # 首次导入即就绪（幂等：缺则播种配置/记忆/用户区索引）

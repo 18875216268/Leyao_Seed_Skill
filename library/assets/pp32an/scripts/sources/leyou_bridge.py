@@ -32,10 +32,14 @@ def _run(cli: Path, args: list, timeout: float) -> tuple[int, str, str]:
                            capture_output=True, text=True,
                            encoding="utf-8", errors="replace", cwd=str(cli.parent), timeout=timeout,
                            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})   # 子进程零写包（不落 __pycache__）
-        # 客户端在准备登录时可能生成二维码占位图；本 skill 绝不扫码 → 清掉运行产物，保持包干净
-        qr = cli.parent / "qrcode.png"
-        if qr.exists():
-            qr.unlink()
+        # 客户端在准备登录时可能生成二维码占位图；本 skill 绝不扫码 → 清掉运行产物（**尽力而为**：
+        # 清理失败不得覆盖子进程结果 ✗——Windows 下文件被占用会抛 PermissionError，误判成"未登录"）
+        try:
+            qr = cli.parent / "qrcode.png"
+            if qr.exists():
+                qr.unlink()
+        except OSError:
+            pass
         return p.returncode, p.stdout or "", p.stderr or ""
     except subprocess.TimeoutExpired:
         return 124, "", "timeout after %.0fs" % timeout

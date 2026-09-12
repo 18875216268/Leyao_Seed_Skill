@@ -2,7 +2,7 @@
 """自我进化层 CLI（唯一接触面）：变→择→行→证→藏。
 
 用法：
-  python evolution/grow.py trace --task "<任务>" --routed "<走了哪条路>" --outcome success|partial|fail [--reason R] [--override O]
+  python evolution/grow.py trace --task "<任务>" --routed "<走了哪条路>" --outcome success|partial|fail [--reason R] [--override O] [--no-auto]
   python evolution/grow.py reflect                  # 轨迹 → 候选规则（蒸馏）
   python evolution/grow.py evolve                   # 候选 → 变异（自动档 memory 直写 / 提案待批）
   python evolution/grow.py apply --id p_xxx         # 执行已批准提案（先快照，失败即回滚）
@@ -11,7 +11,7 @@
   python evolution/grow.py review                   # 观察期结算（促进/降级/淘汰）
   python evolution/grow.py status                   # 全景：轨迹/规则/提案/棘轮/自动开启进度
 
-所有输出均为 JSON（AI 易读）。trace 时自动匹配 active/core 规则记账（hit_rules），
+所有输出均为 JSON（AI 易读）。trace 时自动匹配 active/core 规则并把命中记入其计数（hits/misses/observed），
 并在数据充足时自动开启主动探索与元变异（翻转写审计）。
 数据落点：用户区（与 skill 同级 `.leyao-data/`，见 evolution/EVOLUTION.md）；包内只读。
 """
@@ -51,8 +51,7 @@ def cmd_trace(args) -> int:
                                    "无命中（自带判据亲做）写 none——该字段是规则归属与命中率统计的唯一依据"})
         return 1
     matched = match_rules(args.task)
-    data = store.add_trace(args.task, args.routed, args.outcome,
-                           args.reason or "", args.override or "", matched)
+    data = store.add_trace(args.task, args.routed, args.outcome, args.reason or "", args.override or "")
     ok = args.outcome == "success"
     for rid in matched:
         r = store.get_rule(rid)
@@ -66,11 +65,14 @@ def cmd_trace(args) -> int:
     enabled = actions.auto_enable_check()
     auto = None
     if not getattr(args, "no_auto", False):      # 自动闭环（默认开）：trace → reflect → evolve（memory 自动档直写）
-        new_rules = actions.reflect()
-        evo = actions.evolve()
-        auto = {"new_candidates": len(new_rules),
-                "applied": evo.get("applied", []),
-                "retired": evo.get("retired", [])}
+        try:
+            new_rules = actions.reflect()
+            evo = actions.evolve()
+            auto = {"new_candidates": len(new_rules),
+                    "applied": evo.get("applied", []),
+                    "retired": evo.get("retired", [])}
+        except Exception as e:                   # noqa: BLE001（自动沉淀失败不得吞掉本次轨迹，也不得中断交付步）
+            auto = {"error": "自动沉淀失败（本次轨迹已记账，不影响交付）：%s" % e}
     warn = None
     if args.outcome in ("fail", "partial") and not (args.reason or "").strip():
         warn = "outcome=%s 但未写 --reason：本层无法从这次学到原因（判据见 processor/flow/5-deliver.md「outcome 必须如实」）" % args.outcome
@@ -104,9 +106,10 @@ def cmd_review(_args) -> int:
     settlement = actions.review()
     checks = gate.run_checks()
     score = gate.keep_score("framework", checks.get("score", 0.0))
-    out({"ok": True, **settlement, "checks": {"ok": checks.get("ok"), "score": checks.get("score")},
+    ok = checks.get("ok") is True                           # 证环一票否决：不过则非零（与 apply 同口径）
+    out({"ok": ok, **settlement, "checks": {"ok": checks.get("ok"), "score": checks.get("score")},
          "ratchet": score})
-    return 0
+    return 0 if ok else 1
 
 
 def assets_data_summary() -> list:
@@ -213,9 +216,14 @@ def main() -> int:
     sub.add_parser("status", help="全景状态")
 
     args = parser.parse_args()
-    return {"trace": cmd_trace, "reflect": cmd_reflect, "evolve": cmd_evolve,
-            "propose": cmd_propose, "reject": cmd_reject, "apply": cmd_apply,
-            "review": cmd_review, "status": cmd_status}[args.cmd](args)
+    handler = {"trace": cmd_trace, "reflect": cmd_reflect, "evolve": cmd_evolve,
+               "propose": cmd_propose, "reject": cmd_reject, "apply": cmd_apply,
+               "review": cmd_review, "status": cmd_status}[args.cmd]
+    try:
+        return handler(args)
+    except (OSError, RuntimeError, ValueError) as e:        # 统一兜底：结构化报错 + 非零，不抛裸栈
+        out({"ok": False, "error": "%s：%s" % (type(e).__name__, e)})
+        return 1
 
 
 if __name__ == "__main__":

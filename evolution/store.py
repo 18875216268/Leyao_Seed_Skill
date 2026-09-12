@@ -37,7 +37,12 @@ def now() -> str:
 
 
 def atomic_write(path: Path, text: str) -> None:
-    """原子写：写临时文件 → flush + fsync → 替换。与资产层引擎同一强度，防掉电截断。"""
+    """原子写：写临时文件 → flush + fsync → 替换。
+
+    与 `library/engine.py::_write_atomic` **同强度**（都保证 fsync + `os.replace`），差异仅在临时文件命名
+    （本层固定 `<name>.tmp`，引擎用 mkstemp 唯一名）——不合并实现以避免本层反向依赖 library 的私有工具；
+    任一处改动都必须保持「fsync + os.replace」这两条不变量。
+    """
     tmp = path.with_name(path.name + ".tmp")
     with tmp.open("w", encoding="utf-8") as fh:
         fh.write(text)
@@ -92,14 +97,14 @@ def traces() -> dict:
     return load_json(TRACES_F, {"total": 0, "items": []})
 
 
-def add_trace(task, routed_to, outcome, failure_reason="", user_override="", hit_rules=None) -> dict:
+def add_trace(task, routed_to, outcome, failure_reason="", user_override="") -> dict:
+    """追加轨迹（L1）。命中规则的记账在 experience.json（hits/misses/observed），此处不另存一份。"""
     STATE.mkdir(exist_ok=True)
     data = traces()
     data["total"] += 1
     data["items"].append({
         "ts": now(), "task": task, "routed_to": routed_to, "outcome": outcome,
         "failure_reason": failure_reason, "user_override": user_override,
-        "hit_rules": hit_rules or [],
     })
     data["items"] = data["items"][-MAX_TRACES:]
     atomic_write(TRACES_F, json.dumps(data, ensure_ascii=False, indent=2) + "\n")

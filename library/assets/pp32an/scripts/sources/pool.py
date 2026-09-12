@@ -68,6 +68,90 @@ def search(terms: list, need_type: str, *, endpoint: str, limit: int = 20,
             "error": last_err, "tried": tried}
 
 
+def hot_list(endpoint: str, *, limit: int = 50, category: str | None = None,
+             tier: str | None = None, timeout: float = 15.0, retry: int = 1) -> dict:
+    """热榜/列表读取（卡子系统用；`q` 留空 = 服务端默认热度序）。
+
+    实测（2026-09-13）：**小页稳定、大页超时**（limit=50 OK ｜ 120 超时）→ 本函数**硬上限 50**，
+    调用方需要更多时按 category 分多页拉，不要一次要全量 ✗。
+    返回**原始池字段**（title/content/trust/quality_score/hit_count/version/similarity_hash——卡片蒸馏需要），
+    已过滤 `status=active`；失败如实返回（不抛）。
+    """
+    params = {"limit": str(max(1, min(int(limit), 50)))}
+    if category:
+        params["category"] = category
+    if tier:
+        params["tier"] = tier
+    url = "%s?%s" % (endpoint.rstrip("/"), urllib.parse.urlencode(params))
+    last = ""
+    for attempt in range(retry + 1):
+        try:
+            data = _get(url, timeout)
+            items = [it for it in (data.get("items") or []) if it.get("status", "active") == "active"]
+            return {"ok": True, "items": items, "count": data.get("count"), "url": url}
+        except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+            last = "%s: %s" % (type(exc).__name__, str(exc)[:120])
+            if attempt < retry:
+                time.sleep(0.5)
+    return {"ok": False, "items": [], "error": last, "url": url}
+
+
+def index_list(endpoint: str, *, limit: int = 200, offset: int = 0, timeout: float = 15.0, retry: int = 1) -> dict:
+    """轻量只读索引（池侧 `fields=index`）：**零 UPDATE 不记 hit**，顶层带 `total` + `pool_updated_at`。
+
+    池未升级（响应无 `pool_updated_at`）→ 如实返回 `ok=False, error=POOL_NOT_UPGRADED`，
+    由调用方回落到"分类分页拉取"（不假装成功 ✗）。
+    """
+    params = {"fields": "index", "limit": str(max(1, min(int(limit), 200))), "offset": str(max(0, int(offset)))}
+    url = "%s?%s" % (endpoint.rstrip("/"), urllib.parse.urlencode(params))
+    last = ""
+    for attempt in range(retry + 1):
+        try:
+            data = _get(url, timeout)
+            items = [it for it in (data.get("items") or []) if it.get("status", "active") == "active"]
+            if "pool_updated_at" not in data:
+                return {"ok": False, "items": [], "error": "POOL_NOT_UPGRADED", "url": url}
+            return {"ok": True, "items": items, "count": data.get("count"), "total": data.get("total"),
+                    "pool_updated_at": data.get("pool_updated_at"), "url": url}
+        except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+            last = "%s: %s" % (type(exc).__name__, str(exc)[:120])
+            if attempt < retry:
+                time.sleep(0.5)
+    return {"ok": False, "items": [], "error": last, "url": url}
+
+
+def ids_lookup(endpoint: str, ids: list, *, limit: int = 50, timeout: float = 15.0) -> dict:
+    """按 id 批量取（≤50）：`fields=index&ids=…` = **零写存在性回验**（指针抽检用）。"""
+    arr = [str(i).strip() for i in (ids or []) if str(i).strip()][:50]
+    if not arr:
+        return {"ok": False, "items": [], "error": "NO_IDS"}
+    params = {"fields": "index", "ids": ",".join(arr), "limit": str(max(1, min(int(limit), 50)))}
+    url = "%s?%s" % (endpoint.rstrip("/"), urllib.parse.urlencode(params))
+    try:
+        data = _get(url, timeout)
+        items = [it for it in (data.get("items") or []) if it.get("status", "active") == "active"]
+        upgraded = "pool_updated_at" in data
+        return {"ok": upgraded, "items": items, "count": data.get("count"),
+                "error": "" if upgraded else "POOL_NOT_UPGRADED", "url": url}
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+        return {"ok": False, "items": [], "error": "%s: %s" % (type(exc).__name__, str(exc)[:120]), "url": url}
+
+
+def fetch_by_ids(endpoint: str, ids: list, *, timeout: float = 15.0) -> dict:
+    """按 id 批量取**全文**（≤50；默认全文模式——"取正文=使用"与池侧语义一致，会记 hit）。"""
+    arr = [str(i).strip() for i in (ids or []) if str(i).strip()][:50]
+    if not arr:
+        return {"ok": False, "items": [], "error": "NO_IDS"}
+    params = {"ids": ",".join(arr), "limit": str(len(arr))}
+    url = "%s?%s" % (endpoint.rstrip("/"), urllib.parse.urlencode(params))
+    try:
+        data = _get(url, timeout)
+        items = [it for it in (data.get("items") or []) if it.get("status", "active") == "active"]
+        return {"ok": True, "items": items, "count": data.get("count"), "url": url}
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+        return {"ok": False, "items": [], "error": "%s: %s" % (type(exc).__name__, str(exc)[:120]), "url": url}
+
+
 def _to_possibility(it: dict) -> dict:
     return {
         "answer": str(it.get("content") or "").strip(),

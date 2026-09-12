@@ -4,15 +4,22 @@
 对外契约（CLI 与管理台共用本引擎，禁止第二实现）：
 - 唯一写路径 = `commit(mutate)`：加锁 → 读 → 改 → 原子落盘 routes.json → 渲染 ROUTES.md → 契约校验。
 - 节点增删规则集中在 `node_check` / `node_add` / `node_remove`，CLI 与管理台一律复用，禁止各自实现。
+- **基础卡片**（`title` 首个字符 `@`，兼容全角 `＠`；如 `@行业知识库`）是路由树地基，**不可删除**：
+  守卫唯一实现在 `node_remove`（自身拒绝 + 子树含基础卡片的祖先拒绝整体删除）；
+  管理台按钮同源禁用（`/api/tree` 注入 `base` 标注，前端不重复规则）。
 - 遍历集中在 `iter_nodes`；查父列表集中在 `find_parent_list`（`find` 复用前者）。
 - 管理台语义「位置即归属」的唯一实现 = `nearest_card`（基座 `norm_mount` / `mount_under`）：
   位置落在哪个文件夹，节点就归到其**最近一层卡片**下（无卡片 → 主页顶层）。CLI 为维护者低级工具，
   `--parent` / `--mount` 仍可分别指定，不受本规则约束。
 - 类型（type）为自由文本，默认登记「方法论 / Skill包」，实际出现过的类型自动汇入登记表。
 - 节点只有唯一挂载字段 `mount`。
+- **默认资产**（可选，至多一个）：顶层 `defaults{default, hook}`——`default` = 节点 id（"每次任务必读"的资产；
+  "读它"由任务层判据 0.5 执行；**引擎只负责注册与呈现，不解析资产内容** ✗——卡健康检查归资产 `card.py check`）；
+  `hook` 当前**只支持 `read`**（每任务必读）；若要新增钩子语义（如改为"交付前必经"），**先补判据再加枚举**（不先预留 ✗）。
 - 资产根 `ASSETS` = library/assets/；挂载前缀 `ASSETS_MOUNT` 由其推导，禁止另行硬编码。
 - 契约校验 `validate`（唯一实现，CLI / 管理台 / 自检 / 库存体检共用）——**硬契约（会拦截/报警）**：
-  挂载路径必须存在（防死链）、路由 id 必须唯一。
+  挂载路径必须存在（防死链）、路由 id 必须唯一、分形局部图一致（超阈节点必须有局部图 · 局部图不得残留）、
+  默认资产注册合法（至多一个 · 指向真实节点 · 必带 mount · hook 合法）。
 - 描述（路由判据 H1）**写入不拦**：用户/管理员怎么写都行（自由文本合法）；
   六段结构化属**路由能力等级（推荐，非门槛）**——齐备 → 判据链全能力；自由 → 关键词降级匹配。
   降级**不静默**：`hints` 提示 + `ROUTES.md` 行内标注；模板见 `processor/shapes.md` 第 7 节。
@@ -24,10 +31,13 @@
 
 用法：
   python library/engine.py                                   # 重绘 ROUTES.md + 校验
+  python library/engine.py render                            # 同上（显式子命令写法，完全等价）
   python library/engine.py add --id <id> --type <类型> --title "<标题>" [--parent <父id>] [--mount <挂载>] [--description "<何时用>"]
-  python library/engine.py remove --id <节点id>               # 连同其子树一并摘除
+  python library/engine.py remove --id <节点id>               # 连同其子树一并摘除（基础卡片拒绝）
   python library/engine.py move --id <节点id> [--parent <父id>]   # 移动到新文件夹（省略 --parent 即移到根）
   python library/engine.py update --id <节点id> [--title T] [--mount <挂载>] [--description "<何时用>"]
+  python library/engine.py default --id <节点id>             # 设默认资产（hook=read：每次任务必读）
+  python library/engine.py default --clear                   # 取消默认资产
 """
 from __future__ import annotations
 
@@ -54,6 +64,7 @@ DEFAULT_TYPES = ["方法论", "Skill包"]     # 类型登记表默认值（自�
 LOCAL_MAPS = LIB / "routes"              # 局部路由图目录（分片节点的子树；总图指针指向它 → 任意级联）
 INLINE_KIDS_MAX = 5                      # 分片阈值①：子节点数超过此值的子树收进局部图
 INLINE_SUBTREE_MAX = 20                  # 分片阈值②：**子树节点总数**超过此值也收进局部图（防"每层都 ≤5 但很深"）
+DEFAULT_HOOKS = ("read",)                # 默认资产钩子（当前仅 read——新增语义先补判据再加枚举，见模块契约）
 
 _LOCK_FILE = ROUTES_JSON.with_suffix(".lock")
 _LOCK_MUTEX = threading.Lock()           # 进程内线程互斥（文件锁负责跨进程）
@@ -95,7 +106,14 @@ def _locked(timeout: float = 15.0):
 # ---------- 读 / 写（唯一写入口 commit） ----------
 
 def load() -> dict:
-    return json.loads(ROUTES_JSON.read_text(encoding="utf-8"))
+    """读事实源 routes.json；缺失 / 损坏 → **可读错误**（CLI 与管理台兜住，不抛裸栈）。"""
+    try:
+        return json.loads(ROUTES_JSON.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise RuntimeError("事实源缺失：%s（用管理台或引擎 add 重建，或从备份恢复）" % ROUTES_JSON) from None
+    except json.JSONDecodeError as e:
+        raise RuntimeError("事实源损坏：%s 第 %d 行 JSON 解析失败（修好或恢复备份后重跑）"
+                           % (ROUTES_JSON, e.lineno)) from None
 
 
 def _write_atomic(path: Path, text: str) -> None:
@@ -232,11 +250,12 @@ def known_types(data: dict) -> list[str]:
 
 
 def validate(data: dict, root: Path) -> list[str]:
-    """路由**硬契约**校验（唯一实现，CLI / 管理台 / 自检 / 库存体检共用）——会拦截/报警的两类：
+    """路由**硬契约**校验（唯一实现，CLI / 管理台 / 自检 / 库存体检共用）——会拦截/报警的四类：
 
     - 死链：挂载路径必须真实存在；
     - id 重复：路由 id 必须唯一（否则无法唯一定位）；
-    - 分形死链：超内联上限的节点必须有局部图，局部图必须对应分片节点（防残留）。
+    - 分形死链：超内联上限的节点必须有局部图，局部图必须对应分片节点（防残留）；
+    - 默认资产：`defaults` 至多一个 · `default` 必须指向真实节点 · 该节点必须有 mount（容器不可当默认）· hook 合法。
 
     入口文档缺失**不在此列**（资产 ≠ Skill，资料型资产无需入口文档）——见 `hints()`。
     """
@@ -251,6 +270,20 @@ def validate(data: dict, root: Path) -> list[str]:
             issues.append(f"{nid}: mount 路径不存在 → {m}")
     for dup in sorted({i for i in ids if ids.count(i) > 1}):
         issues.append(f"{dup}: 路由 id 重复")
+    # 默认资产注册契约（"读它"由任务层判据 0.5 执行；引擎只校验注册面，不解析资产内容 ✗）
+    d = data.get("defaults") or {}
+    if d:
+        did = d.get("default")
+        node = next((n for n, _ in iter_nodes(data.get("nodes")) if n.get("id") == did), None) if did else None
+        hook = d.get("hook", "read")
+        if not did:
+            issues.append("defaults: 缺 default（用 `engine.py default --clear` 清除）")
+        elif node is None:
+            issues.append(f"defaults.default 指向不存在节点：{did}")
+        elif not node.get("mount"):
+            issues.append(f"{did}: 默认资产必须有 mount（容器节点不可当默认——没有实体可读）")
+        if hook not in DEFAULT_HOOKS:
+            issues.append(f"defaults.hook 非法：{hook}（可选 {'|'.join(DEFAULT_HOOKS)}）")
     # 分形路由一致性：分片节点必须有局部图；局部图不得对应无关节点（防死链 / 防残留）
     sizes = subtree_sizes(data.get("nodes"))
     for n, _ in iter_nodes(data.get("nodes")):
@@ -297,8 +330,8 @@ def hints(data: dict, root: Path) -> list[str]:
     return out
 
 
-def find_orphans(data: dict) -> list[str]:
-    """孤儿资产：资产根下未被任何节点挂载引用的目录。"""
+def used_segments(data: dict) -> set:
+    """资产根下「首层目录」中被节点挂载引用的集合（孤儿判定与管理台删除复核的**唯一口径**）。"""
     used = set()
     for n, _ in iter_nodes(data.get("nodes")):
         v = (n.get("mount") or "").replace("\\", "/")
@@ -306,6 +339,12 @@ def find_orphans(data: dict) -> list[str]:
             seg = v[len(ASSETS_MOUNT):].strip("/").split("/")[0]
             if seg:
                 used.add(seg)
+    return used
+
+
+def find_orphans(data: dict) -> list[str]:
+    """孤儿资产：资产根下未被任何节点挂载引用的目录。"""
+    used = used_segments(data)
     if not ASSETS.is_dir():
         return []
     # 只认"像资产的目录"：跳过点开头目录（隐藏/运行态，如资产误写在包内的 `.leyao-kb` ✗）——
@@ -320,11 +359,19 @@ def render(data: dict) -> str:
     """渲染 **agent 路由面**（瘦身版：只留路由必需信息）。
 
     设计依据见 `参考/工具引导调研/04-深挖与实验.md`：①顶部不放"快照/更新时间"——保持**稳定前缀**
-    （提示缓存友好，改一行即失效）；②散文开销曾是 agent 读入量的 30%（903 token）→ 图例压缩到 4 行；
-    ③维护命令块移入 `library/admin/README.md`（agent 不需要）。
+    （提示缓存友好，改一行即失效）；②散文开销曾是 agent 读入量的 30%（903 token）→ 图例 4 行
+    （注册默认资产时另加 ★ 行）；③维护命令块移入 `library/admin/README.md`（agent 不需要）。
     """
-    lines = [
-        "# 资产管理层 · 总路由地图",
+    lines = ["# 资产管理层 · 总路由地图"]
+    d = data.get("defaults") or {}
+    if d.get("default"):
+        dn = next((n for n, _ in iter_nodes(data.get("nodes")) if n.get("id") == d["default"]), None) or {}
+        mnt = f" → `{dn['mount']}`" if dn.get("mount") else ""
+        lines.append(f"> ★ 默认资产（每次任务必读）：`{d['default']}` **{dn.get('title', '')}**{mnt}"
+                     f"——卡在**用户数据区** `data/assets/{d['default']}/card.md`（框架挂载态 `.leyao-data/…`；"
+                     "独立态 `~/.leyao-kb/card.md`）；只用于识别与定位（定义以池 authority 为准）；"
+                     "读法与刷新见其 `references/card.md`，判据见 `processor/flow/3-execute.md` 0.5。")
+    lines += [
         "> 读者：agent 与审阅者；**维护**请用管理台（`library/admin/`）或 `routes.json`（唯一事实源，本图由 `engine.py` 生成）。",
         "> 路由：按节点**描述**匹配 → 命中进其 `→ 挂载` 目录读 `SKILL.md`／`README.md` 调用；无命中按自带判据亲做。"
         "描述形态：六段齐备=判据链全能力；`（自由描述·降级匹配）`=关键词级；`（无描述·不可路由）`（模板见 `processor/shapes.md` 第 7 节）。",
@@ -474,11 +521,33 @@ def node_move(data: dict, node_id: str, parent_id: str):
     return True, ""
 
 
+BASE_CARD_PREFIXES = ("@", "＠")          # 基础卡片前缀（半角 @ / 全角 ＠——中文输入法可能产出全角）
+
+
+def is_base(node: dict) -> bool:
+    """基础卡片判定（唯一实现）：标题首个字符为 @（兼容全角 ＠；忽略首尾空白）。
+
+    基础卡片是路由树地基（如 `@行业知识库` / `@通用导航库`），不可删除——守卫见 `node_remove`；
+    管理台以本函数为唯一规则源（`/api/tree` 注入 `base` 标注，前端不重复判定）。
+    """
+    return str(node.get("title") or "").strip().startswith(BASE_CARD_PREFIXES)
+
+
 def node_remove(data: dict, node_id: str):
-    """摘除节点（含子树）。返回 (ok, msg, removed_node)。"""
+    """摘除节点（含子树）。返回 (ok, msg, removed_node)。
+
+    基础卡片保护：标题 @ 开头的节点不可删除；子树含基础卡片的祖先也不可整体删除
+    （避免"删父级顺带删掉地基"——先把基础卡片移出该子树再删）。
+    """
     node = find(data, node_id)
     if node is None:
         return False, f"节点不存在：{node_id}", None
+    if is_base(node):
+        return False, f"{node_id}: 基础卡片（名称首个字符为 @）不可删除", None
+    blocked = [n.get("id") for n, _ in iter_nodes(node.get("children") or []) if is_base(n)]
+    if blocked:
+        return False, (f"{node_id}: 子树含基础卡片（{'、'.join(blocked)}），不可整体删除"
+                       "——先把基础卡片移出该子树"), None
     lst = find_parent_list(data, node_id)
     lst[:] = [n for n in lst if n.get("id") != node_id]
     return True, "", node
@@ -498,7 +567,7 @@ def _report(issues: list[str]) -> int:
         for i in issues:
             print("  -", i)
         return 1
-    print("[routes] 契约校验通过（挂载存在 · id 唯一）")
+    print("[routes] 契约校验通过（挂载存在 · id 唯一 · 分形图一致 · 默认资产合法）")
     hs = hints(load(), LIB.parent)
     if hs:
         print("[routes] 提示（非问题，不影响使用）：")
@@ -635,6 +704,41 @@ def cmd_update(args) -> int:
     return _report(payload)
 
 
+def cmd_default(args) -> int:
+    """设/清**默认资产**（每次任务必读；至多一个）——唯一写路径 commit（与其它命令同规）。"""
+    def mutate(data):
+        if args.clear:
+            if args.id or args.hook:
+                return False, "--clear 与 --id/--hook 互斥（二者选一）"
+            if not (data.get("defaults") or {}):
+                return False, "当前未注册默认资产（无需清除）"
+            data.pop("defaults", None)
+            return True, ""
+        if not args.id:
+            return False, "需 --id <节点id>（或 --clear 取消）"
+        node = find(data, args.id)
+        if node is None:
+            return False, f"节点不存在：{args.id}"
+        if not node.get("mount"):
+            return False, f"{args.id}: 默认资产必须有 mount（容器节点不可当默认——没有实体可读）"
+        hook = args.hook or (data.get("defaults") or {}).get("hook") or "read"
+        if hook not in DEFAULT_HOOKS:
+            return False, f"hook 非法：{hook}（可选 {'|'.join(DEFAULT_HOOKS)}）"
+        data["defaults"] = {"default": args.id, "hook": hook}
+        return True, ""
+
+    ok, payload = commit(mutate)
+    if not ok:
+        print(f"[routes] {payload}")
+        return 1
+    if args.clear:
+        print("[routes] 已取消默认资产")
+    else:
+        hook_now = (load().get("defaults") or {}).get("hook", "read")   # 回显**实际落盘值**（省略 --hook 时保留现值）
+        print(f"[routes] 默认资产 = {args.id}（hook={hook_now}）")
+    return _report(payload)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="资产管理层引擎（routes.json ↔ ROUTES.md）")
     sub = parser.add_subparsers(dest="cmd")
@@ -656,17 +760,27 @@ def main() -> int:
     p_up.add_argument("--title")
     p_up.add_argument("--mount")
     p_up.add_argument("--description")
+    p_df = sub.add_parser("default")
+    p_df.add_argument("--id", default="")          # 设默认资产（与 --clear 二选一）
+    p_df.add_argument("--hook", default="")        # 仅 read（省略 = 保留现值 / read）
+    p_df.add_argument("--clear", action="store_true")
     args = parser.parse_args()
 
-    if args.cmd == "add":
-        return cmd_add(args)
-    if args.cmd == "remove":
-        return cmd_remove(args)
-    if args.cmd == "move":
-        return cmd_move(args)
-    if args.cmd == "update":
-        return cmd_update(args)
-    return cmd_render()
+    try:
+        if args.cmd == "add":
+            return cmd_add(args)
+        if args.cmd == "remove":
+            return cmd_remove(args)
+        if args.cmd == "move":
+            return cmd_move(args)
+        if args.cmd == "update":
+            return cmd_update(args)
+        if args.cmd == "default":
+            return cmd_default(args)
+        return cmd_render()
+    except (RuntimeError, OSError) as e:                    # 可读报错，不抛裸栈（写锁超时 / 事实源损坏 / 磁盘）
+        print("[routes] %s" % e)
+        return 1
 
 
 if __name__ == "__main__":

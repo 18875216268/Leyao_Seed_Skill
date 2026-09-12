@@ -10,7 +10,7 @@
 - 写操作统一走引擎 `commit`（内含跨进程写锁 + 原子落盘 + 渲染 + 校验），与 CLI 并发安全共存。
 
 接口：
-  GET    /api/tree                          路由树 + 类型登记表 + 契约问题 + 孤儿资产
+  GET    /api/tree                          路由树 + 类型登记表 + 契约问题 + 孤儿资产 + 基础卡片标注
   GET    /api/exists?path=<本机路径>          复制源存在性探测（打开编辑弹窗时用）
   GET    /api/belong?mount=<挂载路径>         按位置求归属（最近一层卡片 id；空 = 主页顶层）
   POST   /api/node                          op=add|update（归属由位置推导；含获取复制 / 位置搬移 / 子树联动）
@@ -45,7 +45,7 @@ sys.path.insert(0, str(LIB))
 import engine                           # noqa: E402
 
 REPO_ROOT = LIB.parent                  # leyao-seed-core/
-ASSETS = LIB / "assets"                 # ★ 资产根（主页）
+ASSETS = engine.ASSETS                  # ★ 资产根（主页）——单一来源：引擎常量（勿另起一套路径）
 PICK_SCRIPT = HERE / "pick_folder.py"   # 原生文件夹对话框（tkinter 独立进程）
 PORT = 8765
 
@@ -78,7 +78,10 @@ def _copy_into(source_abs: str, mount: str):
 
 
 def _clear_dir(mount: str, keep=frozenset()):
-    """清空挂载目录下的内容（保留目录本身；keep 指定的子项名跳过——用于保护子卡片目录）。"""
+    """清空挂载目录下的内容（保留目录本身；keep 指定的子项名跳过——用于保护子卡片目录）。
+
+    另：目录内「其他节点挂载点的首层目录」自动跳过（树与目录不一致时也不误清他卡/基础卡资产 ✗）。
+    """
     if not mount:
         return
     try:
@@ -87,6 +90,11 @@ def _clear_dir(mount: str, keep=frozenset()):
         return
     if not p.exists() or not p.is_dir():
         return
+    base = engine.norm_mount(mount)
+    keep = set(keep)
+    for m in _node_mounts():
+        if base and m and engine.mount_under(m, base):
+            keep.add(m[len(base) + 1:].split("/")[0])
     for child in list(p.iterdir()):
         if child.name in keep:
             continue
@@ -111,8 +119,20 @@ def _drop_if_empty(mount: str):
         pass
 
 
+def _node_mounts() -> set:
+    """全部节点的归一化挂载集合（保护性判据：清理/清空前先看它是不是谁的挂载点）。读不到 → 空集（fail-open）。"""
+    try:
+        return {engine.norm_mount(n.get("mount")) for n, _ in engine.iter_nodes(engine.load().get("nodes"))
+                if n.get("mount")}
+    except Exception:  # noqa: BLE001
+        return set()
+
+
 def _drop_empty_parents(mount: str):
-    """从旧挂载目录起向上回收空目录（限资产根内）：清掉移动后遗留的中间层壳目录。"""
+    """从旧挂载目录起向上回收空目录（限资产根内）：清掉移动后遗留的中间层壳目录。
+
+    遇「仍是某节点挂载点的目录」即停——空的基础卡片目录也不能被回收 ✗（防"mount 路径不存在"死链）。
+    """
     if not mount:
         return
     try:
@@ -120,10 +140,16 @@ def _drop_empty_parents(mount: str):
     except ValueError:
         return
     root = ASSETS.resolve()
+    mounts = _node_mounts()
     while p != root and root in p.resolve().parents:
         if p.exists():
             try:
                 if not p.is_dir() or any(p.iterdir()):
+                    break
+                try:
+                    if engine.norm_mount(p.relative_to(REPO_ROOT).as_posix()) in mounts:
+                        break
+                except ValueError:
                     break
                 p.rmdir()
             except OSError:
@@ -224,6 +250,16 @@ def _annotate_source(nodes):
         s = n.get("source")
         n["source_exists"] = bool(s and Path(s).exists())
         _annotate_source(n.get("children"))
+
+
+def _annotate_base(nodes):
+    """给每个节点标注是否基础卡片（名称 @ 开头；判定唯一实现在 engine.is_base，前端不重复规则）。
+
+    前端据此禁用基础卡片（及其含基础卡片的祖先）的删除按钮；服务端删除守卫在 engine.node_remove。
+    """
+    for n in nodes or []:
+        n["base"] = engine.is_base(n)
+        _annotate_base(n.get("children"))
 
 
 # ---------- 原生文件夹对话框 ----------
@@ -392,19 +428,41 @@ def update_node(id_, title, mount, description=None, type_=None, source=None):
 
 def remove_node(id_, purge: bool = False):
     def mutate(data):
+        n = engine.find(data, id_)
+        if n is None:
+            return False, f"节点不存在：{id_}"
+        if purge:                                  # 先查后删：目录含"他人"资产 / 挂到资产根外文件 → 整单拒绝
+            mount = engine.norm_mount(n.get("mount"))
+            if mount:
+                try:
+                    target = safe_target(n.get("mount"))
+                except ValueError:
+                    target = None
+                if target is not None:
+                    subtree = {str(id_)} | {str(s) for s, _ in engine.iter_nodes(n.get("children") or [])}
+                    others = [str(x.get("id")) for x, _ in engine.iter_nodes(data.get("nodes"))
+                              if str(x.get("id")) not in subtree
+                              and (engine.norm_mount(x.get("mount")) == mount
+                                   or engine.mount_under(x.get("mount"), mount))]
+                    if others:
+                        return False, ("目录内含其他卡片资产（%s），拒绝连同删除——先把它们移出再删"
+                                       % "、".join(others[:6]))
+                    if target.is_file() and ASSETS.resolve() not in target.resolve().parents:
+                        return False, "挂载指向资产根外的文件，拒绝删除（只允许资产根内）"
         ok, msg, node = engine.node_remove(data, id_)
         if not ok:
             return False, msg
         if purge:
-            # 只删资产根内的目录（资产根外的路径不动）
+            # 只删资产根内的目录 / 文件（资产根外的一律不动 ✗）
             mount = node.get("mount") or ""
             if mount:
                 try:
                     target = safe_target(mount)
-                    if target.is_dir() and ASSETS.resolve() in target.resolve().parents:
-                        _rmtree_long(target)
-                    elif target.exists() and target.is_file():
-                        target.unlink()
+                    if ASSETS.resolve() in target.resolve().parents:
+                        if target.is_dir():
+                            _rmtree_long(target)
+                        elif target.exists() and target.is_file():
+                            target.unlink()
                 except ValueError:
                     pass
                 _drop_empty_parents(mount)
@@ -414,7 +472,7 @@ def remove_node(id_, purge: bool = False):
 
 
 def remove_orphan(mount: str):
-    """删除孤儿资产目录：限资产根内、且当前未被任何卡片挂载引用（服务端双重复核）。"""
+    """删除孤儿资产目录：限资产根内、且其「首层目录」未被任何卡片引用（与 engine.find_orphans 同口径；服务端复核）。"""
     if not mount:
         return False, "缺少 path"
     try:
@@ -424,13 +482,11 @@ def remove_orphan(mount: str):
     assets = ASSETS.resolve()
     if not (target.resolve() == assets or assets in target.resolve().parents) or target.resolve() == assets:
         return False, "只允许删除资产根 library/assets/ 内的目录"
-    used = set()
-    for n, _ in engine.iter_nodes(engine.load().get("nodes")):
-        m = (n.get("mount") or "").replace("\\", "/").rstrip("/")
-        if m:
-            used.add(m)
-    if mount.replace("\\", "/").rstrip("/") in used:
-        return False, "该目录正被卡片挂载引用，不能按孤儿删除"
+    used_seg = engine.used_segments(engine.load())   # 唯一口径：engine.used_segments（与 find_orphans 同源，防两套判定漂移）
+    rel = target.resolve().relative_to(assets)
+    seg = rel.parts[0] if rel.parts else ""
+    if not seg or seg in used_seg:
+        return False, "该目录位于已挂载卡片内（或被卡片引用），不能按孤儿删除"
     if not target.is_dir():
         return False, "目录不存在"
     _rmtree_long(target)
@@ -508,6 +564,12 @@ class Handler(BaseHTTPRequestHandler):
         }.get(p.suffix, "application/octet-stream")
 
     def do_GET(self):
+        try:
+            self._route_get()
+        except Exception as e:                              # 兜底：异常也回可读 JSON（不静默断连、不裸抛）
+            self._json({"ok": False, "msg": "服务端异常（%s）：%s" % (type(e).__name__, e)}, 500)
+
+    def _route_get(self):
         _fresh_engine()
         u = urlparse(self.path)
         if u.path in ("/", "/index.html"):
@@ -517,6 +579,7 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/tree":
             data = engine.load()
             _annotate_source(data.get("nodes"))
+            _annotate_base(data.get("nodes"))
             return self._json({
                 "version": data.get("version"),
                 "updated": data.get("updated"),
@@ -546,6 +609,12 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(404, "not found")
 
     def do_POST(self):
+        try:
+            self._route_post()
+        except Exception as e:                              # 兜底：非法 JSON / 缺字段 → 400 可读 JSON
+            self._json({"ok": False, "msg": "请求异常（%s）：%s" % (type(e).__name__, e)}, 400)
+
+    def _route_post(self):
         _fresh_engine()
         u = urlparse(self.path)
         if u.path == "/api/node":
@@ -573,6 +642,12 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(404, "not found")
 
     def do_DELETE(self):
+        try:
+            self._route_delete()
+        except Exception as e:                              # 兜底：任何异常都回可读 JSON
+            self._json({"ok": False, "msg": "删除异常（%s）：%s" % (type(e).__name__, e)}, 500)
+
+    def _route_delete(self):
         _fresh_engine()
         u = urlparse(self.path)
         if u.path == "/api/node":

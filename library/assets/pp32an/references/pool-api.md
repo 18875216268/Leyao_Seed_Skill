@@ -7,11 +7,19 @@
 ```text
 GET https://lyzsk.cfdaili.top/api/pool
   ?q=<关键词>            # 关键词检索（留空 = 默认热度列表）
-  &limit=<N>             # 返回条数
+  &limit=<N>             # 返回条数（**服务端钳制 1–200**）
+  &offset=<N>            # 分页偏移；响应顶层带 total → 可精确判定是否截断
+  &fields=index          # **轻量只读索引**：不含 content/history、**零 UPDATE 不记 hit**，
+                         #   顶层带 total + `pool_updated_at`（同步 / 版本探测 / 全池 diff 专用）
+  &ids=<id,id,…>         # 按 id 批量取（≤50）；`fields=index&ids=…` = 零写存在性回验（指针抽检）
   [&tier=inject|session] # 可选：注入库（authority）/ 会话库（reference）；口径查询固定 inject
   [&category=term|caliber|method|experience]
   [&kind=fact|procedure] # 可选：程序环独立检索（工作流/工具模式）
 ```
+
+> 响应顶层：`count`（本页条数）· **`total`**（同条件总数）· `pool_updated_at`（仅 `fields=index`）· `items[]`。
+> 排序含稳定决胜键（`created_at DESC, id DESC`）→ 分页不漂移；全文模式保持"读取即命中"（1 次批量 `UPDATE`），
+> **索引模式零写**（同步读不再自增热度——顺带解掉"零热度新条目永沉底"）。
 
 ## 响应
 

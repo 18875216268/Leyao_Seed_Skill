@@ -289,8 +289,17 @@ function mkBtn(cls, label, title, fn) {
   return b;
 }
 
+// 子树是否含基础卡片（基础卡片自身及其祖先都不能删；用后端标注的 base，不重复 @ 规则）
+function subtreeHasBase(n) {
+  let f = false;
+  eachNode(n.children || [], (c) => { if (c.base) f = true; });
+  return f;
+}
+
 function cardEl(n, index) {
   const hasKids = n.children && n.children.length;
+  const isBase = !!n.base;                       // 基础卡片（名称 @ 开头；后端标注）——不可删除
+  const hasBaseKid = subtreeHasBase(n);          // 子树含基础卡片 → 同样不可整体删除
   const card = document.createElement("div");
   card.className = "card-item" + (selected.has(n.id) ? " selected" : "");
   card.dataset.id = n.id;
@@ -305,10 +314,13 @@ function cardEl(n, index) {
     notify("已复制：" + n.id, "info");
   };
   const actions = document.createElement("div"); actions.className = "c-actions";
-  actions.append(
-    mkBtn("del", "删除", "删除该卡片（含子树）", () => delNode(n.id)),
-    mkBtn("edit", "编辑", "编辑卡片信息", () => openEdit(n.id))
-  );
+  const delBtn = mkBtn("del", "删除",
+    isBase ? "基础卡片（名称 @ 开头）不可删除"
+           : hasBaseKid ? "含基础卡片，不可整体删除（先移出）"
+                        : "删除该卡片（含子树）",
+    () => delNode(n.id));
+  delBtn.disabled = isBase || hasBaseKid;
+  actions.append(delBtn, mkBtn("edit", "编辑", "编辑卡片信息", () => openEdit(n.id)));
   row1.append(idEl, actions); card.appendChild(row1);
 
   // === 第 2 行：图标 + 标题 ===

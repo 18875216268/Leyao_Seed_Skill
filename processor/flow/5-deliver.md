@@ -22,7 +22,7 @@
    - **根目录判据**：工作区根下只允许四区（+ 可选 `README.md`），发现散落文件 → 按归属三问归位（移动前出清单、记原路径，可还原）；
    - 交付件命名：`<用途>-<YYYYMMDD>.<ext>`（ASCII、小写、无空格；**不写** `final/v2/最终`，也不写版本后缀——"当前版"就是它，历史在归档区）。
 3. **口径随行**：每个关键数字带口径（时间范围/含税与否/主体范围）——不带口径的数字无法被复核、等于不可用，故**不出口**；事实给来源、推断给链条（混写会让读者分不清哪句可采信）。
-4. **沉淀**：追加一条轨迹进自我进化层（**一次任务只追加一条**，多轮追问不重复追加）——`python evolution/grow.py trace --task "<任务>" --routed "<命中的节点 id / 无命中写 none>" --outcome success|partial|fail [--reason "<失败原因>"] [--override "<用户纠正>"]`。`--routed` **必须写节点 id**（见 `library/ROUTES.md` 各节点行首），它是规则归属与命中率统计的唯一依据；`trace` 时会**自动**再跑 `grow.py reflect` / `grow.py evolve`（变→择 自动闭环，经验立即进 memory 自动档；`--no-auto` 可关）；文档 / 路由 / 资产内容仍走 `grow.py propose` 提案守门。
+4. **沉淀**：追加一条轨迹进自我进化层（**一次任务只追加一条**，多轮追问不重复追加）——`python evolution/grow.py trace --task "<任务>" --routed "<命中的节点 id / 无命中写 none>" --outcome success|partial|fail [--reason "<失败原因>"] [--override "<用户纠正>"] [--no-auto]`。`--routed` **必须写节点 id**（见 `library/ROUTES.md` 各节点行首），它是规则归属与命中率统计的唯一依据；`trace` 时会**自动**再跑 `grow.py reflect` / `grow.py evolve`（变→择 自动闭环，经验立即进 memory 自动档；`--no-auto` 可关）；文档 / 路由 / 资产内容仍走 `grow.py propose` 提案守门。
    **用户纠正必须采集（硬）**：本次若用户**明确纠正**了路由选择或做法（如"别走 X，应该走 Y""这个口径不对""以后都按 Z 来"），**必须**把原话摘要写入 `--override`——它是本层**最强的学习信号**（`reflect` 的 route 候选主要来自它）；漏采 = 这次纠正白丢了，下次还会犯。
    **outcome 必须如实（硬）**：三档定义——`success` = 需求逐项通过 **且** 验收 rubric 达标 **且** 关键数字换法复核一致；`partial` = 已交付但有未达标项（必须在 `--reason` 写明差在哪）；`fail` = 未交付 / 验收不过（必须写 `--reason`）。
    **禁止把失败或半成品写成 success**：依据（Ratchet 正文 + 2026 环境锚定审计研究）——**false pass 是致命方向，任何样本量都救不回**，且会让进化层学到**错的规则**（污染「有效做法」，比不学更糟）；成功声明须能给出**可执行证据**（命令 / 产物路径 / 数字复核），"**没有验证就宣称完成 = 不诚实，不是效率**"（verification-before-completion 实践）。

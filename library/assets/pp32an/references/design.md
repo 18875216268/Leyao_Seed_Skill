@@ -31,7 +31,7 @@
 
 ## 五、边界
 
-- 不弹窗（云智库未登录→`LOGIN_REQUIRED`+指引）；不编造（拒答）；运行数据不写包内（`.leyao-kb` / `LEYAO_KB_HOME`）；
+- 不弹窗（云智库未登录→`LOGIN_REQUIRED`+指引）；不编造（拒答）；运行数据不写包内（挂载态 → `<包父级>/.leyao-data/data/assets/<id>/`；独立态 → 默认 `~/.leyao-kb/`，`LEYAO_KB_HOME` 可覆盖）；
 - 语义缓存为**无模型降级版**（阈值默认 0.85，需按真实语料校准；embedding 版为可选增强）；
 - **缓存有界陈旧**：桶级 TTL（口径/制度/术语/课程 24h、搜索 1h）+ **拒答即失效**（防"错答被语义缓存复利"）+ 命中透出 `cached_at`/`version`；漂移检测 / embedding 版本键控为可选增强——依据：Tian Pan《Cache Invalidation for AI》(2026) · GPT Semantic Cache；
 - 不做向量库、多智能体；知识写入（submit/inject）必须显式（`contribute`），仅采纳价值信号随 feedback 自动上报（失败静默）。
