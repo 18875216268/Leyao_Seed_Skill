@@ -48,8 +48,7 @@ AI 读契约文档后给出 URL/路径/请求体，本脚本只负责发送并�
 
 - `--card <cardId>` 导出（默认 `./<卡名>_<时间戳>.xlsx`）；`--payload-file body.json` 带筛选导出（请求体同取数体）
 - `--out <路径.xlsx>`；`--timeout` / `--poll-interval` 调整等待；超时后 `--task <taskId>` 直接继续下载
-- ⚠️ **巨卡红线**：对「自助查询结果」类巨卡必须**带筛选**（用 `--payload-file` 传筛选体）——无筛选导出实测 20+ 分钟不终态（与板内 `export.py` 的 `EXPORT_FILTER_REQUIRED` 同一红线）
-- ⚠️ **巨卡红线**：对「自助查询结果」类巨卡必须**带筛选**（用 `--payload-file` 传筛选体）——无筛选导出实测 20+ 分钟不终态（与板内 `export.py` 的 `EXPORT_FILTER_REQUIRED` 同一红线）
+- ⚠️ **巨卡红线（纪律 · 当前脚本不拦 ✗）**：对「自助查询结果」类巨卡必须**带筛选**（用 `--payload-file` 传筛选体）——无筛选导出实测 20+ 分钟不终态；**板内 `export.py` 是代码硬校验（`EXPORT_FILTER_REQUIRED`）、通道脚本暂无校验** → 提交前请自查 `filters` 非空（完整键组）
 - `--list <N>` 查看导出中心任务列表（找回 taskId）；大文件流式落盘；stdout 输出 JSON
 
 ## 边界

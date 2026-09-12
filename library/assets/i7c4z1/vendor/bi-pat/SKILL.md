@@ -30,7 +30,7 @@ PAT 由用户在 BI 页面 `https://bi.leyopharm.com/personal-access-token` 自�
 1. 读取 [references/业务手册.md](references/业务手册.md)（问数方式、技巧、可信度五问）。
 2. 读取 [references/api与cli.md](references/api与cli.md)（guancli 命令、鉴权头、数据集字典、四道闸）。
 3. 执行 `python scripts/pat_call.py --sql "<SQL>" --ds <dsId>`（自动完成 guancli 登录态检查）；
-   REST 端点可用时优先 `**（`--rest` 未实现，勿用 ✗）**`（免 Node 依赖，见 api与cli.md §3）。
+REST 端点：**`--rest` 未实现（勿用 ✗）**——生产取数走 `guancli`（见 `references/api与cli.md` §3）；whoami 类校验可走 `--probe`。
 
 ## 强制规则（四道闸，SQL 直查亿级表的护栏）
 

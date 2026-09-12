@@ -4,7 +4,7 @@ description: "用这个 skill 处理需要成套流程与资产路由的任务�
 compatibility: "需要 Python 3.10+（仅标准库，无第三方依赖）；资产管理台在本地起 HTTP 服务（默认 127.0.0.1:8765，需要能开本地端口）"
 license: "MIT"
 metadata:
-  version: "0.19.1"
+  version: "0.19.2"
   architecture: "processor + library(routes + assets) + evolution(五环自举) + version(版本维护)"
   author: "Leyao"
   date: "2026-09-13"

@@ -11,7 +11,7 @@
   python scripts/export.py --task <taskId>            # 超时/中断后续传（轮询+下载）
   python scripts/export.py --list 20                  # 导出中心任务列表（找回 taskId）
 
-红线：本卡禁止无筛选导出（服务端全量 50×33 透视需 25 分钟+）；请求体必须至少带日期筛选。
+红线：本卡禁止无筛选导出（服务端全量 50×33 透视需 20+ 分钟）；请求体必须至少带日期筛选。
 输出：JSON 到 stdout；进度提示到 stderr。
 """
 from __future__ import annotations

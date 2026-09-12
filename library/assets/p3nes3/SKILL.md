@@ -34,7 +34,8 @@ Pms skill（父：总指引 + 裁决 + 路由）
 │   └── 体检器  vendor_lint.py    vendor 接入体检：扫「重复登录」残留（接入新包必跑）
 └── 集团子 skill 包  vendor/（原样只读，接口理解全部由 AI 直读完成）
     ├── leyo-sys/             集团基础 skill（全量板块参数说明，无引导）
-    │                        ⚠ 出厂**未落盘（该目录不存在）**：首次使用需 pms_sync 拉取（见 §1.2）    ├── optimizers/<板块>/     集团包优化 skill（特定板块优化指引，可多个）
+    │                        ⚠ 出厂**未落盘（该目录不存在）**：首次使用需 pms_sync 拉取（见 §1.2）
+    ├── optimizers/<板块>/     集团包优化 skill（特定板块优化指引，可多个）
     │                        已接入：Pms_促销毛利v1.08
     └── SUBSKILL_ROUTING.md   子 skill 总路由文档（作用 / 路由表 / 规则）
 ```
@@ -88,7 +89,7 @@ Pms skill（父：总指引 + 裁决 + 路由）
 
 ## 3. 取数流程（AI 主导，非固定脚本链）
 
-1. **登录**：`python scripts/pms_login.py --status`（只验证不弹窗，**推荐**；凭证失效时会自愈重登并补齐口径）或 Python API `login_and_store()`（**唯一同时完成「落库 + 补齐公司/仓口径」的入口**）。⚠️ 无参 CLI `pms_login.py` 仅在本进程返回凭证、**不写凭证仓库** ✗。产出 user（登录人身份）。
+1. **登录**：`python scripts/pms_login.py --status`（只验证不弹窗，**推荐**：**凭证有效**时自动补齐公司/仓口径；**失效则返回退出码 1、不会重登** ✗ —— 需重登见下条）或 Python API `login_and_store()`（**唯一同时完成「落库 + 补齐公司/仓口径」的入口**）。⚠️ 无参 CLI `pms_login.py` 仅在本进程返回凭证、**不写凭证仓库** ✗。产出 user（登录人身份）。
 2. **路由**：按用户意图查 `vendor/SUBSKILL_ROUTING.md` 路由表，确定用哪个子 skill（优化 / 基础）。
 3. **读文档**：读对应子 skill 原样文档（md / 脚本 / payload 模板），理解目标接口的 host / path / content_type / 必填参数。
 4. **构造**：AI 组织 payload（token 由发送器自动注入，无需手写）；host 用 `sync_config` 的 `host_endpoints` 键名（`--host-key`）或直接给 `--url`。
@@ -98,7 +99,7 @@ Pms skill（父：总指引 + 裁决 + 路由）
 
 ## 4. 常见陷阱与故障处理（Agent 必读）
 
-- **401 / token 失效**：先 `python scripts/pms_login.py` 重新扫码登录（弹窗），不要改代码；弹窗失败可点容器重试。
+- **401 / token 失效**：先用 Python API `login_and_store()` 重登（**唯一同时落库 + 补口径的入口**）✅；或 `python scripts/pms_login.py`（无参/弹窗**只把凭证返回到 stdout、不落库** ✗）——此时必须把新 token 以 `--token`/`PMS_TOKEN` 传入本次查询，否则仓库里仍是旧凭证、会再次 401；不要改代码；弹窗失败可点容器重试。
 - **42053 请求过频**（当前已知集团限流码，以随包文档为准）：缩小时间范围、按天拆分明细；`pms_call.py` 已内置退避重试（默认 2 次）。
 - **代理报错（PROXY_ERROR）**：登录器本身不走系统代理；`pms_call.py` 报代理错误时同命令加 `--no-proxy`，不要改系统代理设置。
 - **TLS 报错（TLS_ERROR）**：仅在受控环境用 `--insecure`；优先修复本地 CA 配置（登录器可用 `PMS_CA_BUNDLE` 指定证书）。
