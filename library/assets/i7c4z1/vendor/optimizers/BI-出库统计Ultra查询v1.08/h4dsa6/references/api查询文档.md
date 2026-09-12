@@ -122,8 +122,7 @@ curl -s -X POST "https://bi.leyopharm.com/api/card/<cardId>/data" \
 
 ## 4. 导出链（筛选聚合后导 xlsx）
 
-**红线：本卡导出必须带筛选**——无筛选时服务端全量 50×33 透视需 25 分钟+，UI/脚本都会超时。
-
+**红线：本卡导出必须带筛选**——无筛选时服务端全量 50×33 透视需 20+ 分钟，UI/脚本都会超时。
 | 步骤 | 端点 | 说明 |
 |---|---|---|
 | ① 提交 | `POST /api/write/file/{cardId}?typeOp=EXCEL` | **请求体 = §2 取数体**（filters 必带；可带 §2.4 zoneFilter 克隆 → 导出自选聚合视图，实测 KB 级小表） |

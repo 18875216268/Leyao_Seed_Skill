@@ -34,8 +34,7 @@ Pms skill（父：总指引 + 裁决 + 路由）
 │   └── 体检器  vendor_lint.py    vendor 接入体检：扫「重复登录」残留（接入新包必跑）
 └── 集团子 skill 包  vendor/（原样只读，接口理解全部由 AI 直读完成）
     ├── leyo-sys/             集团基础 skill（全量板块参数说明，无引导）
-    │                        ⚠ 出厂为空：首次使用需 pms_sync 拉取（见 §1.2）
-    ├── optimizers/<板块>/     集团包优化 skill（特定板块优化指引，可多个）
+    │                        ⚠ 出厂**未落盘（该目录不存在）**：首次使用需 pms_sync 拉取（见 §1.2）    ├── optimizers/<板块>/     集团包优化 skill（特定板块优化指引，可多个）
     │                        已接入：Pms_促销毛利v1.08
     └── SUBSKILL_ROUTING.md   子 skill 总路由文档（作用 / 路由表 / 规则）
 ```
