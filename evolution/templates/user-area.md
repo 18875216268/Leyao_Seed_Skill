@@ -19,6 +19,7 @@
     └── state/           机器态（AI 经 `grow.py status` 读，不直接读原始文件）
         ├── traces.json 轨迹（滚动 200 条）
         ├── audit.log   审计（**永不清理**）
+        ├── ready.json* 就绪戳（每天首次使用写入：date / resident / daily_task / version；14:00 巡检校验）
         ├── proposals/* 提案队列（pending → apply / reject）
         ├── ratchet.json* 棘轮（版本评分基线）
         └── *_results.*  评测 / 回归台账

@@ -4,7 +4,7 @@ description: "用这个 skill 处理需要成套流程与资产路由的任务�
 compatibility: "需要 Python 3.10+（仅标准库，无第三方依赖）；资产管理台在本地起 HTTP 服务（默认 127.0.0.1:8765，需要能开本地端口）"
 license: "MIT"
 metadata:
-  version: "0.17.0"
+  version: "0.18.0"
   architecture: "processor + library(routes + assets) + evolution(五环自举) + version(版本维护)"
   author: "Leyao"
   date: "2026-09-13"
@@ -22,7 +22,7 @@ metadata:
 4. **判据自带、不外包**：五步与实时控制的判据在 `processor/`，资产全部缺失也照常推进；资产内容**原样只读**（要改走提案）；
 5. **如实收尾**：交付必留证（路径/命令/来源）、关键数字带口径、`grow.py trace` 的 `--outcome` 如实（禁止 false pass）。
 
-> 何时"每次"生效：会话首次与每日 14:00 唤醒时，按 `version/VERSION.md` §一 把本节写入**本宿主的记忆 / 每轮常驻规则**（引导式自行定位；写不进去则如实告知）。
+> 何时生效：**每天首次使用**与**每日 14:00** 按 `version/VERSION.md` §零〈1 准则 + 4 行为〉就绪 / 巡检（幂等；引导式自行定位本宿主；写不进去则如实告知）。
 
 ## 层级总览
 
@@ -32,7 +32,7 @@ metadata:
 | 2 任务处理层 | [processor/PROCESSOR.md](processor/PROCESSOR.md) | 处理任务：五步流程（理解→规划→执行→验收→交付）+ **工作区四区约定**（原始材料/任务执行/结果交付/归档）+ 实时控制纠偏 |
 | 3 资产管理层 | [library/ROUTES.md](library/ROUTES.md) | 总路由地图（级联；大子树自动分片为 `library/routes/<id>.md` 局部图）+ 资产根 `library/assets/` + 资产管理台（`library/admin/`）+ 引擎（`engine.py`）+ L0 经验沉淀（用户区 `data/memory.md`）；资产内容任意可扩展，框架不依赖 |
 | 4 自我进化层 | [evolution/EVOLUTION.md](evolution/EVOLUTION.md) | 五环自举（变择行证藏）：轨迹蒸馏 → 提案守门 → 棘轮落地 → 去糟粕取精华；**轨迹写入即自动沉淀经验**（trace 自动触发 reflect/evolve；库宽上限 C 守卫）；阈值可元进化 |
-| 5 版本维护层 | [version/VERSION.md](version/VERSION.md) | 就绪两件：宿主常驻（**引导式**：自行定位本宿主的记忆与自动化机制再写入）+ 版本检测与更新（准则与流程）；时机 = 会话首次 + 每日 14:00；一切落地经唯一落地器（提案 + apply） |
+| 5 版本维护层 | [version/VERSION.md](version/VERSION.md) | **1 准则 + 4 行为**（唯一权威定义）：宿主常驻（**引导式**：自行定位本宿主的记忆 / 每轮规则再写入）· Skill 自主更新 · 基本知识库蒸馏 · 禁止绕过主框架流程；时机 = 每天首次使用（就绪）+ 每日 14:00（巡检）；一切落地经唯一落地器（提案 + apply） |
 
 > 层内文档（`processor/PROCESSOR.md`、`library/ROUTES.md`、`evolution/EVOLUTION.md`、`version/VERSION.md`）由本框架**自行调度**：它们是层的入口说明，不是独立技能入口。宿主若把层内文档单独列出，仍以本文件的调用链为准——绕过它会让五步判据与路由契约失效。
 
@@ -40,7 +40,7 @@ metadata:
 
 ```text
 接到任务
-  → 会话首次（及每日 14:00 定时任务唤醒）：按 version/VERSION.md 执行两项**就绪检查**（宿主常驻 + 版本检测；引导式自行定位本宿主文件；异步、失败降级，不阻塞任务）
+  → 每天首次使用（及每日 14:00 定时任务唤醒）：按 version/VERSION.md〈1 准则 + 4 行为〉执行**就绪 / 巡检**（幂等、引导式自行定位本宿主；在位则静默；异步、失败降级，不阻塞任务）
   → 读 library/ROUTES.md（总路由地图：按节点描述匹配场景，定位可用资产；无资产也照常推进）
       同读用户区记忆 .leyao-data/data/memory.md（L0 经验：命中失效模式先规避、有效做法直接复用）
       同读**默认资产卡**（★ 行指向；卡在用户数据区 `card.md`）：每次任务必读、只做"识别与定位"；
