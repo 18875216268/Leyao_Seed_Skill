@@ -42,7 +42,7 @@ python library/admin/console.py               # 浏览器打开 http://127.0.0.1
 | 任务处理层 | `processor/` | 五步流程 + 实时控制 + 工作区四区约定 |
 | 资产管理层 | `library/` | 总路由 `ROUTES.md`（由 `routes.json` 生成）+ 资产根 `assets/` + 管理台 `admin/` + 引擎 `engine.py` |
 | 自我进化层 | `evolution/` | 五环自举（变择行证藏）+ 证环 `evolution/tests/` |
-| 版本维护层 | `version/` | 就绪两件：宿主常驻 + 版本检测（**引导式**：不同宿主目录/机制不同，由 agent 自行定位本宿主的文件，找不到则如实告知） |
+| 版本维护层 | `version/` | **1 准则 + 4 行为**（唯一权威定义）：宿主常驻 · Skill 自主更新 · 基本知识库蒸馏 · 禁止绕过主框架流程（**引导式**：不同宿主目录/机制不同，由 agent 自行定位本宿主的文件，找不到则如实告知） |
 
 ## 运行期数据（永不写回包内）
 
@@ -50,10 +50,11 @@ python library/admin/console.py               # 浏览器打开 http://127.0.0.1
 - **资产私有数据**：被框架挂载时落 `.leyao-data/data/assets/<卡片id>/`；独立部署时落 `~/.leyao-kb/`（可用 `LEYAO_KB_HOME` 覆盖）；
 - 首次使用自动初始化；其中**审计与墓碑永不清理**（红线）。
 
-## 就绪机制（用户首次使用 + 每日 14:00）
+## 1 准则 + 4 行为（每天首次使用就绪 · 每日 14:00 巡检）
 
-三件事：① 蒸馏业务速查卡（规范见 `library/assets/pp32an/references/card.md`）② 宿主常驻 ③ 版本检测；
-后两件与宿主机制相关，规范见 `version/VERSION.md`（含失败降级：如实告知、不假装）。
+- **1 准则**：任何任务都必须按框架执行、不得违反；**每天首次使用**时按当前环境把【1 准则 + 4 行为】写入宿主系统级记忆 / 每轮常驻规则，并确保「每日 14:00 定时任务」在位（它负责巡检 4 行为无误）；
+- **4 行为**：① 宿主常驻 ② Skill 自主更新 ③ 基本知识库蒸馏（速查卡；唯一时点 = 每日 14:00）④ 禁止绕过主框架流程；
+- **两时机**：每天首次使用 → **就绪**（幂等；写就绪戳 `ready.json`，在位则静默）；每日 14:00 → **巡检 + 执行**（缺失 / 过期当场补齐并如实报告）。细则（含失败降级）见 `version/VERSION.md` §零。
 
 ## 版本与更新
 
@@ -75,5 +76,5 @@ leyao-seed-core/
 ├── processor/          任务处理层（flow/ 五步 · control.md · shapes.md · templates/）
 ├── library/            资产管理层（ROUTES.md · routes.json · engine.py · admin/ · assets/）
 ├── evolution/          自我进化层（五环 + tests/ 证环 + templates/）
-└── version/            版本维护层（VERSION.md：就绪两件）
+└── version/            版本维护层（VERSION.md §零：1 准则 + 4 行为）
 ```
