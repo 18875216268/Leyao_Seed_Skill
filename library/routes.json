@@ -74,6 +74,16 @@
   ],
   "defaults": {
     "default": "pp32an",
-    "hook": "read"
+    "hook": "read",
+    "layers": [
+      {
+        "id": "pp32an",
+        "read": "card"
+      },
+      {
+        "id": "bvix9o",
+        "read": "index"
+      }
+    ]
   }
 }

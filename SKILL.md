@@ -4,7 +4,7 @@ description: "用这个 skill 处理需要成套流程与资产路由的任务�
 compatibility: "需要 Python 3.10+（仅标准库，无第三方依赖）；资产管理台在本地起 HTTP 服务（默认 127.0.0.1:8765，需要能开本地端口）"
 license: "MIT"
 metadata:
-  version: "0.29.1"
+  version: "0.30.0"
   architecture: "processor + library(routes + assets) + evolution(五环自举) + version(版本维护)"
   author: "Leyao"
   date: "2026-09-13"
@@ -72,6 +72,7 @@ python library/engine.py remove --id <节点id>
 python library/engine.py move --id <节点id> [--parent <父id>]     # 移动节点（省略 --parent 即移到根）
 python library/engine.py update --id <节点id> [--title "<新标题>"] [--mount "<新挂载>"] [--description "<何时用>"]
 python library/engine.py default --id <节点id>    # 设默认资产（每次任务必读；hook 当前仅 read）
+python library/engine.py default --id <节点id> --layers "<id>:<card|index>,…"   # 设默认层（每次任务读入口，≤3；空串清除）
 python library/engine.py default --clear          # 取消默认资产
 ```
 
