@@ -2,8 +2,6 @@
 
 """资产管理层引擎：routes.json（单一事实源）→ ROUTES.md（人读级联总图）+ routes/<id>.md（分片节点局部图）。
 
-
-
 对外契约（CLI 与管理台共用本引擎，禁止第二实现）：
 
 - 唯一写路径 = `commit(mutate)`：加锁 → 读 → 改 → 原子落盘 routes.json → 渲染 ROUTES.md → 契约校验。
@@ -28,7 +26,7 @@
 
 - 节点只有唯一挂载字段 `mount`。
 
-- **默认资产**（可选，至多一个）：顶层 `defaults{default, hook}`——`default` = 节点 id（"每次任务必读"的资产；
+- **默认资产**（可选，至多一个）：顶层 `defaults{default, hook}`——`default` = 节点 id（"每次任务必读"的资产；**默认层** `defaults.layers[{id, read∈card|index}]` ≤3 = "每次任务读入口"；
 
   "读它"由任务层判据 0.5 执行；**引擎只负责注册与呈现，不解析资产内容** ✗——卡健康检查归资产 `card.py check`）；
 
@@ -58,8 +56,6 @@
 
 - 孤儿资产（未被任何节点挂载引用的目录）只提示不拦截：它可能是"已放入、待挂载"的合法中间态。
 
-
-
 用法：
 
   python library/engine.py                                   # 重绘 ROUTES.md + 校验
@@ -78,11 +74,11 @@
 
   python library/engine.py default --clear                   # 取消默认资产
 
+  python library/engine.py default --id <节点id> --layers "<id>:<card|index>,…"   # 设默认层（每次任务读入口；≤3；空串+--id 清除）
+
 """
 
 from __future__ import annotations
-
-
 
 import argparse
 
@@ -104,13 +100,9 @@ import time
 
 from pathlib import Path
 
-
-
 sys.stdout.reconfigure(encoding="utf-8")
 
 sys.dont_write_bytecode = True          # 运行期零写包（不在包内生成 __pycache__）
-
-
 
 LIB = Path(__file__).resolve().parent
 
@@ -132,19 +124,11 @@ INLINE_SUBTREE_MAX = 20                  # 分片阈值②：**子树节点总�
 
 DEFAULT_HOOKS = ("read",)                # 默认资产钩子（当前仅 read——新增语义先补判据再加枚举，见模块契约）
 
-
-
 _LOCK_FILE = ROUTES_JSON.with_suffix(".lock")
 
 _LOCK_MUTEX = threading.Lock()           # 进程内线程互斥（文件锁负责跨进程）
 
-
-
-
-
 # ---------- 写锁（跨进程互斥；唯一持有者是 commit） ----------
-
-
 
 @contextlib.contextmanager
 
@@ -204,13 +188,7 @@ def _locked(timeout: float = 15.0):
 
                     pass
 
-
-
-
-
 # ---------- 读 / 写（唯一写入口 commit） ----------
-
-
 
 def load() -> dict:
 
@@ -229,10 +207,6 @@ def load() -> dict:
         raise RuntimeError("事实源损坏：%s 第 %d 行 JSON 解析失败（修好或恢复备份后重跑）"
 
                            % (ROUTES_JSON, e.lineno)) from None
-
-
-
-
 
 def _write_atomic(path: Path, text: str) -> None:
 
@@ -262,15 +236,9 @@ def _write_atomic(path: Path, text: str) -> None:
 
                 pass
 
-
-
-
-
 def commit(mutate):
 
     """唯一写路径：加锁 → 读 → 改 → 落盘 routes.json → 渲染 ROUTES.md → 契约校验。
-
-
 
     mutate(data) 返回 (ok, payload)：
 
@@ -298,13 +266,7 @@ def commit(mutate):
 
         return True, validate(data, LIB.parent)
 
-
-
-
-
 # ---------- 遍历 / 查询（唯一遍历实现） ----------
-
-
 
 def iter_nodes(nodes, depth: int = 0):
 
@@ -316,17 +278,11 @@ def iter_nodes(nodes, depth: int = 0):
 
         yield from iter_nodes(n.get("children") or [], depth + 1)
 
-
-
-
-
 def subtree_sizes(nodes) -> dict:
 
     """每棵子树的节点总数（含自身）。供分片判定用——**深而窄**的树只有靠它才不会漏判。"""
 
     out = {}
-
-
 
     def walk(ns) -> int:
 
@@ -342,15 +298,9 @@ def subtree_sizes(nodes) -> dict:
 
         return total
 
-
-
     walk(nodes)
 
     return out
-
-
-
-
 
 def needs_split(node: dict, sizes: dict) -> bool:
 
@@ -361,10 +311,6 @@ def needs_split(node: dict, sizes: dict) -> bool:
     return (len(node.get("children") or []) > INLINE_KIDS_MAX
 
             or sizes.get(node.get("id"), 0) > INLINE_SUBTREE_MAX)
-
-
-
-
 
 def find_parent_list(data: dict, node_id: str):
 
@@ -386,13 +332,7 @@ def find_parent_list(data: dict, node_id: str):
 
         return None
 
-
-
     return walk(data.get("nodes") or [])
-
-
-
-
 
 def find(data: dict, node_id: str):
 
@@ -406,23 +346,13 @@ def find(data: dict, node_id: str):
 
     return next((n for n in lst if n.get("id") == node_id), None)
 
-
-
-
-
 # ---------- 挂载路径 / 位置→归属（管理台语义的唯一实现） ----------
-
-
 
 def norm_mount(m: str) -> str:
 
     """挂载路径归一：统一斜杠、去首尾斜杠（空 → ""）。供前缀比较/改写共用。"""
 
     return (m or "").replace("\\", "/").strip("/")
-
-
-
-
 
 def mount_under(child: str, base: str) -> bool:
 
@@ -432,15 +362,9 @@ def mount_under(child: str, base: str) -> bool:
 
     return bool(b) and bool(c) and c != b and c.startswith(b + "/")
 
-
-
-
-
 def nearest_card(data: dict, mount: str, exclude_id: str = "") -> str:
 
     """按位置求归属：返回 mount 的「最近一层卡片」id（无则 "" = 主页顶层）。
-
-
 
     规则：卡片由人创建、目录与卡片 id 一一对应；子目录（无编号）不是卡片——只认已登记
 
@@ -476,10 +400,6 @@ def nearest_card(data: dict, mount: str, exclude_id: str = "") -> str:
 
     return best
 
-
-
-
-
 def known_types(data: dict) -> list[str]:
 
     """类型登记表 = 默认类型 + 数据中实际出现的类型（去重，默认在前）。"""
@@ -496,15 +416,9 @@ def known_types(data: dict) -> list[str]:
 
     return out
 
-
-
-
-
 def validate(data: dict, root: Path) -> list[str]:
 
     """路由**硬契约**校验（唯一实现，CLI / 管理台 / 自检 / 库存体检共用）——会拦截/报警的四类：
-
-
 
     - 死链：挂载路径必须真实存在；
 
@@ -513,8 +427,6 @@ def validate(data: dict, root: Path) -> list[str]:
     - 分形死链：超内联上限的节点必须有局部图，局部图必须对应分片节点（防残留）；
 
     - 默认资产：`defaults` 至多一个 · `default` 必须指向真实节点 · 该节点必须有 mount（容器不可当默认）· hook 合法。
-
-
 
     入口文档缺失**不在此列**（资产 ≠ Skill，资料型资产无需入口文档）——见 `hints()`。
 
@@ -592,11 +504,37 @@ def validate(data: dict, root: Path) -> list[str]:
 
                 issues.append(f"routes/{f.name}: 多余局部图（对应节点不存在或未超内联上限）→ 跑 engine.py 重绘即清理")
 
+    _ly = (data.get("defaults") or {}).get("layers") or []
+
+    if len(_ly) > 3:
+
+        issues.append("defaults.layers 超过 3 项（固定成本纪律：入口层至多 3）")
+
+    for _li, _x in enumerate(_ly):
+
+        if not isinstance(_x, dict):
+
+            issues.append("defaults.layers[%d] 格式非法：须 {id, read}" % _li)
+
+            continue
+
+        _lid = (_x or {}).get("id")
+
+        _nd = next((n for n, _ in iter_nodes(data.get("nodes")) if n.get("id") == _lid), None)
+
+        if _nd is None:
+
+            issues.append(f"defaults.layers[{_li}] 指向不存在节点：{_lid}")
+
+        elif not _nd.get("mount"):
+
+            issues.append(f"defaults.layers[{_li}] 节点无 mount（无法读入口）：{_lid}")
+
+        if (_x or {}).get("read") not in ("card", "index"):
+
+            issues.append(f"defaults.layers[{_li}] read 非法：{(_x or {}).get('read')}（可选 card|index）")
+
     return issues
-
-
-
-
 
 def hints(data: dict, root: Path) -> list[str]:
 
@@ -605,8 +543,6 @@ def hints(data: dict, root: Path) -> list[str]:
     ② 描述为自由文本 / 未写（→ 路由降级匹配或不参与，建议补齐）；
 
     ③ 描述六段某段超过软上限（`DESC_FIELD_MAX`，建议精简）。
-
-
 
     只提示不判定：卡片可以放任意内容——需要"被 AI 按文档调用"的资产才建议补；
 
@@ -658,10 +594,6 @@ def hints(data: dict, root: Path) -> list[str]:
 
     return out
 
-
-
-
-
 def used_segments(data: dict) -> set:
 
     """资产根下「首层目录」中被节点挂载引用的集合（孤儿判定与管理台删除复核的**唯一口径**）。"""
@@ -682,10 +614,6 @@ def used_segments(data: dict) -> set:
 
     return used
 
-
-
-
-
 def find_orphans(data: dict) -> list[str]:
 
     """孤儿资产：资产根下未被任何节点挂载引用的目录。"""
@@ -704,19 +632,11 @@ def find_orphans(data: dict) -> list[str]:
 
             if p.is_dir() and not p.name.startswith(".") and p.name not in used]
 
-
-
-
-
 # ---------- 渲染 ----------
-
-
 
 def render(data: dict) -> str:
 
     """渲染 **agent 路由面**（瘦身版：只留路由必需信息）。
-
-
 
     设计依据见 `参考/工具引导调研/04-深挖与实验.md`：①顶部不放"快照/更新时间"——保持**稳定前缀**
 
@@ -748,10 +668,9 @@ def render(data: dict) -> str:
 
             lines.append("> ★ 默认层（每次任务读入口 · ≤3）："
 
-                         + " ｜ ".join(("`%s`→%s" % (x["id"], "卡" if x.get("read") == "card" else "索引"))
+                         + " ｜ ".join(("`%s`→%s" % (x.get("id"), "卡" if x.get("read") == "card" else "索引"))
 
                                      for x in d["layers"]))
-
 
     lines += [
 
@@ -773,11 +692,7 @@ def render(data: dict) -> str:
 
     ]
 
-
-
     sizes = subtree_sizes(data.get("nodes"))
-
-
 
     def walk(ns, depth):
 
@@ -815,25 +730,15 @@ def render(data: dict) -> str:
 
                 walk(kids, depth + 1)
 
-
-
     walk(data.get("nodes") or [], 0)
 
     return "\n".join(lines)          # 维护命令块已移入 library/admin/README.md（agent 不需要；保持路由面瘦身）
-
-
-
-
 
 def local_map_rel(node: dict) -> str:
 
     """局部图在仓库内的相对路径（总图指针与局部图互引的唯一写法；`<id>` 占位符由 doc_refs 跳过）。"""
 
     return (LOCAL_MAPS / f"{node.get('id')}.md").relative_to(LIB.parent).as_posix()
-
-
-
-
 
 def local_map(data: dict, node: dict) -> str:
 
@@ -856,8 +761,6 @@ def local_map(data: dict, node: dict) -> str:
         "",
 
     ]
-
-
 
     def walk(ns, depth):
 
@@ -893,15 +796,9 @@ def local_map(data: dict, node: dict) -> str:
 
                 walk(sub, depth + 1)
 
-
-
     walk(kids, 0)
 
     return "\n".join(lines)
-
-
-
-
 
 def render_all(data: dict) -> tuple[list[str], list[str]]:
 
@@ -945,13 +842,7 @@ def render_all(data: dict) -> tuple[list[str], list[str]]:
 
     return sorted(wanted), sorted(removed)
 
-
-
-
-
 # ---------- 节点增删（唯一实现；CLI 与管理台共用） ----------
-
-
 
 def node_check(data: dict, parent_id: str, node: dict):
 
@@ -970,10 +861,6 @@ def node_check(data: dict, parent_id: str, node: dict):
         return False, f"父节点不存在：{parent_id}"
 
     return True, ""
-
-
-
-
 
 def node_add(data: dict, parent_id: str, node: dict):
 
@@ -995,15 +882,9 @@ def node_add(data: dict, parent_id: str, node: dict):
 
     return True, ""
 
-
-
-
-
 def node_move(data: dict, node_id: str, parent_id: str):
 
     """移动节点到新父文件夹（跨层级）。返回 (ok, msg)。
-
-
 
     约束：目标父必须存在；禁止移入自身或自身子树（否则子树成环、整枝失访）。
 
@@ -1049,21 +930,11 @@ def node_move(data: dict, node_id: str, parent_id: str):
 
     return True, ""
 
-
-
-
-
 BASE_CARD_PREFIXES = ("@", "＠")          # 基础卡片前缀（半角 @ / 全角 ＠——中文输入法可能产出全角）
-
-
-
-
 
 def is_base(node: dict) -> bool:
 
     """基础卡片判定（唯一实现）：标题首个字符为 @（兼容全角 ＠；忽略首尾空白）。
-
-
 
     基础卡片是路由树地基（如 `@行业知识库` / `@通用导航库`），不可删除——守卫见 `node_remove`；
 
@@ -1073,15 +944,9 @@ def is_base(node: dict) -> bool:
 
     return str(node.get("title") or "").strip().startswith(BASE_CARD_PREFIXES)
 
-
-
-
-
 def node_remove(data: dict, node_id: str):
 
     """摘除节点（含子树）。返回 (ok, msg, removed_node)。
-
-
 
     基础卡片保护：标题 @ 开头的节点不可删除；子树含基础卡片的祖先也不可整体删除
 
@@ -1113,13 +978,7 @@ def node_remove(data: dict, node_id: str):
 
     return True, "", node
 
-
-
-
-
 # ---------- 命令（全部经 commit，唯一写路径） ----------
-
-
 
 def _report(issues: list[str]) -> int:
 
@@ -1169,23 +1028,13 @@ def _report(issues: list[str]) -> int:
 
     return 0
 
-
-
-
-
 # ---------- 描述六段模板（路由判据 H1：**推荐**的能力等级，非写入门槛） ----------
 
 # 自由描述合法（用户/管理员怎么写都行）→ 路由按关键词降级匹配，且降级在 hints 与 ROUTES.md 显式标注。
 
-
-
 DESC_FIELDS = ("【何时用】", "【不适用】", "【别名】", "【输入前置】", "【时效性】", "【回退】")
 
 DESC_FIELD_MAX = 120      # 每段字符软上限（超出仅在 hints 里提醒，不拦截）
-
-
-
-
 
 def desc_problems(desc: str) -> list[str]:
 
@@ -1194,10 +1043,6 @@ def desc_problems(desc: str) -> list[str]:
     desc = desc or ""
 
     return ["缺字段 %s" % f for f in DESC_FIELDS if f not in desc]
-
-
-
-
 
 def desc_state(desc: str) -> str:
 
@@ -1210,10 +1055,6 @@ def desc_state(desc: str) -> str:
         return "empty"
 
     return "structured" if not desc_problems(d) else "free"
-
-
-
-
 
 def alias_problems(desc: str, title: str = "") -> list[str]:
 
@@ -1245,10 +1086,6 @@ def alias_problems(desc: str, title: str = "") -> list[str]:
 
     return probs
 
-
-
-
-
 def desc_length_notes(desc: str) -> list[str]:
 
     """六段各自的字符数超软上限 → 提示（不拦截）。"""
@@ -1267,10 +1104,6 @@ def desc_length_notes(desc: str) -> list[str]:
 
     return out
 
-
-
-
-
 def _note_desc(desc: str, title: str = "") -> None:
 
     """描述写入后的**软提示**（不拦截）：自由文本合法，但路由按关键词降级匹配。"""
@@ -1285,19 +1118,11 @@ def _note_desc(desc: str, title: str = "") -> None:
 
         print("[routes] 提示：%s" % p)
 
-
-
-
-
 def cmd_render() -> int:
 
     ok, payload = commit(lambda data: (True, ""))
 
     return _report(payload)
-
-
-
-
 
 def cmd_add(args) -> int:
 
@@ -1325,10 +1150,6 @@ def cmd_add(args) -> int:
 
     return _report(payload)
 
-
-
-
-
 def cmd_move(args) -> int:
 
     ok, payload = commit(lambda data: node_move(data, args.id, args.parent))
@@ -1343,10 +1164,6 @@ def cmd_move(args) -> int:
 
     return _report(payload)
 
-
-
-
-
 def cmd_remove(args) -> int:
 
     def mutate(data):
@@ -1354,8 +1171,6 @@ def cmd_remove(args) -> int:
         ok, msg, _ = node_remove(data, args.id)
 
         return ok, msg
-
-
 
     ok, payload = commit(mutate)
 
@@ -1368,10 +1183,6 @@ def cmd_remove(args) -> int:
     print(f"[routes] 已移除（含子树）：{args.id}")
 
     return _report(payload)
-
-
-
-
 
 def cmd_update(args) -> int:
 
@@ -1397,8 +1208,6 @@ def cmd_update(args) -> int:
 
         return True, ""
 
-
-
     ok, payload = commit(mutate)
 
     if not ok:
@@ -1415,10 +1224,6 @@ def cmd_update(args) -> int:
 
     return _report(payload)
 
-
-
-
-
 def cmd_default(args) -> int:
 
     """设/清**默认资产**（每次任务必读；至多一个）——唯一写路径 commit（与其它命令同规）。"""
@@ -1427,8 +1232,7 @@ def cmd_default(args) -> int:
 
         if args.clear:
 
-            if args.id or args.hook:
-
+            if args.id or args.hook or getattr(args, "layers", None):
                 return False, "--clear 与 --id/--hook 互斥（二者选一）"
 
             if not (data.get("defaults") or {}):
@@ -1459,9 +1263,11 @@ def cmd_default(args) -> int:
 
             return False, f"hook 非法：{hook}（可选 {'|'.join(DEFAULT_HOOKS)}）"
 
-        data["defaults"] = {"default": args.id, "hook": hook}
+        d0 = data.setdefault("defaults", {})
 
+        d0["default"] = args.id
 
+        d0["hook"] = hook
         lay = getattr(args, "layers", None)
 
         if lay is not None:
@@ -1486,16 +1292,24 @@ def cmd_default(args) -> int:
 
                     return False, f"默认层节点不存在：{nid}"
 
+
+                    if not (find(data, nid) or {}).get("mount"):
+
+                        return False, f"默认层节点无 mount（无法读入口）：{nid}"
                 if rd not in ("card", "index"):
 
                     return False, f"默认层 read 非法：{rd}（可选 card|index）"
 
                 parsed.append({"id": nid, "read": rd})
 
-            data["defaults"]["layers"] = parsed
+            if parsed:
+
+                data["defaults"]["layers"] = parsed
+
+            else:
+
+                data["defaults"].pop("layers", None)
         return True, ""
-
-
 
     ok, payload = commit(mutate)
 
@@ -1516,10 +1330,6 @@ def cmd_default(args) -> int:
         print(f"[routes] 默认资产 = {args.id}（hook={hook_now}）")
 
     return _report(payload)
-
-
-
-
 
 def main() -> int:
 
@@ -1575,8 +1385,6 @@ def main() -> int:
 
     args = parser.parse_args()
 
-
-
     try:
 
         if args.cmd == "add":
@@ -1606,10 +1414,6 @@ def main() -> int:
         print("[routes] %s" % e)
 
         return 1
-
-
-
-
 
 if __name__ == "__main__":
 

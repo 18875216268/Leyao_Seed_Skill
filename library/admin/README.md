@@ -120,7 +120,7 @@ python library/engine.py remove --id <节点id>     # 连同子树摘除（基�
 python library/engine.py move --id <节点id> [--parent <父id>]   # 移动节点（省略即移到根）
 python library/engine.py update --id <节点id> [--title 新标题] [--mount 挂载] [--description "<何时用>"]
 python library/engine.py default --id <节点id>    # 设默认资产（每次任务必读；hook 当前仅 read）
-python library/engine.py default --id <节点id> --layers "<id>:<card|index>,…"   # 设默认层（每次任务读入口，≤3；空串清除）
+python library/engine.py default --id <节点id> --layers "<id>:<card|index>,…"   # 设默认层（每次任务读入口，≤3；空串+--id 清除）
 python library/engine.py default --clear          # 取消默认资产
 python library/admin/console.py               # 可视化管理台（推荐给日常维护）
 ```

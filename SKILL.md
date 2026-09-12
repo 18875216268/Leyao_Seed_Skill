@@ -4,7 +4,7 @@ description: "用这个 skill 处理需要成套流程与资产路由的任务�
 compatibility: "需要 Python 3.10+（仅标准库，无第三方依赖）；资产管理台在本地起 HTTP 服务（默认 127.0.0.1:8765，需要能开本地端口）"
 license: "MIT"
 metadata:
-  version: "0.30.1"
+  version: "0.30.2"
   architecture: "processor + library(routes + assets) + evolution(五环自举) + version(版本维护)"
   author: "Leyao"
   date: "2026-09-13"
@@ -16,7 +16,7 @@ metadata:
 
 ## 最高准则（每次任务必读 · 不得绕过）
 
-1. **先读框架再动手**：适用任务先走标准调用链（本文件 → `library/ROUTES.md` → 用户区记忆 → 默认资产卡 → `processor/` 五步）；**不得凭记忆直接调用子资产** ✗；
+1. **先读框架再动手**：适用任务先走标准调用链（本文件 → `library/ROUTES.md`（同读用户区记忆 · 默认资产卡 · **默认层·能力库索引**）→ `processor/` 五步）；**不得凭记忆直接调用子资产** ✗；
 2. **已绕过 → 立即回补**：若已凭记忆直接用子资产或直接开工 → 回到上面这条链补齐（含判据 0.5 与五步）再继续；
 3. **单独使用仅限用户明确要求**：子资产本身可独立使用，但**在框架生态内**（资产位于某包的 `library/assets/` 下）一律先走框架流程；独立安装态（不在 `library/assets/` 下）不受此限；
 4. **判据自带、不外包**：五步与实时控制的判据在 `processor/`，资产全部缺失也照常推进；资产内容**原样只读**（要改走提案）；
@@ -40,12 +40,14 @@ metadata:
 
 ```text
 接到任务
+  → **适用性短路**：一步完成的单点请求（见 description「不适用」条款）**不进链路**，由宿主直接处理（零默认层成本 ✓）
   → 每天首次使用（及每日 14:00 定时任务唤醒）：按 version/VERSION.md〈1 准则 + 4 行为〉执行**就绪 / 巡检**（幂等、引导式自行定位本宿主；在位则静默；异步、失败降级，不阻塞任务）
   → 读 library/ROUTES.md（总路由地图：按节点描述匹配场景，定位可用资产；无资产也照常推进）
       同读用户区记忆 .leyao-data/data/memory.md（L0 经验：命中失效模式先规避、有效做法直接复用）
       同读**默认资产卡**（★ 行指向；卡在用户数据区 `card.md`）：每次任务必读、只做"识别与定位"；
       缺失/过期不阻断（如实标注 + 提示刷新；**首次缺失按资产规范首建**，见 ③ 判据 0.5）——任务层判据 0.5；未注册默认资产则跳过
-      同读**能力库索引**（`library/assets/bvix9o/README.md` 与 `library/assets/bvix9o/高频场景指引/README.md`，各一屏）：
+      同读**能力库索引**（`library/assets/bvix9o/README.md` 与 `library/assets/bvix9o/高频场景指引/README.md`，各一屏；
+     **硬上限：每索引 ≤20 条目 / ≤2 KB**，超限按 `ROUTES.md` 既有分片口径拆分）：
       **默认层入口，每次任务读**（只读索引与摘要，不读全文）；缺失不阻断——为"方法预扫"提供能力图景
       级联下钻：带「（N 个子节点 → 局部图 library/routes/<id>.md）」的节点 → 先读局部图继续匹配（可任意级联）；
       容器节点（只挂子节点、无挂载）不直接执行，下钻其子节点；叶节点（有挂载 / 入口文档）执行
@@ -72,7 +74,7 @@ python library/engine.py remove --id <节点id>
 python library/engine.py move --id <节点id> [--parent <父id>]     # 移动节点（省略 --parent 即移到根）
 python library/engine.py update --id <节点id> [--title "<新标题>"] [--mount "<新挂载>"] [--description "<何时用>"]
 python library/engine.py default --id <节点id>    # 设默认资产（每次任务必读；hook 当前仅 read）
-python library/engine.py default --id <节点id> --layers "<id>:<card|index>,…"   # 设默认层（每次任务读入口，≤3；空串清除）
+python library/engine.py default --id <节点id> --layers "<id>:<card|index>,…"   # 设默认层（每次任务读入口，≤3；空串+--id 清除）
 python library/engine.py default --clear          # 取消默认资产
 ```
 
