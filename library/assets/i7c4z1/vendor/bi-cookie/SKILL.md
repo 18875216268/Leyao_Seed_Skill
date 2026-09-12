@@ -12,7 +12,7 @@ description: "观远 BI Cookie 卡片通道（集团级通道1）：企微扫码
 ## 凭证（通道不实现登录，消费框架凭证）
 
 登录统一由父 skill 登录器提供：`python scripts/bi_login.py`（企微扫码，落库 `accounts/<loginId>.json`）。
-下方三工具自动从凭证仓库注入 Cookie（本地检查，绝不弹窗；`--relogin` 强制重扫）。
+下方三工具自动从凭证仓库注入 Cookie：`bi_export.py` / `bi_index.py` 为本地检查、**绝不弹窗**；`bi_call.py` **默认允许弹窗**（本地凭证缺失/过期时会拉起扫码窗）——无界面环境请加 `--no-ui`。`--relogin` 强制重扫。
 换新凭证后重试一次原请求即可，不要因参数、权限、限流、网络错误触发登录。
 
 ## API 契约（AI 直读，接口事实源）
@@ -48,6 +48,8 @@ AI 读契约文档后给出 URL/路径/请求体，本脚本只负责发送并�
 
 - `--card <cardId>` 导出（默认 `./<卡名>_<时间戳>.xlsx`）；`--payload-file body.json` 带筛选导出（请求体同取数体）
 - `--out <路径.xlsx>`；`--timeout` / `--poll-interval` 调整等待；超时后 `--task <taskId>` 直接继续下载
+- ⚠️ **巨卡红线**：对「自助查询结果」类巨卡必须**带筛选**（用 `--payload-file` 传筛选体）——无筛选导出实测 20+ 分钟不终态（与板内 `export.py` 的 `EXPORT_FILTER_REQUIRED` 同一红线）
+- ⚠️ **巨卡红线**：对「自助查询结果」类巨卡必须**带筛选**（用 `--payload-file` 传筛选体）——无筛选导出实测 20+ 分钟不终态（与板内 `export.py` 的 `EXPORT_FILTER_REQUIRED` 同一红线）
 - `--list <N>` 查看导出中心任务列表（找回 taskId）；大文件流式落盘；stdout 输出 JSON
 
 ## 边界

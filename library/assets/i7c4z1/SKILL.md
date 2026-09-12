@@ -20,7 +20,7 @@ metadata:
 **本 skill 是父 skill（总指引）**，集团子 skill 包（基础 + 优化）是能力提供方。四条裁决原则：
 
 1. **准则优先级**：任何准则、要求、冲突以本 skill 为准；本 skill 未规定的部分，遵照子 skill 和集团子 skill 包。
-2. **登录/凭证**：优先使用本 skill 框架自有登录组件（企微扫码，见 §1.1）；集团包中的登录/鉴权方式仅做备用——两者共存，不冲突。**优化 skill 不实现登录，其凭证统一由本 skill 自有登录组件提供，或由用户直接给定**（详见 `vendor/SUBSKILL_ROUTING.md` §6 第 5 条）。
+2. **登录/凭证**：优先使用本 skill 框架自有登录组件（企微扫码，见 §1.1）；集团包中的登录/鉴权方式仅做备用——两者共存，不冲突。**优化 skill 不实现登录，其凭证统一由本 skill 自有登录组件提供，或由用户直接给定**（详见 `vendor/SUBSKILL_ROUTING.md` §6 第 6 条）。
 3. **能力提供**：在遵循本 skill 框架指引的前提下，完完全全遵照子 skill 和集团 skill 包的相关文件说明，本框架不做任何转述篡改。通道与优化包（`vendor/`）随 skill **内置交付、原样只读**，由 AI 直读执行（无同步器、无动态拉取）。**本框架不内置、不解释任何 API 参数**——接口知识全部随各自通道/优化板文档交付，本文件仅做引导。
 4. **路由引导**：以 `vendor/SUBSKILL_ROUTING.md` 为唯一总路由，次序为——**先通道优先，再板块优先；都不行，先通道降级，再板块降级**。即：默认主通道 bi-cookie；通道内优先所属优化板块，无或不满足再按通道本身指引；主通道无法满足时自动降级到备用通道并重复上述次序。**无法确认通道及优化板块时，给出选项由用户决定，不擅自代选。**
 
@@ -50,7 +50,7 @@ Bi skill（父：纯登录框架 + 裁决 + 路由引导）
   - Python API：`relogin` / `verify_credential` / `get_credential` / `is_authenticated`
 - **凭证仓库**：按账号一文件，落在登录器仓库（明文 JSON、原子写）。同一账号再扫码 → 更新，换人扫码 → 新增，互不覆盖。
 - 登录产出完整凭证（`token` / 可直接使用的 `headers` / `user`），登录成功即按扫码人身份入库。
-- **调用链 token 来源**：`--token` > 环境变量 `BI_TOKEN` > 凭证仓库最近登录账号（本地检查，绝不弹窗）。
+- **调用链 token 来源**：① 凭证仓库最近登录账号（本地检查、**绝不弹窗**）；② 子包窗口直接注入 `BI_UID_TOKEN`+`BI_UID_TOKEN_SIG`（可选 `BI_UID_EXP`）或 `BI_CREDENTIAL_FILE`。**本资产没有 `--token` 参数、也不读 `BI_TOKEN`** ✗（旧文误述，已纠正）。
 - PyQt5 为可选依赖：只有弹扫码窗才需要；无界面环境用 `--no-ui`。
 
 ### 1.2 通道工具（已随通道下沉 `vendor/bi-cookie/scripts/`）
@@ -63,7 +63,7 @@ Cookie 卡片通道的三工具——发送器 `bi_call.py`、卡片索引 `bi_i
 
 - 集团基础 skill 含全量卡片/字段但无引导，直接通读取数慢；优化 skill 针对特定板块提供精简指引。
 - **完整路由规则见 `vendor/SUBSKILL_ROUTING.md`**（§1 通道准则 / §2 板块准则 / §3 决策树 / §6 强制规则），核心次序：**先通道优先，再板块优先；都不行，先通道降级，再板块降级**；不转述、不改写，直接读原样文件；**凭证来源——子 skill 一律不实现登录，凭证由本 skill 登录组件提供或用户直接给定**。
-- 当前已接入优化 skill：**BI-出库统计Ultra查询v1.08**（出库统计Ultra 板块：DSL 聚合查询/批量并发/分页/区域树/聚合导出；自包含，凭证三级窗口。详见 `vendor/optimizers/BI-出库统计Ultra查询v1.08/SKILL.md` 与 `vendor/SUBSKILL_ROUTING.md` §5）。
+- 当前已接入优化 skill：**BI-出库统计Ultra查询v1.08**（出库统计Ultra 板块：DSL 聚合查询/批量并发/分页/区域树/聚合导出；自包含，凭证三级窗口。详见 `vendor/optimizers/BI-出库统计Ultra查询v1.08/h4dsa6/SKILL.md` 与 `vendor/SUBSKILL_ROUTING.md` §5）。
 - 通道现状：**通道1 Cookie 卡片通道**（任何登录用户，主通道）；**通道2 PAT SQL 通道** `vendor/bi-pat/`（仅持 PAT 的特定权限用户，数据集级 SQL 自由聚合）。通道选择与权限分流见 `vendor/SUBSKILL_ROUTING.md` §1/§3。
 
 ## 3. 取数流程（AI 主导，非固定脚本链）

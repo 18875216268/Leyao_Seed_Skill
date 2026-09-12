@@ -48,7 +48,7 @@ Pms skill（父：总指引 + 裁决 + 路由）
 - 用法：
   - CLI：`python scripts/pms_login.py`（默认弹扫码窗重新登录）/ `--status`（只验证，绝不弹窗）/ `--reuse`（有效则复用，失效才弹窗）/ `--no-ui`（服务器/守护进程）/ `--no-remote`（跳过远端校验）；退出码 0 成功 / 1 业务错误 / 2 未分类错误
   - Python API：`relogin` / `verify_credential` / `get_credential` / `is_authenticated`
-- **凭证仓库**：按账号一文件，`%LOCALAPPDATA%\pms-operations-query\accounts\<accountNo>.json`（明文 JSON、原子写、权限 600；`PMS_OPERATIONS_HOME` 可覆盖）。同一账号再扫码 → 更新，换人扫码 → 新增，互不覆盖。
+- **凭证仓库**：按账号一文件，`%LOCALAPPDATA%\pms-operations-query\accounts\<accountNo>.json`（明文 JSON、原子写、权限 600；`PMS_OPERATIONS_HOME` 可覆盖；**非 Windows** 走 `XDG_DATA_HOME`/`~/.local/share`）。同一账号再扫码 → 更新，换人扫码 → 新增，互不覆盖。
 - **取用出口（供 Agent 传参用）**：`stored_token()`（`pms_call.py` 即用它；本地检查、绝不弹窗）——
   `python -c "import sys; sys.path.insert(0,'scripts'); import pms_common; print(pms_common.stored_token())"`；
   Agent 取到后直接传给子 skill（`--token`，或 `PMS_TOKEN` 注入一次复用于多次调用）。
@@ -89,7 +89,7 @@ Pms skill（父：总指引 + 裁决 + 路由）
 
 ## 3. 取数流程（AI 主导，非固定脚本链）
 
-1. **登录**：`python scripts/pms_login.py`（弹扫码）或 `--status`（只验证不弹窗）。产出 user（登录人身份）。
+1. **登录**：`python scripts/pms_login.py --status`（只验证不弹窗，**推荐**；凭证失效时会自愈重登并补齐口径）或 Python API `login_and_store()`（**唯一同时完成「落库 + 补齐公司/仓口径」的入口**）。⚠️ 无参 CLI `pms_login.py` 仅在本进程返回凭证、**不写凭证仓库** ✗。产出 user（登录人身份）。
 2. **路由**：按用户意图查 `vendor/SUBSKILL_ROUTING.md` 路由表，确定用哪个子 skill（优化 / 基础）。
 3. **读文档**：读对应子 skill 原样文档（md / 脚本 / payload 模板），理解目标接口的 host / path / content_type / 必填参数。
 4. **构造**：AI 组织 payload（token 由发送器自动注入，无需手写）；host 用 `sync_config` 的 `host_endpoints` 键名（`--host-key`）或直接给 `--url`。
@@ -111,7 +111,7 @@ Pms skill（父：总指引 + 裁决 + 路由）
 ## 5. 读取与路由协议（边界）
 
 - 本 skill 对集团格式**零假设**：接口理解完全依赖 AI 直接读 `vendor/leyo-sys` 与 `vendor/optimizers` 原样包，框架不维护任何接口定义。
-- 槽位目录、下载源、host 域名映射**全部外置于 `sync_config.json`**——集团换包 / 换地址 / 换域名 / 加优化板，只改配置、免改码。
+- 槽位目录、下载源与**发送器**的 host 域名映射外置于 `sync_config.json`——换包 / 换地址 / 加优化板只改配置 ✓；⚠️ **但登录器主机与子包端点仍是代码内常量**（`scripts/pms_login.py`、子包 `pms_common.py`）→ 集团**换域名时这两处需改码**。
 - **关于「子 skill」边界（避免混淆）：** 本 skill 的「外部能力槽位」是 `vendor/` 下的多子 skill（集团基础 + 各优化），由 `pms_sync.py` 整包原样拉取、**禁止改写**（零假设前提）。其消费方式是「AI 直读 + 路由」。
 - 平台加载时，若槽位内自带的 `SKILL.md` 被平台级发现机制一并注册，会产生「Pms 与槽内包并存」的命名重复——本 skill 的 §4「严禁改 vendor/」已覆盖其只读约束；此时**仍以本 skill 为唯一入口与唯一登录口**：即便直接调用槽内包，凭证也由本 skill 出具并经 Agent 传入（槽内包不登录）。
 

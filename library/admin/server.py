@@ -61,6 +61,19 @@ def safe_target(mount: str) -> Path:
     return p
 
 
+def _source_ready(source_abs: str):
+    """**复制源就绪校验（必须在清理挂载目录之前做 ✗）**。
+
+    `_clear_dir` 删掉的文件**不可回滚**——若先清后查（源不存在），失败返回时目录已被清空 → 丢数据 ✗。
+    """
+    if not source_abs:
+        return True, ""
+    src = Path(source_abs)
+    if not src.exists() or not src.is_dir():
+        return False, f"关联的资产文件夹不存在: {source_abs}"
+    return True, ""
+
+
 def _copy_into(source_abs: str, mount: str):
     """把来源文件夹的内容复制到挂载目录（不移动原件）。"""
     if not source_abs or not mount:
@@ -396,6 +409,9 @@ def update_node(id_, title, mount, description=None, type_=None, source=None):
             moved = _has_assets(old_mount)
             skipped = _move_assets(old_mount, new_mount) if moved else set()
             if source_changed and not _same_as_target(new_source, new_mount):
+                ok, msg = _source_ready(new_source)           # 【安全】先校验来源、再清目录（失败绝不清理 ✗）
+                if not ok:
+                    return False, msg
                 _clear_dir(new_mount, keep)                   # 重置槽位：只清自己的旧内容，保留子卡片目录
                 ok, msg = _copy_into(new_source, new_mount)
                 if not ok:
@@ -417,6 +433,9 @@ def update_node(id_, title, mount, description=None, type_=None, source=None):
                     sub["mount"] = new_p + "/" + rel + "/"
             _drop_empty_parents(old_mount)
         elif source_changed and not _same_as_target(new_source, new_mount):
+            ok, msg = _source_ready(new_source)               # 【安全】先校验来源、再清目录（本事故根因位 ✗）
+            if not ok:
+                return False, msg
             _clear_dir(old_mount, keep)                       # 重置槽位：只清自己的旧内容，保留子卡片目录
             ok, msg = _copy_into(new_source, new_mount)
             if not ok:
