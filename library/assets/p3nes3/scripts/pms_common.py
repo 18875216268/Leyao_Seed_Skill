@@ -19,7 +19,7 @@ APP_VERSION = "14.30.1"
 MODULE = "promo_profit_monitor"
 DEFAULT_TIMEOUT = 90
 USER_AGENT = "pms-cxml/1.08"
-LOGIN_HINT = "Run scripts/pms_login.py to sign in (default opens the WeCom QR dialog)."
+LOGIN_HINT = "Run scripts/pms_login.py --status to verify (no popup), or --reuse to reuse a valid credential; a bare run forces a WeCom QR re-scan."
 
 
 def configured_base(host_var: str, fallback: str) -> str:

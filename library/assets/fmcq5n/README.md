@@ -7,6 +7,8 @@
 直连 → 钉 IP → hosts 兜底 → 第三方镜像 → CDN 单文件 → 离线指引
 ```
 
+> 整体链为**全景示意**；实际执行按其**分场景路由**（`routes/routes.json` 唯一事实源）——单文件等场景的通道顺序见 `SKILL.md`〈场景路由（降级链）〉✓
+
 ## 特性
 
 - **分场景通道路由**：`routes/routes.json` 是唯一事实源，`ROUTES.md` 为渲染产物；`gh.py routes --check` 校验、`--render` 重绘。

@@ -27,10 +27,10 @@ description: "出库统计Ultra 板块优化 skill（自包含，可独立移植
 1. 环境变量 `BI_UID_TOKEN` + `BI_UID_TOKEN_SIG`（可选 `BI_UID_EXP`，unix 秒）；
 2. 凭证文件：环境变量 `BI_CREDENTIAL_FILE` 指向的 JSON，或本板
    `resources/credential.local.json`（`{"token":"…","tokenSig":"…","exp":1789…}`）；
-3. 宿主父 skill 回退（可选）：向上存在 `scripts/login_bi.py` 时自动取其登录仓。
+3. 宿主父 skill 回退（可选）：向上存在 `scripts/login_bi.py` 时自动取其登录仓（**BI 侧特例**；PMS 侧接入验收明禁子包读父凭证仓库——勿互相套用）。
 
 - 三级全空时返回 `AUTH_REQUIRED`，此时必须由用户直接传入凭证（窗口 1 或 2）。
-- **获取方式**：宿主父 skill 登录器扫码（若有，skill 根 `python scripts/login_bi.py`），或由用户直接提供 token。
+- **获取方式**：宿主父 skill 登录器扫码（若有；**cwd = 父资产 `library/assets/i7c4z1/`**，`python scripts/login_bi.py`），或由用户直接提供 token。
 - 查询返回 `AUTH_*` 错误时先换新凭证再重试一次；不要因参数、权限、限流、网络错误触发换凭证。
 - API 契约自包含于 [references/api查询文档.md](references/api查询文档.md)，移植无需父 skill 文档。
 
@@ -40,7 +40,7 @@ description: "出库统计Ultra 板块优化 skill（自包含，可独立移植
 再将一个 UTF-8 JSON 对象通过 stdin 传入：
 
 ```text
-python scripts/query.py
+python scripts/query.py          # cwd = 本板根（h4dsa6/）
 ```
 
 单查询也使用单元素 `queries`：
@@ -143,7 +143,7 @@ python scripts/export.py --list 20            # 导出中心任务列表（找�
   导出的就是**筛选+聚合后的定制视图**（KB 级小表）；契约细节见
   [references/api查询文档.md](references/api查询文档.md) §4 三步链。
 - **需要「明细 + 卡片默认布局」时（本板做不到 ✗）**：板内导出恒经 `QueryService._build`（**无条件带 `zoneFilter`**，结果只可能是自选透视体）→ 按 `vendor/SUBSKILL_ROUTING.md` §2 板块降级，改用**通道导出器**（请求体**只带 `filters`、不带 `zoneFilter`** = 卡片保存布局 × 筛选后数据）：
-  `python vendor/bi-cookie/scripts/bi_export.py --card v37695c5612944a7baa0c6fa --payload-file body.json`（`body.json` 至少含日期筛选；必须带筛选 ✗ 见 §红线；超时用 `--task <taskId>` 续传）
+  `python vendor/bi-cookie/scripts/bi_export.py --card v37695c5612944a7baa0c6fa --payload-file body.json`（`body.json` 至少含日期筛选；必须带筛选 ✗ 见 §红线；超时用 `--task <taskId>` 续传）（**cwd = 父资产 `library/assets/i7c4z1/`**）
   （**两条路线分清**：**聚合路线**→可整体复用引擎构造体（含 `zoneFilter`）交 `bi_export.py --payload-file`；**明细+默认布局路线**→必须剥离 `zoneFilter`、只带 `filters` ✗）
 
 ⚠ 本卡**禁止无筛选直接导出**：服务端任务将长时间 `PROCESSING`（全量 50×33 透视过载）；请求体必须至少带日期筛选。需要明细大数据量时用筛选+卡片默认布局（结果可为百 MB 级）；需要聚合汇总时用引擎自选透视体（结果仅 KB 级）。

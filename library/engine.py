@@ -408,6 +408,35 @@ def mount_missing(node: dict, root: Path = LIB.parent) -> bool:
     m = (node or {}).get("mount")
     return bool(m) and not (root / m).exists()
 
+def _emit_node_lines(ns, depth, sizes, lines):
+    """总图 / 局部图共用的节点行走（分形路由：超阈值子树只留指针；叶节点带 ⚠ 实存校验）。"""
+    for n in ns:
+        indent = "  " * depth
+        mount = f" → `{n['mount']}`" if n.get("mount") else ""
+        miss = "（⚠ 挂载缺失 · 不可用）" if mount_missing(n) else ""
+        if not miss and n.get("mount") and not (n.get("children") or []):
+            _mp = LIB.parent / n["mount"]
+            try:
+                _empty = _mp.is_dir() and not any(_mp.iterdir())
+            except OSError:
+                _empty = False
+            if _empty:
+                miss = "（⚠ 空目录 · 无可读内容）"
+        kids = n.get("children") or []
+        split = bool(kids) and needs_split(n, sizes)
+        suffix = ""
+        if kids:
+            # 分形路由：超阈值（宽 / 深）的子树收进局部图，总图只留指针（可任意级联，规模与总图行数解耦）
+            suffix = (f"（{len(kids)} 个子节点 → 局部图 `{local_map_rel(n)}`）" if split
+                      else f"（{len(kids)} 个子节点）")
+        st = desc_state(n.get("description"))
+        flag = {"empty": "（无描述·不可路由）", "free": "（自由描述·降级匹配）"}.get(st, "")
+        lines.append(f"{indent}- `{n.get('id')}` **{n.get('title')}** `{n.get('type')}`{mount}{miss}{suffix}{flag}")
+        if n.get("description"):
+            lines.append(f"{indent}  - _{n['description']}_")
+        if kids and not split:
+            _emit_node_lines(kids, depth + 1, sizes, lines)
+
 def render(data: dict) -> str:
     """渲染 **agent 路由面**（瘦身版：只留路由必需信息）。
 
@@ -447,34 +476,7 @@ def render(data: dict) -> str:
     ]
     sizes = subtree_sizes(data.get("nodes"))
 
-    def walk(ns, depth):
-        for n in ns:
-            indent = "  " * depth
-            mount = f" → `{n['mount']}`" if n.get("mount") else ""
-            miss = "（⚠ 挂载缺失 · 不可用）" if mount_missing(n) else ""
-            if not miss and n.get("mount") and not (n.get("children") or []):
-                _mp = LIB.parent / n["mount"]
-                try:
-                    _empty = _mp.is_dir() and not any(_mp.iterdir())
-                except OSError:
-                    _empty = False
-                if _empty:
-                    miss = "（⚠ 空目录 · 无可读内容）"
-            kids = n.get("children") or []
-            split = bool(kids) and needs_split(n, sizes)
-            suffix = ""
-            if kids:
-                # 分形路由：超阈值（宽 / 深）的子树收进局部图，总图只留指针（可任意级联，规模与总图行数解耦）
-                suffix = (f"（{len(kids)} 个子节点 → 局部图 `{local_map_rel(n)}`）" if split
-                          else f"（{len(kids)} 个子节点）")
-            st = desc_state(n.get("description"))
-            flag = {"empty": "（无描述·不可路由）", "free": "（自由描述·降级匹配）"}.get(st, "")
-            lines.append(f"{indent}- `{n.get('id')}` **{n.get('title')}** `{n.get('type')}`{mount}{miss}{suffix}{flag}")
-            if n.get("description"):
-                lines.append(f"{indent}  - _{n['description']}_")
-            if kids and not split:
-                walk(kids, depth + 1)
-    walk(data.get("nodes") or [], 0)
+    _emit_node_lines(data.get("nodes") or [], 0, sizes, lines)
     return "\n".join(lines)          # 维护命令块已移入 library/admin/README.md（agent 不需要；保持路由面瘦身）
 
 def local_map_rel(node: dict) -> str:
@@ -493,33 +495,7 @@ def local_map(data: dict, node: dict) -> str:
         "",
     ]
 
-    def walk(ns, depth):
-        for n in ns:
-            indent = "  " * depth
-            mount = f" → `{n['mount']}`" if n.get("mount") else ""
-            miss = "（⚠ 挂载缺失 · 不可用）" if mount_missing(n) else ""
-            if not miss and n.get("mount") and not (n.get("children") or []):
-                _mp = LIB.parent / n["mount"]
-                try:
-                    _empty = _mp.is_dir() and not any(_mp.iterdir())
-                except OSError:
-                    _empty = False
-                if _empty:
-                    miss = "（⚠ 空目录 · 无可读内容）"
-            sub = n.get("children") or []
-            split = bool(sub) and needs_split(n, sizes)
-            suffix = ""
-            if sub:
-                suffix = (f"（{len(sub)} 个子节点 → 局部图 `{local_map_rel(n)}`）" if split
-                          else f"（{len(sub)} 个子节点）")
-            st = desc_state(n.get("description"))
-            flag = {"empty": "（无描述·不可路由）", "free": "（自由描述·降级匹配）"}.get(st, "")
-            lines.append(f"{indent}- `{n.get('id')}` **{n.get('title')}** `{n.get('type')}`{mount}{miss}{suffix}{flag}")
-            if n.get("description"):
-                lines.append(f"{indent}  - _{n['description']}_")
-            if sub and not split:
-                walk(sub, depth + 1)
-    walk(kids, 0)
+    _emit_node_lines(kids, 0, sizes, lines)
     return "\n".join(lines)
 
 def render_all(data: dict) -> tuple[list[str], list[str]]:

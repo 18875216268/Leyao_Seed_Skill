@@ -16,7 +16,7 @@ from typing import Any
 import requests
 
 DEFAULT_TIMEOUT = 90
-LOGIN_HINT = "Run scripts/login_bi.py to sign in (default opens the WeCom QR dialog)."
+LOGIN_HINT = "Run scripts/login_bi.py --status to verify (no popup), or --reuse to reuse a valid credential; a bare run forces a WeCom QR re-scan."
 
 
 class BiError(RuntimeError):
