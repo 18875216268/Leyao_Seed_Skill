@@ -4,7 +4,7 @@ description: "用这个 skill 处理需要成套流程与资产路由的任务�
 compatibility: "需要 Python 3.10+（仅标准库，无第三方依赖）；资产管理台在本地起 HTTP 服务（默认 127.0.0.1:8765，需要能开本地端口）"
 license: "MIT"
 metadata:
-  version: "0.28.0"
+  version: "0.28.1"
   architecture: "processor + library(routes + assets) + evolution(五环自举) + version(版本维护)"
   author: "Leyao"
   date: "2026-09-13"
@@ -44,8 +44,8 @@ metadata:
   → 读 library/ROUTES.md（总路由地图：按节点描述匹配场景，定位可用资产；无资产也照常推进）
       同读用户区记忆 .leyao-data/data/memory.md（L0 经验：命中失效模式先规避、有效做法直接复用）
       同读**默认资产卡**（★ 行指向；卡在用户数据区 `card.md`）：每次任务必读、只做"识别与定位"；
-      缺失/过期不阻断（如实标注 + 提示刷新）——任务层判据 0.5；未注册默认资产则跳过
-      同读**能力库索引**（`library/assets/bvix9o/README.md` 与 `高频场景指引/README.md`，各一屏）：
+      缺失/过期不阻断（如实标注 + 提示刷新；**首次缺失按资产规范首建**，见 ③ 判据 0.5）——任务层判据 0.5；未注册默认资产则跳过
+      同读**能力库索引**（`library/assets/bvix9o/README.md` 与 `library/assets/bvix9o/高频场景指引/README.md`，各一屏）：
       **默认层入口，每次任务读**（只读索引与摘要，不读全文）；缺失不阻断——为"方法预扫"提供能力图景
       级联下钻：带「（N 个子节点 → 局部图 library/routes/<id>.md）」的节点 → 先读局部图继续匹配（可任意级联）；
       容器节点（只挂子节点、无挂载）不直接执行，下钻其子节点；叶节点（有挂载 / 入口文档）执行
