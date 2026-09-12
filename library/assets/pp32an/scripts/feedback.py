@@ -7,7 +7,7 @@
 """
 from __future__ import annotations
 
-from common import FEEDBACK_F, append_jsonl, now_iso, read_jsonl
+from common import FEEDBACK_F, append_jsonl, load_config, now_iso, read_jsonl
 import cache
 import memory
 import registry as reg
@@ -22,16 +22,21 @@ def log_ask(query_id: str, norm: str, need_type: str, resolved: bool,
 
 
 def _report_adopt(pool_id: str) -> dict:
-    """采纳价值信号上报公共池（对齐池侧 record_adopt：需 token、短超时、失败静默）。"""
+    """采纳价值信号上报公共池（对齐池侧 record_adopt：需 token、短超时、失败静默）。
+
+    写令牌只在本地配置（数据区 `config.local.json` → `pool.write_token`）；未配置不见网（静默）。
+    """
     if not pool_id:
         return {"ok": False, "error": "MISSING_ID"}
+    token = str((load_config().get("pool") or {}).get("write_token") or "").strip()
+    if not token:
+        return {"ok": False, "error": "NO_WRITE_TOKEN"}
     try:
         data = reg.load()
         asset = next((a for a in data["ordered_assets"] if a.get("kind") == "pool"), None)
         if not asset or not asset.get("report_adopt", True):
             return {"ok": False, "error": "DISABLED"}
-        r = pool.record_adopt(asset.get("endpoint", ""), pool_id,
-                              token=str(asset.get("write_token") or ""),
+        r = pool.record_adopt(asset.get("endpoint", ""), pool_id, token=token,
                               timeout=float(asset.get("write_timeout_s") or 5.0))
         return {"ok": bool(r.get("ok")), "pool_id": pool_id, "error": r.get("error")}
     except Exception as exc:  # noqa: BLE001 —— 价值信号失败绝不阻塞反馈主流程

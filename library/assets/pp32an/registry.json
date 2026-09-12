@@ -15,10 +15,9 @@
       "timeout_s": 6,
       "retry": 1,
       "use_category_filter": false,
-      "write_token": "brf-pool-2026-shared",
       "write_timeout_s": 10,
       "report_adopt": true,
-      "note": "第一优先：单请求全取（不带 tier 过滤），本地按 trust 排序；口径（caliber）只查注入库 tier=inject；写路径（submit/inject/adopt）需 write_token，仅显式 contribute / 采纳上报时使用"
+      "note": "第一优先：单请求全取（不带 tier 过滤），本地按 trust 排序；口径（caliber）只查注入库 tier=inject；写路径（submit/inject/adopt）令牌在**本地配置**（config.local.json → pool.write_token，不入包），仅显式 contribute / 采纳上报时使用"
     },
     {
       "id": "leyou",

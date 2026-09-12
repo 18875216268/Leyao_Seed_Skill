@@ -19,7 +19,7 @@
 | 结果像是"旧口径" | `ask --no-cache`（跳过缓存）并核对 `version/freshness`；如确已过期 → `reflect` 会提示复核 |
 | 语义缓存误命中 | 调低 `registry.semantic_threshold`（更严）或 `--no-cache` |
 | `contribute` 被拒 `GATE_REJECTED` | 看 `detail`：未达 semantic（adopt≥3）/ 有否决（fail>0）/ 内容过短；`--dry-run` 先看 payload |
-| 采纳上报失败（`adopt_reported.ok=false`） | 价值信号失败**不阻塞**反馈；检查 `registry.write_token` 与网络，或置 `report_adopt=false` 关闭 |
+| 采纳上报失败（`adopt_reported.ok=false`） | 价值信号失败**不阻塞**反馈；`error=NO_WRITE_TOKEN` → 在本地配置 `config.local.json` 补 `pool.write_token`；其余查网络，或置 `report_adopt=false` 关闭 |
 | 缓存想清空 | 删 `<数据区>/cache.jsonl`（派生层，可重建） |
 | 数据区在哪 | `status` 输出 `file` 字段；**一律在用户数据区**：`LEYAO_KB_HOME` 优先；被框架挂载时 `<包父级>/.leyao-data/data/assets/<卡片id>/`；独立部署 `~/.leyao-kb/` |
 
@@ -31,6 +31,7 @@
 | `memory.jsonl` | 本地记忆（含 feedback 计数） | ⚠️ 删除=丢掉"越用越聪明"的积累 |
 | `feedback.jsonl` | ask-log 与采纳/否决审计 | ⚠️ 建议保留（可审计） |
 | `reflect.jsonl` | 反思历史 | ✅ 可重建 |
+| `config.local.json` | 本地配置（池写令牌 / 云智库凭证库参数；**不随包分发**） | ⚠️ 删除=需重新配置 |
 
 ## 维护动作
 

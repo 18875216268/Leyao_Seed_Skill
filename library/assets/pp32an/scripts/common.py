@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""共享基础件：路径/运行数据区/JSON 读写/文本规范化/相似度/输出。
+"""共享基础件：路径/运行数据区/本地配置/JSON 读写/文本规范化/相似度/输出。
 
-红线：本包只放规则、模板与脚本；**运行数据一律写外部数据区**（不写包内）。
+红线：本包只放规则、模板与脚本；**运行数据与配置（含秘钥）一律只落外部数据区**（不写包内）。
 数据区解析优先级（**用户态一律归用户数据区，不写包内、不写 skill 同级**）：
 LEYAO_KB_HOME（显式覆盖）→ **框架生态**：<用户区>/data/assets/<id>（LEYAO_SEED_HOME 可覆盖；挂载时自动判定）
 → ~/.leyao-kb（独立安装统一落家目录）→ 家目录不可写时才回落 <skill 同级>/.leyao-kb（少见兜底）
@@ -59,6 +59,7 @@ CACHE_F = HOME / "cache.jsonl"
 MEMORY_F = HOME / "memory.jsonl"
 FEEDBACK_F = HOME / "feedback.jsonl"
 REFLECT_F = HOME / "reflect.jsonl"
+CONFIG_F = HOME / "config.local.json"      # 本地配置（敏感/环境参数只存本地；包内零秘钥）
 
 
 def ensure_home() -> Path:
@@ -75,6 +76,16 @@ def load_json(path: Path, default=None):
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return default
+
+
+def load_config() -> dict:
+    """本地配置（用户数据区 `config.local.json`；**不入包/不入仓**）——缺失或不可解析返回 {}。
+
+    字段：`pool.write_token`（公共池写令牌）；`leyou_firebase.*`（云智库凭证库参数——
+    `database_url` / `fangwen_miyue` 必需，其余项目参数备查）。说明见 `references/leyou-cli.md`。
+    """
+    data = load_json(CONFIG_F, {})
+    return data if isinstance(data, dict) else {}
 
 
 def append_jsonl(path: Path, obj: dict) -> None:

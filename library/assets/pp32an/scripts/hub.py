@@ -151,6 +151,8 @@ def cmd_contribute(args) -> int:
     emit(result)
     if result.get("dry_run"):
         log("[kb] 预检通过（未发起网络写请求）")
+    if result.get("reason") == "NO_WRITE_TOKEN":
+        return 4                                   # 凭证缺失（对齐方案退出码口径）
     return 0 if result.get("ok") else 5
 
 

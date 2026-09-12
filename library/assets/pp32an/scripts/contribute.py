@@ -3,6 +3,7 @@
 
 红线：**知识写入是显式动作**——本模块只被 `hub.py contribute` 显式调用；
 `--dry-run` 只打印将发送的 payload、不发起任何网络写请求（用于预检与测试）。
+写令牌**只在本地配置**（数据区 `config.local.json` → `pool.write_token`；不入包/不入仓）。
 
 本地质量闸（对应池侧「验证门禁」的最小可用版，与池侧三层闸 + 帕累托互补）：
 ① 记忆已确认（tier=semantic / pool-candidate）且 fail=0；② 内容非空且 ≥20 字；
@@ -10,6 +11,7 @@
 """
 from __future__ import annotations
 
+import common
 import memory
 import registry as reg
 from sources import pool
@@ -40,7 +42,7 @@ def to_payload(m: dict) -> dict:
 
 
 def gate(m: dict) -> tuple:
-    """质量闸：不合格返回 (False, 原因)；通过返回 (True, \"通过\")。"""
+    """质量闸：不合格返回 (False, 原因)；通过返回 (True, "通过")。"""
     if m.get("status") != "active":
         return False, "非 active（已冷存）"
     if m.get("tier") not in ("semantic", "pool-candidate"):
@@ -57,6 +59,17 @@ def _asset() -> dict:
     return next((a for a in data["ordered_assets"] if a.get("kind") == "pool"), None) or {}
 
 
+def _write_token() -> str:
+    """池写令牌：**只在本地配置**（数据区 `config.local.json` → `pool.write_token`）。"""
+    return str((common.load_config().get("pool") or {}).get("write_token") or "").strip()
+
+
+def _need_token(payload: dict) -> dict:
+    """未配置写令牌 → 显式写动作不发请求，给出配置指引（不静默）。"""
+    return {"ok": False, "reason": "NO_WRITE_TOKEN", "payload": payload,
+            "detail": "未配置池写令牌：请在本地配置 %s 的 pool.write_token 填写（不入包）" % common.CONFIG_F}
+
+
 def submit_memory(mid: str, dry_run: bool = False) -> dict:
     """显式提交单条本地记忆到公共池（服务端再走三层闸 + 帕累托）。"""
     m = memory.get(mid)
@@ -69,8 +82,11 @@ def submit_memory(mid: str, dry_run: bool = False) -> dict:
     if dry_run:
         return {"ok": True, "dry_run": True, "payload": payload,
                 "detail": "预检通过（未发起网络写请求）"}
+    token = _write_token()
+    if not token:
+        return _need_token(payload)
     a = _asset()
-    r = pool.submit(a.get("endpoint", ""), token=str(a.get("write_token") or ""),
+    r = pool.submit(a.get("endpoint", ""), token=token,
                     timeout=float(a.get("write_timeout_s") or 10.0), **payload)
     if r.get("ok") and m.get("tier") != "pool-candidate":
         memory.mark_pool_candidate(mid)               # 已提交 → 标记候选态（幂等）
@@ -95,7 +111,10 @@ def inject(title: str, content: str, *, category: str = "experience", kind: str 
     if dry_run:
         return {"ok": True, "dry_run": True, "payload": payload,
                 "detail": "预检（未发起网络写请求）"}
+    token = _write_token()
+    if not token:
+        return _need_token(payload)
     a = _asset()
-    r = pool.inject(a.get("endpoint", ""), token=str(a.get("write_token") or ""),
+    r = pool.inject(a.get("endpoint", ""), token=token,
                     timeout=float(a.get("write_timeout_s") or 10.0), **payload)
     return {"ok": bool(r.get("ok")), "response": r, "payload": payload}

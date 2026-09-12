@@ -10,20 +10,25 @@
    可用 --id-field 切换（token_seg1/uuid/token）；同时写回本地；
 5. 后续使用凭证仍优先本地，重复以上流程。
 
-AI 调用面（只暴露 4 个命令，数据库配置全部封在脚本内，AI 无需感知）：
+AI 调用面（只暴露 4 个命令，数据库参数全部封在脚本内，AI 无需感知）：
   python leyou_firebase_login.py auto              一键自动登录（默认含扫码）
   python leyou_firebase_login.py auto --no-scan   只尝试现有凭证，全失效即退出(码3)，不弹扫码
   python leyou_firebase_login.py check-db         只读查看数据库凭证列表
   python leyou_firebase_login.py clear-db --key <key>   删除指定凭证（--all 清空列表）
   python leyou_firebase_login.py push-local       把本地凭证写入数据库（新增/覆盖）
 
+配置（**包内零秘钥**：所有参数只存本地用户数据区）：
+- 数据区 `config.local.json` 的 `leyou_firebase` 段——`database_url` 与 `fangwen_miyue`（访问秘钥）必需，
+  其余项目参数备查（字段见 `_FIR_KEYS`；路径与字段说明见 `references/leyou-cli.md`）；
+- 未配置 → 数据库命令返回 `CONFIG_MISSING`（码3）；`auto` 自动降级为「本地凭证 + 扫码」，不阻断。
+
 安全边界（结构性保证，非靠确认）：
-- 本脚本 Firebase 读写只指向唯一节点 pms/18875216268/leyou_zhiku 及其子条目；
+- 本脚本数据库读写只指向唯一节点 pms/<访问秘钥>/leyou_zhiku 及其子条目；
 - 不提供任何 URL / 节点名参数 → 无注入面，AI 无法触及其它任何节点；
 - 每次请求前经 _assert_safe_url() 白名单断言（仅允许容器读 + 单条凭证写删）；
-- 规则层最终兜底：leyou_zhiku 之外任何子节点命中 $other validate:false 被 Firebase 拒绝。
+- 规则层最终兜底：leyou_zhiku 之外任何子节点命中 $other validate:false 被数据库拒绝。
 
-配套前提：Firebase 控制台规则需将 leyou_zhiku 配置为凭证列表容器（$creds）。
+配套前提：数据库控制台规则需将 leyou_zhiku 配置为凭证列表容器（$creds）。
 """
 from __future__ import annotations
 
@@ -40,8 +45,13 @@ from enum import StrEnum
 from pathlib import Path
 from urllib.parse import quote
 
+_SCRIPTS_DIR = Path(__file__).resolve().parents[2]     # …/scripts（复用 common 的本地配置读取：唯一实现）
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+from common import CONFIG_F, load_config                # noqa: E402
 
-# ---------------- Firebase 配置（封在脚本内，AI 不可见） ----------------
+
+# ---------------- 云凭证库配置（**只存本地**：包内零秘钥） ----------------
 
 class FirGuizeLeixing(StrEnum):
     """云端保存的规则类型。"""
@@ -51,7 +61,7 @@ class FirGuizeLeixing(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class FirPeizhi:
-    """Firebase Web 项目参数和 Realtime Database REST 根地址。"""
+    """云凭证库参数（项目参数 + REST 根地址）——由**本地配置**构造，包内不存任何取值。"""
 
     api_key: str
     auth_domain: str
@@ -70,28 +80,44 @@ class FirPeizhi:
         return f"{self.database_url.rstrip('/')}/pms/{miyue}/{leixing.value}.json"
 
 
-FIR_PEIZHI = FirPeizhi(
-    api_key="AIzaSyAfKRUNy1EbgpJjvhTSI6O5XKDXtniSKmO0",
-    auth_domain="shuju-c2c7a.firebaseapp.com",
-    database_url="https://shuju-c2c7a-default-rtdb.asia-southeast1.firebasedatabase.app",
-    project_id="shuju-c2c7a",
-    storage_bucket="shuju-c2c7a.firebasestorage.app",
-    messaging_sender_id="694883714744",
-    app_id="1:694883714744:web:93427b5f805e31382a164d",
-    measurement_id="G-WE9KXGBK9K",
-    fangwen_miyue="18875216268",
-)
+_FIR_KEYS = ("api_key", "auth_domain", "database_url", "project_id", "storage_bucket",
+             "messaging_sender_id", "app_id", "measurement_id", "fangwen_miyue")
+_FIR_REQUIRED = ("database_url", "fangwen_miyue")     # 其余为项目参数（备查）
+
+
+class ConfigMissing(RuntimeError):
+    """本地配置缺失：云凭证库不可用（在数据区 `config.local.json` 配置 `leyou_firebase`）。"""
+
+
+def _fir() -> FirPeizhi:
+    """从本地配置构造库参数（每次读取；缺必需字段 → ConfigMissing）。"""
+    cfg = load_config().get("leyou_firebase") or {}
+    missing = [k for k in _FIR_REQUIRED if not str(cfg.get(k) or "").strip()]
+    if missing:
+        raise ConfigMissing(
+            "未配置本地 leyou_firebase（缺 %s）：请在 %s 补齐（字段说明见 references/leyou-cli.md）"
+            % ("、".join(missing), CONFIG_F))
+    return FirPeizhi(**{k: str(cfg.get(k) or "") for k in _FIR_KEYS})
+
 
 # ---------------- 常量 ----------------
 
 LEYOU_DIR = Path(__file__).resolve().parent
 LEYOU_SCRIPT = LEYOU_DIR / "leyou_cloud.py"
 TOKEN_FILE = LEYOU_DIR / "leyou_token.json"
-ZHIKU_BASE = FIR_PEIZHI.guize_dizhi(FirGuizeLeixing.LEYOU_ZHIKU)  # .../pms/18875216268/leyou_zhiku.json（容器读）
-ZHIKU_DIR = ZHIKU_BASE[: -len(".json")]                          # .../pms/18875216268/leyou_zhiku（单条父路径）
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) leyou-firebase-login/0.3"
 
 KEY_RE = re.compile(r"^[0-9a-f]{12}$")  # 凭证键 = token 摘要，12 位十六进制
+
+
+def _zhiku_base() -> str:
+    """凭证容器 REST 地址（容器读）：…/pms/<访问秘钥>/leyou_zhiku.json。"""
+    return _fir().guize_dizhi(FirGuizeLeixing.LEYOU_ZHIKU)
+
+
+def _zhiku_dir() -> str:
+    """单条凭证父路径：…/pms/<访问秘钥>/leyou_zhiku。"""
+    return _zhiku_base()[: -len(".json")]
 
 
 def _md5_hex(s: str) -> str:
@@ -163,10 +189,11 @@ def _assert_safe_url(url):
 
     唯一路径 = 结构性保证：URL 偏差（含注入）直接抛错，杜绝触及其它任何节点。
     """
-    if url == ZHIKU_BASE:
+    if url == _zhiku_base():
         return
-    if url.startswith(ZHIKU_DIR + "/") and url.endswith(".json"):
-        tail = url[len(ZHIKU_DIR) + 1: -len(".json")]
+    zhiku_dir = _zhiku_dir()
+    if url.startswith(zhiku_dir + "/") and url.endswith(".json"):
+        tail = url[len(zhiku_dir) + 1: -len(".json")]
         if KEY_RE.match(tail):
             return
     raise ValueError(f"越权访问拦截：不允许操作该路径 {url}")
@@ -186,20 +213,20 @@ def _fb_request(method, url, payload=None):
 
 def fb_get_container():
     """读整个凭证列表：{key: {neirong, gengxin_shijian}}；无节点 → None。"""
-    return _fb_request("GET", ZHIKU_BASE)
+    return _fb_request("GET", _zhiku_base())
 
 
 def fb_put_entry(key, neirong, gengxin_shijian):
     """写入单条凭证（同 key 覆盖更新；异 key 新增）。
 
-    注意：Firebase REST 路径必须以 .json 结尾 → .../leyou_zhiku/<key>.json
+    注意：REST 路径必须以 .json 结尾 → .../leyou_zhiku/<key>.json
     """
-    return _fb_request("PUT", f"{ZHIKU_DIR}/{key}.json", {"neirong": neirong, "gengxin_shijian": gengxin_shijian})
+    return _fb_request("PUT", f"{_zhiku_dir()}/{key}.json", {"neirong": neirong, "gengxin_shijian": gengxin_shijian})
 
 
 def fb_delete_entry(key):
     """删除单条失效凭证。"""
-    return _fb_request("DELETE", f"{ZHIKU_DIR}/{key}.json")
+    return _fb_request("DELETE", f"{_zhiku_dir()}/{key}.json")
 
 
 # ---------------- 委托 leyou_cloud.py ----------------
@@ -253,25 +280,32 @@ def _try_creds(creds):
 # ---------------- 主流程（多凭证依次尝试） ----------------
 
 def auto_login(scan=True, id_field=None):
-    """1.本地优先 → 2.库中按时间倒序依次尝试（失效即删）→ 3.全失效扫码 → 4.按账号指纹新增/覆盖写库。"""
-    deleted = []
+    """1.本地优先 → 2.库中按时间倒序依次尝试（失效即删）→ 3.全失效扫码 → 4.按账号指纹新增/覆盖写库。
 
-    # 1) 本地凭证优先
+    数据库段需本地配置（`config.local.json` → `leyou_firebase`）；未配置则跳过数据库段、
+    仅走「本地凭证 + 扫码」（结果 `db` 字段如实标注），不阻断登录。
+    """
+    deleted = []
+    db = "ok"                                     # "ok" / "unconfigured"
+
+    # 1) 本地凭证优先（不依赖数据库配置）
     local = local_creds()
     if local.get("token"):
         try:
             ok, st = _try_creds(local)
             if ok:
-                return {"ok": True, "source": "local", "logged_in": True,
+                return {"ok": True, "source": "local", "logged_in": True, "db": db,
                         "token": st.get("token"), "uuid": st.get("uuid"),
                         "expires_at": st.get("expires_at")}
             TOKEN_FILE.unlink(missing_ok=True)  # 本地失效 → 清理
         except Exception:
             pass
 
-    # 2) 数据库凭证列表依次尝试（最新优先）
+    # 2) 数据库凭证列表依次尝试（最新优先；未配置 → 跳过并标注）
     try:
         container = fb_get_container()
+    except ConfigMissing:
+        container, db = None, "unconfigured"
     except Exception as e:
         return {"ok": False, "error": "DB_READ_FAIL", "detail": str(e),
                 "action": "降级：继续本地登录"}
@@ -288,7 +322,7 @@ def auto_login(scan=True, id_field=None):
             try:
                 ok, st = _try_creds(creds)
                 if ok:
-                    return {"ok": True, "source": "db", "logged_in": True,
+                    return {"ok": True, "source": "db", "logged_in": True, "db": db,
                             "key": key, "token": st.get("token"), "uuid": st.get("uuid"),
                             "expires_at": st.get("expires_at"), "deleted": deleted}
                 # 失效 → 删除该条，继续尝试后面的
@@ -302,13 +336,15 @@ def auto_login(scan=True, id_field=None):
 
     # 3) 全部失效 → 登录
     if not scan:
-        return {"ok": False, "error": "LOGIN_REQUIRED",
-                "reason": "本地与数据库凭证均无效", "deleted": deleted,
+        return {"ok": False, "error": "LOGIN_REQUIRED", "db": db,
+                "reason": "本地凭证无效；数据库段未配置（已跳过）" if db == "unconfigured"
+                          else "本地与数据库凭证均无效",
+                "deleted": deleted,
                 "hint": "python leyou_firebase_login.py auto 扫码登录"}
 
     lg = _run_leyou("login", "--compact")
     if not lg.get("ok"):
-        return {"ok": False, "error": lg.get("error", "LOGIN_FAIL"),
+        return {"ok": False, "error": lg.get("error", "LOGIN_FAIL"), "db": db,
                 "message": lg.get("message", "扫码登录失败"),
                 "detail": lg.get("hint", ""), "deleted": deleted}
 
@@ -331,7 +367,7 @@ def auto_login(scan=True, id_field=None):
     except Exception as e:
         save_err = str(e)
     creds_to_local(lg)  # 本地也更新，下次优先本地
-    return {"ok": True, "source": "scan", "logged_in": True,
+    return {"ok": True, "source": "scan", "logged_in": True, "db": db,
             "key": target_key if not save_err else None,
             "action": action, "fingerprint_source": fp_src,
             "token": token, "uuid": lg.get("uuid"),
@@ -420,6 +456,10 @@ def main(argv=None):
                               "token_masked": c["token"][:6] + "…",
                               "expires_at": c.get("expires_at")}, ensure_ascii=False, indent=2))
             return 0
+    except ConfigMissing as e:
+        print(json.dumps({"ok": False, "error": "CONFIG_MISSING", "detail": str(e)},
+                         ensure_ascii=False, indent=2), file=sys.stderr)
+        return 3
     except Exception as e:
         print(json.dumps({"ok": False, "error": "EXEC_FAIL", "detail": str(e)},
                          ensure_ascii=False, indent=2), file=sys.stderr)

@@ -1,4 +1,5 @@
-"""沉淀写路径单测（零网络）：payload 映射 / 本地质量闸 / dry-run 零写 / 采纳上报静默 / 口径限定注入库。"""
+"""沉淀写路径单测（零网络）：payload 映射 / 本地质量闸 / dry-run 零写 / 写令牌本地配置 / 采纳上报静默 / 口径限定注入库。"""
+import json
 import os
 import sys
 import tempfile
@@ -10,11 +11,22 @@ os.environ["LEYAO_KB_HOME"] = tempfile.mkdtemp(prefix="kb_write_")
 SKILL = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SKILL / "scripts"))
 
+import common  # noqa: E402
 import contribute  # noqa: E402
 import feedback  # noqa: E402
 import memory  # noqa: E402
 import resolve  # noqa: E402
 from sources import pool  # noqa: E402
+
+
+def _set_write_token(value: str = "test-token-abc") -> None:
+    """写入临时用户区配置的池写令牌（等价用户本地配置；测试不依赖任何真实秘钥）。"""
+    common.CONFIG_F.write_text(json.dumps({"pool": {"write_token": value}}, ensure_ascii=False),
+                               encoding="utf-8")
+
+
+def _clear_write_token() -> None:
+    common.CONFIG_F.unlink(missing_ok=True)
 
 
 class TestPayloadAndGate(unittest.TestCase):
@@ -61,16 +73,27 @@ class TestSubmitPaths(unittest.TestCase):
 
     def test_submit_uses_token_and_protocol(self):
         mid = self._semantic_memory()
+        _set_write_token()                                        # 写令牌来自本地配置
         with mock.patch.object(pool, "_post", return_value={"ok": True, "id": "p-9"}) as mpost:
             out = contribute.submit_memory(mid)
         self.assertTrue(out["ok"])
         mpost.assert_called_once()
         self.assertEqual(mpost.call_args.args[1], "")             # 写池路径 = POST /
-        self.assertEqual(mpost.call_args.kwargs["token"], "brf-pool-2026-shared")
+        self.assertEqual(mpost.call_args.kwargs["token"], "test-token-abc")
         body = mpost.call_args.args[2]
         for k in ("title", "content", "category", "distill_type", "trust", "quality_score",
                   "contributor", "kind"):
             self.assertIn(k, body)
+
+    def test_submit_without_token_no_request(self):
+        mid = self._semantic_memory()
+        _clear_write_token()                                      # 未配置 → 不发请求、给配置指引
+        with mock.patch.object(pool, "_post") as mpost:
+            out = contribute.submit_memory(mid)
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["reason"], "NO_WRITE_TOKEN")
+        self.assertIn(str(common.CONFIG_F), out["detail"])
+        mpost.assert_not_called()
 
     def test_inject_dry_run(self):
         with mock.patch.object(pool, "_post") as mpost:
@@ -80,6 +103,9 @@ class TestSubmitPaths(unittest.TestCase):
 
 
 class TestAdoptReporting(unittest.TestCase):
+    def setUp(self):
+        _set_write_token()                                    # 采纳上报需本地配置写令牌
+
     def test_adopt_reports_pool_id(self):
         feedback.log_ask("q_write_1", "成本优势率怎么算", "caliber", True, ["pool"], [], pool_id="p-123")
         with mock.patch.object(pool, "_post", return_value={"ok": True}) as mpost:

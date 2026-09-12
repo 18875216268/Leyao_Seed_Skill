@@ -36,7 +36,9 @@ GET https://lyzsk.cfdaili.top/api/pool
 
 ## 写入（沉淀路径；需共享 token，写接口校验）
 
-> 与读路径同源（同端点，`X-Contributor-Token` 头；token 在 `registry.write_token`，换池只改 registry）。
+> 与读路径同源（同端点，`X-Contributor-Token` 头）；**令牌只在本地配置**：数据区 `config.local.json`
+> → `pool.write_token`（不入包/不入仓）。未配置时：显式写动作返回 `NO_WRITE_TOKEN`（不发请求，含配置指引），
+> 采纳上报静默跳过。
 > **默认不写**：提交/注入仅 `contribute` 显式调用；**采纳价值信号**在 `feedback --verdict adopt` 时自动上报（失败静默；`registry.report_adopt=false` 可关）。
 
 | 动作 | 端点 | 字段 | 说明 |
