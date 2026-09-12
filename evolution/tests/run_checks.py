@@ -243,6 +243,20 @@ def main() -> int:
                 _problems.append("ROUTES.md 缺 ★ 默认资产 行或节点 id 不符（跑 engine.py 重绘即修）")
             if "0.5" not in _flow or "默认资产预检" not in _flow:
                 _problems.append("processor/flow/3-execute.md 缺 判据 0.5（默认资产预检）")
+            _lay = (_data.get("defaults") or {}).get("layers") or []
+            if _lay:
+                _row = next((l for l in _md.splitlines() if "★ 默认层" in l), "")
+                if not _row:
+                    _problems.append("ROUTES.md 缺 ★ 默认层 行（跑 engine.py 重绘即修）")
+                else:
+                    _lbl = {"card": "卡", "index": "索引"}
+                    _miss = [x.get("id") for x in _lay if isinstance(x, dict) and ("`%s`" % x.get("id")) not in _row]
+                    _bad = [x.get("id") for x in _lay if isinstance(x, dict)
+                            and ("`%s`→%s" % (x.get("id"), _lbl.get(x.get("read"), "非法"))) not in _row]
+                    if _miss:
+                        _problems.append("★ 默认层 行缺成员：%s（与 defaults.layers 不一致）" % "、".join(_miss))
+                    if _bad:
+                        _problems.append("★ 默认层 行 read 标签不符：%s" % "、".join(_bad))
         checks.append(check("default_asset", not _problems,
                             "；".join(_problems) if _problems else
                             ("默认资产 = %s：★ 行与判据 0.5 一致" % _did if _did

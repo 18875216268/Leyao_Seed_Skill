@@ -72,7 +72,7 @@
 
   python library/engine.py default --id <节点id>             # 设默认资产（hook=read：每次任务必读）
 
-  python library/engine.py default --clear                   # 取消默认资产
+  python library/engine.py default --clear                   # 取消默认资产（含默认层一并清除）
 
   python library/engine.py default --id <节点id> --layers "<id>:<card|index>,…"   # 设默认层（每次任务读入口；≤3；空串+--id 清除）
 
@@ -510,6 +510,8 @@ def validate(data: dict, root: Path) -> list[str]:
 
         issues.append("defaults.layers 超过 3 项（固定成本纪律：入口层至多 3）")
 
+    _seen = set()
+
     for _li, _x in enumerate(_ly):
 
         if not isinstance(_x, dict):
@@ -518,7 +520,15 @@ def validate(data: dict, root: Path) -> list[str]:
 
             continue
 
-        _lid = (_x or {}).get("id")
+        _lid = _x.get("id")
+
+        if _lid in _seen:  # 同一入口只登记一次（默认资产在层内按同一份卡只读一次 ✓）
+
+            issues.append("defaults.layers[%d] 重复条目：%s（同一入口只登记一次）" % (_li, _lid))
+
+            continue
+
+        _seen.add(_lid)
 
         _nd = next((n for n, _ in iter_nodes(data.get("nodes")) if n.get("id") == _lid), None)
 
@@ -530,9 +540,14 @@ def validate(data: dict, root: Path) -> list[str]:
 
             issues.append(f"defaults.layers[{_li}] 节点无 mount（无法读入口）：{_lid}")
 
-        if (_x or {}).get("read") not in ("card", "index"):
+        if _x.get("read") not in ("card", "index"):
 
-            issues.append(f"defaults.layers[{_li}] read 非法：{(_x or {}).get('read')}（可选 card|index）")
+            issues.append(f"defaults.layers[{_li}] read 非法：{_x.get('read')}（可选 card|index）")
+
+    if _ly and not (data.get("defaults") or {}).get("default"):
+
+        issues.append("defaults.layers 非空但未注册默认资产（★ 默认层行无法渲染）→ 先 `engine.py default --id <id> --layers …`")
+
 
     return issues
 
@@ -662,19 +677,19 @@ def render(data: dict) -> str:
 
                      "独立态 `~/.leyao-kb/card.md`）；只用于识别与定位（定义以池 authority 为准）；"
 
-                     "读法与刷新见其 `references/card.md`，判据见 `processor/flow/3-execute.md` 0.5。")
+                     "（卡落点由 `evolution/paths.py` 解析：挂载态/同级/独立态/覆盖态）读法与刷新见其 `references/card.md`，判据见 `processor/flow/3-execute.md` 0.5。")
 
         if d.get("layers"):
 
             lines.append("> ★ 默认层（每次任务读入口 · ≤3）："
 
-                         + " ｜ ".join(("`%s`→%s" % (x.get("id"), "卡" if x.get("read") == "card" else "索引"))
+                         + " ｜ ".join(("`%s`→%s" % (x.get("id"), {"card": "卡", "index": "索引"}.get(x.get("read"), "非法")))
 
-                                     for x in d["layers"]))
+                                     for x in d["layers"] if isinstance(x, dict)))
 
     lines += [
 
-        "> 读者：agent 与审阅者；**维护**请用管理台（`library/admin/`）或 `routes.json`（唯一事实源，本图由 `engine.py` 生成）。",
+        "> 读者：agent 与审阅者；**维护**请用管理台（`library/admin/`，★ 默认资产/默认层经 `engine.py default`；管理台暂不含）或 `routes.json`（唯一事实源，本图由 `engine.py` 生成）。",
 
         "> 路由：按节点**描述**匹配 → 命中进其 `→ 挂载` 目录读 `SKILL.md`／`README.md` 调用；无命中按自带判据亲做。"
 
@@ -1232,7 +1247,7 @@ def cmd_default(args) -> int:
 
         if args.clear:
 
-            if args.id or args.hook or getattr(args, "layers", None):
+            if args.id or args.hook or getattr(args, "layers", None) is not None:
                 return False, "--clear 与 --id/--hook 互斥（二者选一）"
 
             if not (data.get("defaults") or {}):
@@ -1292,8 +1307,7 @@ def cmd_default(args) -> int:
 
                     return False, f"默认层节点不存在：{nid}"
 
-
-                    if not (find(data, nid) or {}).get("mount"):
+                if not (find(data, nid) or {}).get("mount"):
 
                         return False, f"默认层节点无 mount（无法读入口）：{nid}"
                 if rd not in ("card", "index"):
@@ -1301,6 +1315,10 @@ def cmd_default(args) -> int:
                     return False, f"默认层 read 非法：{rd}（可选 card|index）"
 
                 parsed.append({"id": nid, "read": rd})
+
+            if len({x["id"] for x in parsed}) != len(parsed):
+
+                return False, "默认层存在重复条目（同一入口只登记一次）"
 
             if parsed:
 

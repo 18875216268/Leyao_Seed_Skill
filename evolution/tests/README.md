@@ -73,7 +73,7 @@ python evolution/tests/run_update_sandbox.py  # 更新链路回归（零联网�
 | `version_sync` | `manifest.json` 与 `SKILL.md` 声明版本一致（发版口径：改一处必改另一处） |
 | `versions_shape` | 用户区版本记录结构合法（`local` / `history`≤10 / `baseline`；未生成时计入项数并标注跳过） |
 | `routes_render` | `ROUTES.md` 与 `routes.json` 一致（引擎渲染产物，未手工编辑） |
-| `default_asset` | 默认资产**呈现面 + 判据面**：`ROUTES.md` 有 ★ 行且含节点 id · 判据 0.5 在场（未注册时合法跳过；**注册合法性归 `routes_contract`**、**卡文件健康归资产 `card.py check`**——不重复判） |
+| `default_asset` | 默认资产**呈现面 + 判据面**：`ROUTES.md` 有 ★ 行且含节点 id · 判据 0.5 在场（未注册时合法跳过；**有默认层时：★ 默认层行成员/标签与 defaults.layers 一致**；**注册合法性归 `routes_contract`**、**卡文件健康归资产 `card.py check`**——不重复判） |
 | `base_card_guard` | 基础卡片（名称 `@` 开头，兼容全角 `＠`）**不可删除**：行为级回归——自身拒绝 · 子树含基础卡片的祖先拒绝 · 普通卡可删（守卫唯一实现在 `engine.node_remove`，CLI 与管理台共用） |
 | `doc_refs` | 文档里反引号引用的框架路径真实存在（文档 ↔ 文件） |
 | `doc_commands` | 文档里的 `python <脚本>` 指向真实脚本（文档 ↔ 代码） |
