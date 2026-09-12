@@ -23,7 +23,7 @@ PROCESSOR = ROOT / "processor" / "PROCESSOR.md"
 PLAN = ROOT / "processor" / "flow" / "2-plan.md"
 EXECUTE = ROOT / "processor" / "flow" / "3-execute.md"
 ACCEPT = ROOT / "processor" / "flow" / "4-accept.md"
-TEMPLATE = ROOT / "processor" / "templates" / "过程记录.md"
+TEMPLATE = ROOT / "processor" / "templates" / "process-log.md"
 README = ROOT / "evolution" / "tests" / "README.md"
 ZONES = ("01-原始材料区", "02-任务执行区", "03-结果交付区", "04-归档区")
 

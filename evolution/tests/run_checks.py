@@ -37,7 +37,7 @@ REQUIRED = [
     "evolution/tests/run_checks.py", "evolution/tests/README.md",
     "evolution/tests/run_route_drill.py", "evolution/tests/run_task_drill.py",
     "evolution/tests/run_task_set.py", "evolution/tests/task_set.json",
-    "processor/templates/过程记录.md",
+    "processor/templates/process-log.md",
     "version/VERSION.md",
 ]
 
@@ -320,7 +320,7 @@ def main() -> int:
         zones = ("01-原始材料区", "02-任务执行区", "03-结果交付区", "04-归档区")
         missing = [z for z in zones if z not in text]
         legacy = [old for old in ("`inputs/`", "`work/`", "`deliverables/`", "`archive/`") if old in text]
-        tpl = ROOT / "processor" / "templates" / "过程记录.md"
+        tpl = ROOT / "processor" / "templates" / "process-log.md"
         ok = not missing and not legacy and tpl.exists()
         checks.append(check("workdir_conventions", ok,
                             "四区约定齐备 · 无旧四区名残留 · 模板在场" if ok
