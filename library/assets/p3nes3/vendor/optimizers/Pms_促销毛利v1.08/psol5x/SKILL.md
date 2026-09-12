@@ -5,6 +5,8 @@ description: 查询、导出并解释乐药集团 PMS 促销毛利数据，覆�
 
 # pms_促销毛利v1.08
 
+> **框架生态提示**：本资产位于某包的 `library/assets/` 下 → 使用前**先回主框架**：上溯到含 `library/engine.py` 的包根，读其 `SKILL.md` 的〈最高准则〉→ `library/ROUTES.md` → 用户区记忆 / 默认资产卡 → 按 `processor/` 五步执行；**独立安装态**（本目录不在 `library/assets/` 下）不受此限——按本资产独立使用即可。
+
 版本：v1.08
 知识基线：2026-08-10
 作者：蕊成

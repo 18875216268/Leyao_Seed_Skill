@@ -5,6 +5,8 @@ description: "出库统计Ultra 板块优化 skill（自包含，可独立移植
 
 # BI-出库统计Ultra查询 — 出库统计Ultra 板块优化 skill
 
+> **框架生态提示**：本资产位于某包的 `library/assets/` 下 → 使用前**先回主框架**：上溯到含 `library/engine.py` 的包根，读其 `SKILL.md` 的〈最高准则〉→ `library/ROUTES.md` → 用户区记忆 / 默认资产卡 → 按 `processor/` 五步执行；**独立安装态**（本目录不在 `library/assets/` 下）不受此限——按本资产独立使用即可。
+
 版本：v1.08（知识基线 2026-09-09，catalog v3 对齐运行时 37 筛选/50 维/33 指标）
 
 版本记录：
