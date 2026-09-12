@@ -15,6 +15,15 @@ metadata:
 
 > **框架生态提示**：本资产位于某包的 `library/assets/` 下 → 使用前**先回主框架**：上溯到含 `library/engine.py` 的包根，读其 `SKILL.md` 的〈最高准则〉→ `library/ROUTES.md` → 用户区记忆 / 默认资产卡 → 按 `processor/` 五步执行；**独立安装态**（本目录不在 `library/assets/` 下）不受此限——按本资产独立使用即可。
 
+## 登录（唯一入口 · 先读这 4 行）
+
+- 命令：`python library/assets/i7c4z1/scripts/bi_login.py --reuse`（有效则复用；失效才弹企微扫码）
+- 只验证（**绝不弹窗**）：`--status`（默认不含令牌明文；`--show-token` 才输出完整凭证）｜ 无界面环境：`--no-ui`
+- 凭证仓库：`accounts/<loginId>.json`（登录一次即产出 token / headers / user；通道与优化板**消费**该凭证，不各自登录 ✓）
+- 铁律：**登录一律走本入口**——禁止自研登录 / 自取二维码 / 自拼鉴权 ✗；持有有效凭证时**不得再发起登录** ✗；参数 / 权限 / 限流 / 网络类报错**不触发登录** ✗（先按 `processor/control.md`〈卡壳处置〉）。
+
+> 本块是 §1.1 的**置顶摘要**（同源）；细节（备用路径 / 通道注入 `BI_UID_TOKEN` 等）以 §1.1 与 `vendor/SUBSKILL_ROUTING.md` 为准。
+
 ## 0. 父子关系与总框架
 
 **本 skill 是父 skill（总指引）**，集团子 skill 包（基础 + 优化）是能力提供方。四条裁决原则：

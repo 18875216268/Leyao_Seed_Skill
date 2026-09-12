@@ -15,6 +15,15 @@ metadata:
 
 > **框架生态提示**：本资产位于某包的 `library/assets/` 下 → 使用前**先回主框架**：上溯到含 `library/engine.py` 的包根，读其 `SKILL.md` 的〈最高准则〉→ `library/ROUTES.md` → 用户区记忆 / 默认资产卡 → 按 `processor/` 五步执行；**独立安装态**（本目录不在 `library/assets/` 下）不受此限——按本资产独立使用即可。
 
+## 登录（唯一入口 · 先读这 4 行）
+
+- 命令：`python library/assets/p3nes3/scripts/pms_login.py --reuse`（有效则复用；失效才弹企微扫码）
+- 只验证（**绝不弹窗**）：`--status` ｜ 无界面环境：`--no-ui`（可加 `--no-remote` 跳过远端校验）
+- 凭证仓库：`%LOCALAPPDATA%\pms-operations-query\accounts\<accountNo>.json`（登录一次即产出 token + 身份 + 口径；**一次登录、多处复用** ✓）
+- 铁律：**登录一律走本入口**——禁止按接口逻辑自研登录 / 自取二维码 / 自拼鉴权 ✗；持有有效凭证时**不得再发起登录** ✗；参数 / 权限 / 限流 / 网络类报错**不触发登录** ✗（先按 `processor/control.md`〈卡壳处置〉）。
+
+> 本块是 §1.1 的**置顶摘要**（同源）；细节（备用路径 / 401 重登 / `stored_token()` 出口）以 §1.1 为准。
+
 ## 0. 父子关系与总框架
 
 **本 skill 是父 skill（总指引）**，集团子 skill 包（基础 + 优化）是能力提供方。四条裁决原则：
