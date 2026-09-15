@@ -16,7 +16,7 @@
     python pms_login.py --no-ui         # 无界面模式（服务器 / 守护进程）
     python pms_login.py --no-remote     # 跳过远端 index 校验
 
-    成功时把「完整凭证 JSON」打印到 stdout，可直接被上游程序解析。
+    成功时把「完整凭证 JSON」打印到 stdout，可直接被上游程序解析；扫码成功均自动落库（见第五节）。
     退出码：0 成功 / 1 业务错误 / 2 未分类错误。
 
 =========================== 二、被其它应用调用 ===========================
@@ -1216,7 +1216,7 @@ def get_credential(
                         False → 无界面模式；凭证不可用时不弹窗，直接抛 PmsError
         parent          PyQt5 父窗口（可选）
 
-    返回：完整凭证字典（同 build_credential()）。
+    返回：完整凭证字典（同 build_credential()）；新扫码成功后自动落库并补齐公司/仓口径（与 relogin() 一致）。
 
     抛出：
         PmsError —— 无界面模式下凭证不可用，或遇到网络/权限类不可恢复错误。
@@ -1236,7 +1236,8 @@ def get_credential(
         raise PmsError(
             "AUTH_REQUIRED", "本地没有可用凭证，且当前为无界面模式，无法扫码登录。"
         )
-    return run_login_dialog(parent=parent)
+    # 新扫码成功即补全登录信息并落库（与 relogin() / login_and_store 同源 ✓）
+    return _store_scanned_credential(run_login_dialog(parent=parent))
 
 
 def relogin(*, parent: Any = None) -> dict[str, Any]:
@@ -1469,6 +1470,24 @@ def account_store() -> AccountStore:
     return AccountStore()
 
 
+def _store_scanned_credential(
+    credential: dict[str, Any],
+    *,
+    account: str | None = None,
+    category: str | None = None,
+) -> dict[str, Any]:
+    """把「刚扫码得到的凭证」补全登录信息并按扫码人身份落库（本模块所有扫码入口共用）。
+
+    步骤：查扫码人身份 → 以 accountNo 为账号键 → 补齐公司 / 仓口径 → 写入统一凭证仓库。
+    """
+    user_info = fetch_user_info(credential)
+    name = account or _identity_of(user_info)
+    # 登录即取全「登录信息」：token + 身份 + 公司口径 + 发货仓清单（取不到不影响登录）
+    credential.update(collect_login_scope(str(credential.get("token") or "")))
+    account_store().upsert(name, credential, category=category)
+    return credential
+
+
 def login_and_store(
     account: str | None = None,
     *,
@@ -1493,13 +1512,9 @@ def login_and_store(
 
     抛出：PmsError —— 登录失败，或查不到用户信息（USER_INFO_FAILED）
     """
-    credential = run_login_dialog(parent=parent)
-    user_info = fetch_user_info(credential)
-    name = account or _identity_of(user_info)
-    # 登录即取全「登录信息」：token + 身份 + 公司口径 + 发货仓清单（取不到不影响登录）
-    credential.update(collect_login_scope(str(credential.get("token") or "")))
-    account_store().upsert(name, credential, category=category)
-    return credential
+    return _store_scanned_credential(
+        run_login_dialog(parent=parent), account=account, category=category
+    )
 
 
 def list_accounts() -> list[dict[str, Any]]:

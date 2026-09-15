@@ -5,8 +5,9 @@
 理解接口（host / path / content_type / 必填参数），构造请求，
 本脚本只负责把请求发出去并把响应 / 导出文件拿回来。
 
-token 来源优先级：--token > 环境变量 PMS_TOKEN > 自有登录组件凭证仓库最近登录账号
-（本地检查，绝不弹窗；仓库为空时给出登录指引）。
+token 来源优先级：--token > 环境变量 PMS_TOKEN > 自有登录组件
+（**凭证缺失 / 失效时自动调起登录器本体**——登录动作全部由登录器完成，本脚本只负责取用；
+`--no-ui` 时仅本地检查并报错指路（agent 调登录器 / 引导用户提供新凭证））。
 
 请求构造（二选一）：
 - 完整 URL：--url <https://.../api/...>
@@ -35,11 +36,11 @@ from urllib.parse import urlparse
 import requests
 
 from pms_common import (
+    LOGIN_HINT,
     PmsClient,
     PmsError,
     configure_stdio,
     configured_base,
-    stored_token,
     error_payload,
 )
 
@@ -122,6 +123,31 @@ def send(
     return result
 
 
+def resolve_token(args: argparse.Namespace) -> str:
+    """token 解析：--token > PMS_TOKEN > 自有登录组件（缺 / 失效时自动调起登录器本体）。
+
+    与 BI `bi_call.py` 同构：登录动作（弹窗 / 二维码 / 换证 / 落库）全部由登录器完成，
+    本脚本只负责取用；`--no-ui` 时不弹窗、报错指路（agent 调登录器 / 引导用户提供新凭证）。
+    """
+    explicit = args.token or os.getenv("PMS_TOKEN")
+    if explicit:
+        return str(explicit)
+    from pms_login import get_credential, PmsError as _LoginError  # 惰性导入自有登录组件
+    try:
+        credential = get_credential(
+            force_relogin=args.relogin,
+            interactive=not args.no_ui,
+            validate_remote=not args.no_remote,
+        )
+    except _LoginError as exc:
+        code = str(getattr(exc, "code", "") or "AUTH_REQUIRED")
+        raise PmsError(f"{LOGIN_HINT} ({code})") from exc
+    token = str(credential.get("token") or "")
+    if not token:
+        raise PmsError(f"{LOGIN_HINT} (AUTH_TOKEN_MISSING)")
+    return token
+
+
 def main() -> int:
     configure_stdio()
     parser = argparse.ArgumentParser(
@@ -141,8 +167,11 @@ def main() -> int:
     parser.add_argument("--payload-file", type=Path, help="JSON 请求体文件；token 自动注入，无需手写")
     parser.add_argument(
         "--token",
-        help="PMS token；默认取自有登录组件凭证仓库中最近登录账号（也可用 PMS_TOKEN 环境变量）",
+        help="PMS token；缺省按 PMS_TOKEN 环境变量、登录器凭证自动取用（缺 / 失效自动调起登录器本体）",
     )
+    parser.add_argument("--relogin", action="store_true", help="强制重新企微扫码登录（经由登录器本体）")
+    parser.add_argument("--no-ui", action="store_true", help="凭证不可用时不弹登录窗口（无界面/自动化）")
+    parser.add_argument("--no-remote", action="store_true", help="跳过登录凭证远端校验")
     parser.add_argument("--provider-id", help="Convenience: inject providerId if absent in payload")
     parser.add_argument("--output", type=Path, help="Write response JSON to this file")
     parser.add_argument(
@@ -156,8 +185,8 @@ def main() -> int:
 
     try:
         url = build_url(args)
-        # token 优先级：--token > 环境变量 PMS_TOKEN > 凭证仓库最近登录账号（仅本地检查，不弹窗）
-        token = args.token or os.getenv("PMS_TOKEN") or stored_token()
+        # token 解析：--token > PMS_TOKEN > 自有登录组件（缺 / 失效自动调起登录器本体，见 resolve_token）
+        token = resolve_token(args)
         payload = load_payload_file(args.payload_file)
         if args.provider_id and "providerId" not in payload:
             payload["providerId"] = args.provider_id

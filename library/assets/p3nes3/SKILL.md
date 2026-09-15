@@ -15,22 +15,44 @@ metadata:
 
 > **框架生态提示**：本资产位于某包的 `library/assets/` 下 → 使用前**先回主框架**：上溯到含 `library/engine.py` 的包根，读其 `SKILL.md` 的〈最高准则〉→ `library/ROUTES.md` → 用户区记忆 / 默认资产卡 → 按 `processor/` 五步执行；**独立安装态**（本目录不在 `library/assets/` 下）不受此限——按本资产独立使用即可。
 
-## 登录（唯一入口 · 先读这 6 条）
+## 登录（唯一入口 · 变量填充版）
 
-**两种鉴权（凭证互不通用 ✗）**
+> **与主框架衔接（硬）**：触发条件、入口链（取资产路径 → 判「凭证已在位？」→〈登录流程〉/〈验证流程〉 → 作用<业务域>）、失败兜底（〈问题未解决流程〉＝`processor/control.md`〈卡壳处置〉 · 通用循环 ✓）与通用红线——**一律以主框架 `processor/PROCESSOR.md`〈资产使用准则〉④ 为准**；**本节只填本资产的变量值，不复述流程** ✗。
 
-| 方式 | 何时用 | 入口 | 凭证落点 | 消费范围（硬）|
-| --- | --- | --- | --- | --- |
-| **A 本包登录（默认 ✓）** | 常规取数 | `python library/assets/p3nes3/scripts/pms_login.py --reuse` | ``%LOCALAPPDATA%\pms-operations-query\accounts\<accountNo>.json`` | **仅本 skill 与其优化板块子 skill** ✓ |
-| **B 集团方式（备用）** | 用户**明确要求**集团取数 / 自带 PAT | `vendor/leyo-sys`（集团基础包；**需先 `pms_sync.py` 同步**；未在位按〈卡壳处置〉✗；B 泳道精确前置与凭证口径见 `vendor/SUBSKILL_ROUTING.md`〈回退判据〉） | 由集团方管理 | **仅集团文档所述的取数** ✓；**不得用于本包** ✗ |
+**变量 1 · 验证动作（只读 · 绝不弹窗）**
+python scripts/pms_login.py --status        # 有效 → 复用 ✓；无效 → 变量 3
 
-- 做法：先 `--status`（**只验证、绝不弹窗**）→ 有效即**复用** ✓；失效才 `--reuse`/扫码（扫码成功**自动落库** ✓）
-- 取用：优先用**资产出口命令**（PMS `stored_token()`（见 §1.1））；直读仓库为备选；**令牌明文不得回显** ✗
-- 无界面 / 自动化：`--no-ui`（不可弹窗）→ 由用户提供凭证，或走 B ✗（B 启用条件见 §1.1 / `vendor/SUBSKILL_ROUTING.md` §1）
-- B 的方式：**按其包内文档实时读取、原样执行** ✗（零假设、零转述、不得自行实现 ✗）
-- **红线**：禁自写登录流程 / 自取二维码 / 自拼鉴权 ✗ · **两套凭证不得交叉使用** ✗ · 参数 / 权限 / 限流 / 网络类报错**不触发登录** ✗
+**变量 2 · 凭证落点（唯一仓库）**
+%LOCALAPPDATA%\pms-operations-query\accounts\<accountNo>.json
+· 取用：**一律经登录器工具**（出口命令 `stored_token()`（§1.1）/ `--status` 输出）✓；**禁止 AI 自行获取**（自读 / 自解 / 自拼凭证 ✗）；**令牌明文不得回显** ✗
+· 产出（一处齐备 ✓）：token + 身份 + 公司口径（providers / provider_id）+ 发货仓清单
 
-> 本块是 §1.1 的**置顶摘要**（同源）；细节（参数语义 / 备用路径 / 401 重登）以 §1.1 为准；**命令示例：本块用框架内路径，§1.1 用资产根相对路径，二者等价 ✓**。
+**变量 3 · 登录器（存在独立登录器 → 必须调用）**
+python scripts/pms_login.py            # 默认：扫码弹窗（登录成功 → 自动落库 ✓）
+python scripts/pms_login.py --reuse    # 有效复用、失效才弹（常规首选 ✓；扫码成功同样自动落库 ✓）
+python scripts/pms_login.py --no-ui    # 无界面：不弹窗 → 由用户提供凭证（备用路径见 §1.1）
+· **登录动作全部由登录器本体完成**（弹窗 / 二维码 / 换证 / 落库）✓；agent **只管等待用户完成登录** → 成功后**经其工具直接取用凭证** ✓；**禁止 AI 自行获取凭证** ✗
+· **主取数壳 `pms_call.py` 在凭证缺失 / 失效时自动强制调起本登录器**（同一本体；无界面 `--no-ui` 关闭 ✓）——agent 无需介入；**辅助工具 / 其它情形发现失效 → agent 主动调起本登录器重登**（或按说明引导用户提供新凭证 ✓）
+
+**变量 4 · 业务域适用表（本资产唯一权威 = 框架「作用<业务域>」的取值）**
+
+| 凭证来源 | 本 skill + 优化板块（psol5x 等） | 集团域业务 |
+| --- | --- | --- |
+| **A 自有凭证（登录器产出 · 默认 ✓）** | ✓ 原生可用（本资产设计） | ✓ 可用，**仅「自实现」路径**：读集团包信息 → 自解接口/参数 → 自写一次性脚本直打；**禁传集团包内工具** ✗；集团包每次更新 → 必须重新解析 ✓ |
+| **B 集团 key（集团方式；用户明确要求 / 提供 `ak_` 时）** | ★未验证 · 兜底（**默认不用**；**用户明确要求 → 按其走 ✓**，交付显式标注未验证 ✓；其余启用细则另行约定） | ✓ 原生：按集团包说明使用（可用集团全部工具） |
+
+**变量 5 · 重试上限**：登录 / 重登 ≤3 次（与 `vendor/SUBSKILL_ROUTING.md`〈回退判据〉判据 ③ 同规 ✓；**用尽后按〈问题未解决流程〉：询问用户 → 按决定继续 / 触发回退 ✓**）
+
+**指针（本节不重复 ✗）**
+· 回退链 A→桥接→C[`ak_`]→D（含「自实现」细节）→ `vendor/SUBSKILL_ROUTING.md`〈回退判据〉+〈桥接指引〉
+· 子包凭证传递（`--token`/`PMS_TOKEN`/`--provider-id`/`--state-file`；子包不读本仓库）→ §0 第 2 条
+· 无界面 / 401 重登 / 参数语义 → §1.1（细节以它为准）
+
+**本资产特有红线**
+· **两套凭证不得交叉使用** ✗（A / B 各自只服务上表列明适用的域）
+· 参数 / 权限 / 限流 / 网络类报错**不触发登录** ✗
+
+> 命令路径：均为**资产根相对路径**（**cwd＝本 SKILL.md 所在目录**）✓。
 
 ## 0. 父子关系与总框架
 
@@ -61,15 +83,15 @@ Pms skill（父：总指引 + 裁决 + 路由）
 
 ### 1.1 登录器（pms_login.py —— 自有单文件登录组件，**主**）
 - **自有登录组件优先**：企微扫码获取凭证，为本 skill 的主登录路径（见 §0 裁决原则 2）。单文件自包含、配置内置，主机与端点双白名单、禁止重定向、不走系统代理。
-- **备用路径**：仅在自有组件**不可用**（如无界面且无法扫码）且用户同意时启用——按集团子包鉴权流程**替代**自有登录（与自有组件**二选一、不并用**；已有有效凭证时不得再发起任何登录），操作细节完全遵照 `vendor/leyo-sys/` 随包文档——备用不等于转述，本框架不做任何假设。**集团包未同步（`vendor/leyo-sys` 不在位）时先跑 `python scripts/pms_sync.py`，否则按 `processor/control.md`〈卡壳处置〉** ✗；**B 泳道精确前置与凭证口径见 `vendor/SUBSKILL_ROUTING.md`〈回退判据〉**
+- **备用路径（集团方式 · `ak_`）**：**适用范围与启用条件一律以顶部〈登录〉变量 4 为准**（集团域 ✓ 原生；本域 ★未验证 · 默认不用 ✗）；与自有组件**二选一、不并用** ✓；**已有有效凭证时不得再发起任何登录** ✗。操作细节完全遵照 `vendor/leyo-sys/` 随包文档——备用不等于转述，本框架不做任何假设。**集团包未同步（`vendor/leyo-sys` 不在位）时先跑 `python scripts/pms_sync.py`，否则按 `processor/control.md`〈卡壳处置〉** ✗；**该路径精确前置（`leyo-sys` 落盘 + `ak_`）见 `vendor/SUBSKILL_ROUTING.md`〈回退判据〉「C 跳前置」**
 - 用法：
-  - CLI：`python scripts/pms_login.py`（默认=**总是重扫** ✗；请优先 `--status` 只验证 / `--reuse` 有效即复用 ✓）/ `--status`（只验证，绝不弹窗）/ `--reuse`（有效则复用，失效才弹窗）/ `--no-ui`（服务器/守护进程）/ `--no-remote`（跳过远端校验）；退出码 0 成功 / 1 业务错误 / 2 未分类错误
+  - CLI：`python scripts/pms_login.py`（默认=**总是重扫** ✗；请优先 `--status` 只验证 / `--reuse` 有效即复用 ✓）/ `--status`（只验证，绝不弹窗）/ `--reuse`（有效则复用，失效才弹窗）/ `--no-ui`（服务器/守护进程）/ `--no-remote`（跳过远端校验）；**扫码成功均自动落库 + 补齐公司/仓口径** ✓；退出码 0 成功 / 1 业务错误 / 2 未分类错误
   - Python API：`relogin` / `verify_credential` / `get_credential` / `is_authenticated`
 - **凭证仓库**：按账号一文件，`%LOCALAPPDATA%\pms-operations-query\accounts\<accountNo>.json`（明文 JSON、原子写、权限 600；`PMS_OPERATIONS_HOME` 可覆盖；**非 Windows** 走 `XDG_DATA_HOME`/`~/.local/share`）。同一账号再扫码 → 更新，换人扫码 → 新增，互不覆盖。
-- **取用出口（供 Agent 传参用）**：`stored_token()`（`pms_call.py` 即用它；本地检查、绝不弹窗）——
+- **取用出口（供 Agent 传参用 · 一律经登录器工具 ✓）**：`stored_token()`（本地检查、绝不弹窗；供 agent 取用后传子 skill）——
   `python -c "import sys; sys.path.insert(0,'scripts'); import pms_common; print(pms_common.stored_token())"`；
   Agent 取到后直接传给子 skill（`--token`，或 `PMS_TOKEN` 注入一次复用于多次调用）。
-- **边界**：凭证仓库**只由本 skill 与其 Agent 取用**；子 skill 不读取本仓库、不含凭证获取逻辑（子包保持完全独立）。凭证过期时在本 skill 重新登录一次即可。
+- **边界**：凭证仓库**只由本 skill 与其 Agent 经登录器工具取用**（**禁止 AI 自行获取**——自读 / 自解凭证文件 ✗）；子 skill 不读取本仓库、不含凭证获取逻辑（子包保持完全独立）。凭证过期时在本 skill 重新登录一次即可。
 - 登录产出完整凭证（`token` / 可直接使用的 `headers` / `user`：userId·userName·accountNo·角色 / **公司口径 `providers`·`provider_id`·`provider_name`** / **发货仓清单 `warehouses`**——登录时一并自动带出，取不到不影响登录），登录成功即按扫码人身份入库。
 - **一处取全**：`python scripts/pms_login.py --status`（远端校验 + **老凭证自动补齐公司 + 仓库口径**）→ 输出即 Agent 所需的**全部登录信息**（token / 身份 / 公司口径 / 发货仓清单）；`--status --no-remote` 可跳过远端校验。
 - **调用链 token 来源**：`--token` > 环境变量 `PMS_TOKEN` > 凭证仓库最近登录账号（本地检查，绝不弹窗）。
@@ -91,7 +113,7 @@ Pms skill（父：总指引 + 裁决 + 路由）
   - host 基址 + 路径：`python scripts/pms_call.py --host-key pmsHost --path /api/Index/xxx --payload-file payload.json`（host 基址从 `sync_config.json` 的 `host_endpoints` 解析）
   - 导出落盘：`... --out-file 报表.xlsx`（自动识别文件流 / data.url 两种形态）
   - 响应写入文件：`... --output resp.json`（导出结果用 `--out-file`）
-  - token 自动注入（**来源优先级见 §1.1** ✗）；body 双发 token
+  - token 自动注入（`--token` > `PMS_TOKEN` > 登录器取用）；**凭证缺失 / 失效自动调起登录器本体**（`--relogin` 强制重扫 / `--no-ui` 不弹窗报错指路 / `--no-remote` 跳过校验）✓；body 双发 token
   - 集团接口均为 POST，发送器固定 POST，无 method 选项；`content_type` 默认 `application/json`，亦可 `application/x-www-form-urlencoded`
 
 ### 1.4 体检器（vendor_lint.py —— 接入体检，防重复登录）
@@ -106,7 +128,7 @@ Pms skill（父：总指引 + 裁决 + 路由）
 
 ## 3. 取数流程（AI 主导，非固定脚本链）
 
-1. **登录**：`python scripts/pms_login.py --status`（只验证不弹窗，**推荐**：**凭证有效**时自动补齐公司/仓口径；**失效则返回退出码 1、不会重登** ✗ —— 需重登见下条）或 Python API `login_and_store()`（**唯一同时完成「落库 + 补齐公司/仓口径」的入口**）。⚠️ 无参 CLI `pms_login.py` 仅在本进程返回凭证、**不写凭证仓库** ✗。产出 user（登录人身份）。
+1. **登录**：`python scripts/pms_login.py --status`（只验证不弹窗：**凭证有效**时自动补齐公司/仓口径；**失效则返回退出码 1、不会重登** ✗）→ 有效即复用 ✓；需重登时 `python scripts/pms_login.py`（默认重扫）/ `--reuse`（失效才弹）——**扫码成功自动落库 + 补齐公司/仓口径** ✓（Python API `login_and_store()` 同源等价）。产出 user（登录人身份）。
 2. **路由**：按用户意图查 `vendor/SUBSKILL_ROUTING.md` 路由表，确定用哪个子 skill（优化 / 基础）。
 3. **读文档**：读对应子 skill 原样文档（md / 脚本 / payload 模板），理解目标接口的 host / path / content_type / 必填参数。
 4. **构造**：AI 组织 payload（token 由发送器自动注入，无需手写）；host 用 `sync_config` 的 `host_endpoints` 键名（`--host-key`）或直接给 `--url`。
@@ -116,7 +138,7 @@ Pms skill（父：总指引 + 裁决 + 路由）
 
 ## 4. 常见陷阱与故障处理（Agent 必读）
 
-- **401 / token 失效**：先用 Python API `login_and_store()` 重登（**唯一同时落库 + 补口径的入口**）✅；或 `python scripts/pms_login.py`（语义见 §1.1 ✗）——若用无参/弹窗版必须把新 token 以 `--token`/`PMS_TOKEN` 传入本次查询，否则仓库里仍是旧凭证、会再次 401；不要改代码；弹窗失败可点容器重试。
+- **401 / token 失效**：`python scripts/pms_login.py --reuse` 重登（有效即复用；失效自动弹窗 → **扫码成功自动落库** ✓）→ 重试本次查询 ✓；不要改代码；弹窗失败可点容器重试。
 - **42053 请求过频**（当前已知集团限流码，以随包文档为准）：缩小时间范围、按天拆分明细；`pms_call.py` 已内置退避重试（默认 2 次）。
 - **代理报错（PROXY_ERROR）**：登录器本身不走系统代理；`pms_call.py` 报代理错误时同命令加 `--no-proxy`，不要改系统代理设置。
 - **TLS 报错（TLS_ERROR）**：仅在受控环境用 `--insecure`；优先修复本地 CA 配置（登录器可用 `PMS_CA_BUNDLE` 指定证书）。

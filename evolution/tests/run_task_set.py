@@ -6,6 +6,7 @@
   `doing`（进行态：结构合规、无交付件）· `fail`（结构不合规）。
   把"缺新机制"与"结构性错误"分开，避免误杀历史产物、同时保住对结构问题的把关。
 - 合成用例带**期望档位** → 判定器与实际比对，输出**判定准确率**（测判定器本身，而不是测 AI）。
+- 真实用例目录缺失（工作区重组）→ 标 `missing`（环境缺件）：**不计入准确率、显式列出**。
 - 阈值档（`--profile`）：`strict`（§6 也算硬）· `balanced`（默认，推荐）· `loose`（只查结构最小集）。
   三档跑同一批用例，用数据选"最佳平衡"。
 
@@ -115,22 +116,30 @@ def main() -> int:
 
     spec = json.loads(SET_FILE.read_text(encoding="utf-8"))
     tmp = Path(tempfile.mkdtemp(prefix="task_set_"))
-    rows, ok_cnt = [], 0
+    rows, ok_cnt, judged = [], 0, 0
     try:
         for case in spec["cases"]:
             p = (WORKSPACE_HOME / case["path"]) if case["kind"] == "real" else build_synthetic(case["id"], tmp)
+            if case["kind"] == "real" and not p.exists():
+                rows.append({**case, "got": "missing",
+                             "why": "目录不存在（环境缺件，不计入准确率）：%s" % case["path"],
+                             "expected_ok": None})
+                continue
             got = judge(p, case.get("stage", "done"), args.profile)
             hit = got["level"] == case["expect"]
             ok_cnt += int(hit)
+            judged += 1
             rows.append({**case, "got": got["level"], "why": got["why"], "expected_ok": hit})
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
-    total = len(rows)
+    missing = sum(1 for r in rows if r["got"] == "missing")
+    total = judged
     acc = ok_cnt / max(1, total)
-    summary = {"ok": acc >= 1.0, "profile": args.profile, "cases": total,
-               "matched": ok_cnt, "accuracy": round(acc, 4),
-               "levels": {lv: sum(1 for r in rows if r["got"] == lv) for lv in ("pass", "legacy", "doing", "fail")}}
+    summary = {"ok": acc >= 1.0, "profile": args.profile, "registered": len(rows),
+               "judged": judged, "missing": missing, "matched": ok_cnt, "accuracy": round(acc, 4),
+               "levels": {lv: sum(1 for r in rows if r["got"] == lv)
+                          for lv in ("pass", "legacy", "doing", "fail", "missing")}}
     if args.json:
         print(json.dumps({"summary": summary, "cases": rows}, ensure_ascii=False, indent=1))
     else:
