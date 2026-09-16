@@ -4,7 +4,7 @@ description: "用这个 skill 处理需要成套流程与资产路由的任务�
 compatibility: "需要 Python 3.10+（仅标准库，无第三方依赖）；资产管理台在本地起 HTTP 服务（默认 127.0.0.1:8765，需要能开本地端口）"
 license: "MIT"
 metadata:
-  version: "0.40.16"
+  version: "0.40.17"
   architecture: "processor + library(routes + assets) + evolution(五环自举) + version(版本维护)"
   author: "Leyao"
   date: "2026-09-13"
@@ -30,6 +30,7 @@ metadata:
 | 层级 | 路径 | 职责 |
 | --- | --- | --- |
 | 1 主文档 | `SKILL.md`（本文件） | 版本信息 + 基础说明 + 层级导航；不含任何业务与流程细节 |
+| 1b 资产入口 | `library/assets/<id>/app.md` | 各资产**唯一入口文档**；**`SKILL.md` 只保留给包根**——任何宿主加载本包都只显示「主框架」一个技能面 ✓ |
 | 2 任务处理层 | [processor/PROCESSOR.md](processor/PROCESSOR.md) | 处理任务：五步流程（理解→规划→执行→验收→交付）+ **工作区四区约定**（原始材料/任务执行/结果交付/归档）+ 实时控制纠偏 |
 | 3 资产管理层 | [library/ROUTES.md](library/ROUTES.md) | 总路由地图（级联；大子树自动分片为 `library/routes/<id>.md` 局部图）+ 资产根 `library/assets/` + 资产管理台（`library/admin/`）+ 引擎（`engine.py`）+ L0 经验沉淀（用户区 `data/memory.md`）；资产内容任意可扩展，框架不依赖 |
 | 4 自我进化层 | [evolution/EVOLUTION.md](evolution/EVOLUTION.md) | 五环自举（变择行证藏）：轨迹蒸馏 → 提案守门 → 棘轮落地 → 去糟粕取精华；**轨迹写入即自动沉淀经验**（trace 自动触发 reflect/evolve；库宽上限 C 守卫）；阈值可元进化 |
@@ -47,13 +48,13 @@ metadata:
       同读用户区记忆 .leyao-data/data/memory.md（L0 经验：命中失效模式先规避、有效做法直接复用）
       同读**默认资产卡**（默认层·卡；★ 行指向；卡在用户数据区 `card.md`）：每次任务必读、只做"识别与定位"；
       缺失/过期不阻断（如实标注 + 提示刷新；**首次缺失按资产规范首建**，见 ③ 判据 0.5）——任务层判据 0.5；未注册默认资产则跳过
-      同读**能力库索引**（**读该节点入口索引**；示例：`bvix9o` 的 `README.md` 与 `高频场景指引/README.md`，各一屏；
+      同读**能力库索引**（**读该节点入口索引**；示例：`bvix9o` 的 `app.md` 与 `高频场景指引/app.md`，各一屏；
      **硬上限：每索引 ≤20 条目 / ≤2 KB**，超限按 `ROUTES.md` 既有分片口径拆分）：
       **默认层入口，每次任务读**（只读索引与摘要，不读全文；**以 `library/ROUTES.md` 的 ★ 行为准**）；缺失不阻断——为"方法预扫"提供能力图景
       级联下钻：带「（N 个子节点 → 局部图 library/routes/<id>.md）」的节点 → 先读局部图继续匹配（可任意级联）；
       容器节点（只挂子节点、无挂载）不直接执行，下钻其子节点；叶节点（有挂载 / 入口文档）执行
   → 进入 processor/（按五步流程执行；每步判据自带，见 flow/1~5 与 control.md）
-      执行时：命中资产则进其挂载目录读 SKILL.md／README.md，**并按其指引继续向下（如 `references/` 等）直到读取执行所需全文**（或信息足够并留证；读取可用 `python library/asset.py read <相对路径>`——只读 · 附读取凭据）；**凭证类硬门**：对凭证状态作任何结论前，须按该资产 `SKILL.md`〈登录〉说明完成**验证**——**未验证不得断言「缺凭证 / 需用户提供」、不得向用户索要** ✗，再原样调用；无命中按自带判据亲自动手
+      执行时：命中资产则进其挂载目录读 `app.md`，**并按其指引继续向下（如 `references/` 等）直到读取执行所需全文**（或信息足够并留证；读取可用 `python library/asset.py read <相对路径>`——只读 · 附读取凭据）；**凭证类硬门**：对凭证状态作任何结论前，须按该资产 `app.md`〈登录〉说明完成**验证**——**未验证不得断言「缺凭证 / 需用户提供」、不得向用户索要** ✗，再原样调用；无命中按自带判据亲自动手
   → 交付后：`python evolution/grow.py trace --routed "<命中节点 id / 无命中写 none>" …` 追加轨迹（五环自举入口，见 evolution/EVOLUTION.md）
 ```
 

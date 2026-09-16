@@ -4,7 +4,7 @@
 Q1 无待办/占位标记残留      Q2 无乱码/替换字符
 Q3 全部文本可解码、JSON 可解析（含重复键检测）  Q4 无开发残留物（.bak 除外：hosts 回滚备份）
 Q5 无调试残留（print 仅允许 report.py 的 JSON/摘要输出）
-Q6 无未使用 import          Q7 SKILL.md 场景路由表 == routes.json（文档↔事实源）
+Q6 无未使用 import          Q7 app.md 场景路由表 == routes.json（文档↔事实源）
 Q8 分层描述与实现同步（架构字符串含 probe/账本）  Q9 死配置：lines 配置键必须被引用
 """
 from __future__ import annotations
@@ -32,7 +32,7 @@ SELF = Path(__file__).resolve()
 # 本文件自身必然包含"标记词/乱码样本"字面量（它们是检测规则），扫描时排除自己
 TEXT = [p for p in PKG.rglob("*")
         if p.is_file() and p.suffix in (".py", ".md", ".json") and p.resolve() != SELF]
-SKILL = (PKG / "SKILL.md").read_text(encoding="utf-8")
+SKILL = (PKG / "app.md").read_text(encoding="utf-8")
 LINES_SRC = (SCRIPTS / "lines.py").read_text(encoding="utf-8")
 
 
@@ -113,7 +113,7 @@ def main() -> int:
                 bad.append("%s: %s" % (p.name, n))
     check("Q6 无未使用 import", not bad, bad)
 
-    # Q7 SKILL.md 场景路由表 == routes.json 场景链（文档↔事实源）
+    # Q7 app.md 场景路由表 == routes.json 场景链（文档↔事实源）
     routes = json.loads((PKG / "routes" / "routes.json").read_text(encoding="utf-8"))
     want = {s["id"]: " → ".join("`%s`" % c for c in s["chain"]) for s in routes["scenarios"]}
     chans = set(routes["channels"])
@@ -127,7 +127,7 @@ def main() -> int:
              ("human_access", "人打不开（浏览器）"), ("all_failed", "全部失败")]
     mismatch = [(k, got.get(label), [c for c in want[k]]) for k, label in pairs
                 if got.get(label) != re.findall(r"`(\w+)`", want[k])]
-    check("Q7 SKILL.md 场景路由表与 routes.json 完全一致（文档↔事实源）", not mismatch, mismatch)
+    check("Q7 app.md 场景路由表与 routes.json 完全一致（文档↔事实源）", not mismatch, mismatch)
 
     # Q8 分层描述与实现同步
     arch = re.search(r'architecture:\s*"([^"]+)"', SKILL)
@@ -161,7 +161,8 @@ def main() -> int:
                 continue
             if rel.suffix == ".py" and (rel.parts[0] == "tests" or len(rel.parts) > 1):
                 continue                       # 源码/测试内部引用按文件名解析，跳过
-            if p in ("SKILL.md", "manifest.json", "README.md", "LICENSE"):
+            if p in ("app.md", "SKILL.md", "manifest.json", "README.md", "LICENSE",
+                     "library/engine.py", "library/ROUTES.md"):   # 后两项：框架生态提示的有意引用（独立使用时忽略）
                 continue
             if not (PKG / p).exists() and not any((PKG / d / p).exists() for d in ("scripts", "routes", "tests")):
                 bad.append("%s: 引用了包外或不存在的文件 %s" % (rel, p))

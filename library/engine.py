@@ -45,7 +45,7 @@
 
   降级**不静默**：`hints` 提示 + `ROUTES.md` 行内标注；模板见 `processor/shapes.md` 第 7 节。
 
-- 软提示 `hints`（唯一实现，同样四端共用）——**不算问题、不拦截**：挂载目录未附入口文档（SKILL.md / README.md）；
+- 软提示 `hints`（唯一实现，同样四端共用）——**不算问题、不拦截**：挂载目录未附入口文档（app.md）；
 
   描述自由/未写、六段超软上限（`DESC_FIELD_MAX`，建议精简）。
 
@@ -345,7 +345,7 @@ def validate(data: dict, root: Path) -> list[str]:
     return issues
 
 def hints(data: dict, root: Path) -> list[str]:
-    """**软提示**（非问题、不拦截）：① 挂载目录未附入口文档（SKILL.md / README.md）；
+    """**软提示**（非问题、不拦截）：① 挂载目录未附入口文档（app.md）；
 
     ② 描述为自由文本 / 未写（→ 路由降级匹配或不参与，建议补齐）；
 
@@ -372,8 +372,8 @@ def hints(data: dict, root: Path) -> list[str]:
         if not m:
             continue
         p = root / m
-        if p.is_dir() and not ((p / "SKILL.md").exists() or (p / "README.md").exists()):
-            out.append(f"{n.get('id')}: 未附入口文档（SKILL.md / README.md）→ {m}"
+        if p.is_dir() and not (p / "app.md").exists():
+            out.append(f"{n.get('id')}: 未附入口文档（app.md）→ {m}"
                        "（提示，非问题：资料型资产可忽略；需按文档调用时建议补一个）")
     tops = data.get("nodes") or []
     if len(tops) > INLINE_KIDS_MAX:
@@ -466,7 +466,7 @@ def render(data: dict) -> str:
     lines += [
         "> 读者：agent 与审阅者；**维护**请用管理台（`library/admin/`，★ 默认资产/默认层经 `engine.py default`；管理台暂不含）或 `routes.json`（唯一事实源，本图由 `engine.py` 生成）。",
         "> 读取：拿到 `→ 挂载` 路径后 → `python library/asset.py read <相对路径>`（只读 · 相对包根 · 附读取凭据 · 零搜索依赖；另有子命令 `resolve` / `list`）。",
-        "> 路由：按节点**描述**匹配 → 命中进其 `→ 挂载` 目录读 `SKILL.md`／`README.md` 调用；无命中按自带判据亲做。"
+        "> 路由：按节点**描述**匹配 → 命中进其 `→ 挂载` 目录读 `app.md` 调用；无命中按自带判据亲做。"
         "描述形态：六段齐备=判据链全能力；`（自由描述·降级匹配）`=关键词级；`（无描述·不可路由）`（模板见 `processor/shapes.md` 第 7 节）。",
         f"> 级联：`（N 个子节点 → 局部图 library/routes/<id>.md）` → 读局部图继续匹配（可再分片 → 任意级联），叶节点执行"
         f"（分片阈值：子节点 > {INLINE_KIDS_MAX} 或 子树节点 > {INLINE_SUBTREE_MAX}）。",

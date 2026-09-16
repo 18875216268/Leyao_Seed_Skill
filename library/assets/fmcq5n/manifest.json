@@ -3,7 +3,7 @@
   "version": "1.1.2",
   "updated": "2026-09-11",
   "layers": [
-    { "id": "main", "path": "SKILL.md", "role": "主入口（原则 / 通道一览 / 场景路由 / CLI）" },
+    { "id": "main", "path": "app.md", "role": "主入口（原则 / 通道一览 / 场景路由 / CLI）" },
     { "id": "routes", "path": "routes/", "role": "总路由（routes.json 事实源 → ROUTES.md 渲染）" },
     { "id": "scripts", "path": "scripts/", "role": "CLI 与原子通道（direct/pin/hosts/mirror/cdn）+ 治理层" },
     { "id": "tests", "path": "tests/", "role": "单测与真机只读冒烟" }

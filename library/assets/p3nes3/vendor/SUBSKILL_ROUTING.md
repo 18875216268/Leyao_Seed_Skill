@@ -1,7 +1,7 @@
 # 子 skill 路由总文档（vendor/SUBSKILL_ROUTING.md）
 
 本文件是 Pms_智能取数_login 的**子 skill 总路由文档**：解释为什么需要路由、如何路由，
-并提供可编辑的路由表与强制规则。父 skill 的裁决原则（SKILL.md §0 原则4）指向本文档。
+并提供可编辑的路由表与强制规则。父 skill 的裁决原则（`app.md` §0 原则4）指向本文档。
 
 ---
 
@@ -47,9 +47,9 @@
    （含随包文档、脚本、payload 模板），本框架不做任何转述篡改；
    优化 skill 与基础 skill 冲突时，以优化 skill 文件原文为准。
 5. **动态更新**：集团基础 skill 或某优化 skill 更新后，以最新落盘文件为准
-   （见 SKILL.md §1.2 拉包）；本路由表的「适用场景 / 不适用」随经验手动维护。（**本地落盘、无远程源的包除外**——更新由维护者直接落盘）
+   （见 `app.md` §1.2 拉包）；本路由表的「适用场景 / 不适用」随经验手动维护。（**本地落盘、无远程源的包除外**——更新由维护者直接落盘）
 6. **凭证来源**：优化 skill **不实现登录**，凭证统一由父 skill 提供或用户给定。
-   促销毛利包已移除登录模块与登录文档，凭证按其 SKILL.md「凭证」章节传入：包脚本支持
+   促销毛利包已移除登录模块与登录文档，凭证按其 `app.md`「凭证」章节传入：包脚本支持
    `--token` / 环境变量 `PMS_TOKEN` / 凭证文件 `--state-file`（默认
    `~/.promo_profit_monitor/credential.json`），优先级为 `--token` > `PMS_TOKEN` > 凭证文件。
    获取方式：父 skill 自有登录组件（`python scripts/pms_login.py`，企微扫码，凭证落在
@@ -57,7 +57,7 @@
    回退到集团基础 skill 走 `pms_call.py` 时，同样使用父 skill 自有登录。
    **凭证传递（Agent 主责 · 登录信息一处齐备）**：父 skill 登录一次即出具**全部登录信息**
    （token + 身份 + 公司口径 `provider_id` + 发货仓清单 `warehouses`，单公司账号自动确定；
-   `pms_login.py --status` 一处取全，见父 SKILL.md §1.1），由 **Agent 取用并直接传给子 skill**
+   `pms_login.py --status` 一处取全，见父 `app.md` §1.1），由 **Agent 取用并直接传给子 skill**
    （`--token` / `PMS_TOKEN` / `--provider-id` / `PMS_PROVIDER_ID`；需要文件形态时 `--state-file`）——
    **任何子包（含将来新增）都无需为凭证做适配**：子包**不读取父凭证仓库、不含凭证获取约定**；
    **自带登录模块的包，其登录仅作备用、默认不启用**；父仓库只由父 skill 与其 Agent 取用。

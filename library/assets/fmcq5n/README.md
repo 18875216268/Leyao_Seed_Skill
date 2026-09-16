@@ -1,13 +1,13 @@
 # github-web-skill · GitHub 访问层
 
 给 **Agent**（也给人）用的 GitHub 访问层：按场景把请求路由到合适通道，失败逐级降级，全程可编程、可回滚、诚实报告。
-遵循 [Agent Skills](https://agentskills.io/specification) 规范（`skills-ref validate` 通过）。
+遵循 [Agent Skills](https://agentskills.io/specification) 规范的**套件形态**：入口为 `app.md`（宿主不注册为独立技能）；如需**独立安装**为技能，将 `app.md` 改回 `SKILL.md` 即恢复规范形态（`skills-ref validate` 通过 ✓）。
 
 ```
 直连 → 钉 IP → hosts 兜底 → 第三方镜像 → CDN 单文件 → 离线指引
 ```
 
-> 整体链为**全景示意**；实际执行按其**分场景路由**（`routes/routes.json` 唯一事实源）——单文件等场景的通道顺序见 `SKILL.md`〈场景路由（降级链）〉✓
+> 整体链为**全景示意**；实际执行按其**分场景路由**（`routes/routes.json` 唯一事实源）——单文件等场景的通道顺序见 `app.md`〈场景路由（降级链）〉✓
 
 ## 特性
 
@@ -42,7 +42,7 @@ python tests/run_tests.py --offline    # 跳过出网冒烟
 
 ```
 github-web-skill/
-├── SKILL.md            # 入口：原则 / 通道一览 / 场景路由 / 命令速查 / 边界（先读这个）
+├── app.md              # 入口：原则 / 通道一览 / 场景路由 / 命令速查 / 边界（先读这个）
 ├── manifest.json       # 声明：版本 / 分层 / 网络白名单 / shell / 写入范围
 ├── README.md           # 本文件（人读）
 ├── LICENSE             # MIT

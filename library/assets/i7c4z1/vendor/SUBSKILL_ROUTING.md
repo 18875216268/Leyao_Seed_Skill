@@ -1,7 +1,7 @@
 # 通道与子 skill 总路由（vendor/SUBSKILL_ROUTING.md）
 
 统一总路由：**先通道优先，再板块优先；都不行，先通道降级，再板块降级**。
-一份文档、一棵决策树，不维护第二套路由。父 skill 的裁决原则（SKILL.md §0 原则4）指向本文档。
+一份文档、一棵决策树，不维护第二套路由。父 skill 的裁决原则（`app.md` §0 原则4）指向本文档。
 
 ---
 
@@ -70,8 +70,8 @@ Q4 通道降级：存在可用备用通道（用户已给凭证 / 可明确请�
 
 | 通道 | 优先级 | 触发条件 | 凭证 | 入口 |
 | --- | --- | --- | --- | --- |
-| bi-cookie | **主** | 默认（所有取数需求起点） | 框架登录器 `scripts/login_bi.py`；或用户直接给 token | `vendor/bi-cookie/SKILL.md` |
-| bi-pat | 备 | **用户提供 PAT 通道秘钥（gdpat_），或主动要求使用时** | 用户传入（`BI_PAT_TOKEN` / 凭证文件 / `--token`） | `vendor/bi-pat/SKILL.md` |
+| bi-cookie | **主** | 默认（所有取数需求起点） | 框架登录器 `scripts/login_bi.py`；或用户直接给 token | `vendor/bi-cookie/app.md` |
+| bi-pat | 备 | **用户提供 PAT 通道秘钥（gdpat_），或主动要求使用时** | 用户传入（`BI_PAT_TOKEN` / 凭证文件 / `--token`） | `vendor/bi-pat/app.md` |
 
 ---
 
@@ -110,13 +110,13 @@ Q4 通道降级：存在可用备用通道（用户已给凭证 / 可明确请�
 
 ```
 vendor/
-├── bi-cookie/               # 通道1（主）：Cookie 卡片通道（自包含：SKILL.md + references 契约 + scripts 三工具 + data 索引）
+├── bi-cookie/               # 通道1（主）：Cookie 卡片通道（自包含：app.md + references 契约 + scripts 三工具 + data 索引）
 │   └── references/          #   总文档.md + api查询文档.md（通道 API 事实源）
-├── bi-pat/                  # 通道2（备）：PAT SQL 通道（自包含：SKILL.md + 手册 + pat_call.py）
+├── bi-pat/                  # 通道2（备）：PAT SQL 通道（自包含：app.md + 手册 + pat_call.py）
 ├── optimizers/              # 板块优化文件夹（可多个，每个一个子目录，原样落盘）
 │   ├── README.md            # 如何接入一个新板块优化 skill
 │   └── BI-出库统计Ultra查询v1.08/   # 板块优化板容器（所属通道：Cookie卡片）
-│       └── h4dsa6/                  # ← 实际入口（SKILL.md 在这一级）
+│       └── h4dsa6/                  # ← 实际入口（`app.md` 在这一级）
 └── SUBSKILL_ROUTING.md      # 本总路由（通道层 + 板块层，唯一路由文档）
 ```
 

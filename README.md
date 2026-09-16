@@ -78,3 +78,5 @@ leyao-seed-skill/
 ├── evolution/          自我进化层（五环 + tests/ 证环 + templates/）
 └── version/            版本维护层（VERSION.md §零：1 准则 + 4 行为）
 ```
+
+- **资产入口约定**：每个资产目录的入口文档统一为 `app.md`（**`SKILL.md` 仅属包根**——任何宿主加载本包都只显示「主框架」一个技能面 ✓；外来 Skill 包入库时将入口归一为 `app.md`）。

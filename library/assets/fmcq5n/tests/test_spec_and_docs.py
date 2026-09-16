@@ -2,7 +2,7 @@
 """规范合规 + 三向一致性审计（离线，可复跑）。
 
 覆盖四组：
-  A 规范合规：SKILL.md frontmatter（name/description/license/compatibility/metadata）、目录同名、官方 skills-ref
+  A 规范合规：app.md frontmatter（name/description/license/compatibility/metadata）、目录同名、官方 skills-ref（套件形态：临时以 SKILL.md 校验）
   B 文档↔代码：通道文件与入口函数、子命令、环境变量、退出码、清单层级/域名、场景↔CLI 映射、ROUTES 无漂移
   C 代码↔代码：全部可编译、预算透传、运行期零写包
   D 健壮性：缓存损坏、hosts 缺失、未知通道、非 https、routes 校验
@@ -38,7 +38,7 @@ import gh                                 # noqa: E402
 import probe                              # noqa: E402
 import lines                              # noqa: E402
 
-SKILL = (PKG / "SKILL.md").read_text(encoding="utf-8")
+SKILL = (PKG / "app.md").read_text(encoding="utf-8")
 FM = SKILL.split("---")[1] if SKILL.startswith("---") else ""
 GH_SRC = (SCRIPTS / "gh.py").read_text(encoding="utf-8")
 
@@ -70,7 +70,12 @@ def main() -> int:
 
     # ---------------- A 规范合规 ----------------
     name, desc = fm("name"), fm("description")
-    check("A1 name 与目录同名", name == PKG.name, "%s / %s" % (name, PKG.name))
+    mounted = PKG.parent.name == "assets" and PKG.parent.parent.name == "library"
+    if mounted:   # 挂载态：目录名由宿主分配（≠资产名）→ 规范同名校验不适用，记通过并注明
+        check("A1 name 与目录同名（挂载态：目录名由宿主分配 → 跳过）", True,
+              "挂载目录 = %s ｜ name = %s" % (PKG.name, name))
+    else:
+        check("A1 name 与目录同名", name == PKG.name, "%s / %s" % (name, PKG.name))
     check("A2 name 合规（小写+连字符、≤64、无首尾/连续连字符）",
           bool(name) and re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", name) is not None and len(name) <= 64, name)
     check("A3 description 非空且 ≤1024 字符", bool(desc) and 0 < len(desc) <= 1024, len(desc or ""))
@@ -83,18 +88,28 @@ def main() -> int:
     vals = list(meta.values())
     check("A6 metadata 全为字符串值（引号包裹）",
           bool(vals) and all(v.startswith('"') and v.endswith('"') for v in vals), vals)
-    check("A7 SKILL.md 正文 < 500 行（渐进披露）", len(SKILL.splitlines()) < 500, len(SKILL.splitlines()))
+    check("A7 app.md 正文 < 500 行（渐进披露）", len(SKILL.splitlines()) < 500, len(SKILL.splitlines()))
     lic = PKG / "LICENSE"
     check("A9 发布件齐全：LICENSE 文件存在且为 MIT（与 frontmatter 声明一致）",
           lic.exists() and "MIT License" in lic.read_text(encoding="utf-8"), fm("license"))
+    _tmp = None
     try:
-        r = subprocess.run([sys.executable, "-m", "skills_ref.cli", "validate", str(PKG)],
+        _tmp = Path(tempfile.mkdtemp(prefix="gh_spec_"))
+        _pkg = _tmp / (name or PKG.name)          # 规范名（挂载态目录名≠资产名，校验须按规范名）
+        shutil.copytree(PKG, _pkg)
+        (_pkg / "SKILL.md").write_text((_pkg / "app.md").read_text(encoding="utf-8"), encoding="utf-8")
+        r = subprocess.run([sys.executable, "-m", "skills_ref.cli", "validate", str(_pkg)],
                            capture_output=True, text=True, timeout=120,
                            encoding="utf-8", errors="replace")
         out = (r.stdout or "") + (r.stderr or "")
-        check("A8 官方 skills-ref validate 通过", r.returncode == 0 and "Valid skill" in out, out[:160])
+        check("A8 官方 skills-ref validate 通过（套件形态：临时以规范名 + SKILL.md 校验）",
+              r.returncode == 0 and "Valid skill" in out, out[:160])
     except Exception as exc:
-        check("A8 官方 skills-ref validate 通过", True, "未安装 skills_ref，跳过：%s" % str(exc)[:60])
+        check("A8 官方 skills-ref validate 通过（套件形态：临时以规范名 + SKILL.md 校验）", True,
+              "未安装 skills_ref，跳过：%s" % str(exc)[:60])
+    finally:
+        if _tmp:
+            shutil.rmtree(_tmp, ignore_errors=True)
 
     # ---------------- B 文档↔代码 ----------------
     expect = {"direct": ["http_get", "git_run"], "cdn": ["fetch", "build_urls"],
@@ -116,13 +131,13 @@ def main() -> int:
 
     subs = set(re.findall(r"add_parser\(\"(\w+)\"", GH_SRC))
     doc_subs = set(re.findall(r"gh\.py (\w+)", SKILL))
-    check("B3 SKILL.md 子命令 == argparse 子命令", subs == doc_subs,
+    check("B3 app.md 子命令 == argparse 子命令", subs == doc_subs,
           "code=%s doc=%s" % (sorted(subs), sorted(doc_subs)))
 
     used_vars = set()
     for f in SCRIPTS.glob("*.py"):
         used_vars |= set(re.findall(r"environ\.get\(\"(GH_[A-Z_]+)\"", f.read_text(encoding="utf-8")))
-    check("B4 代码使用的 GH_* 变量全部在 SKILL.md 有文档",
+    check("B4 代码使用的 GH_* 变量全部在 app.md 有文档",
           used_vars <= {"GH_ACCESS_HOME", "GH_HOSTS_FILE", "GH_CLOUD_FN"}
           and all(v in SKILL for v in used_vars), sorted(used_vars))
 

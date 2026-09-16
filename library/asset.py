@@ -70,9 +70,9 @@ def cmd_resolve(args) -> int:
                 print("[asset] 挂载存在 ✓ ｜ 直属条目 %d" % len(_entries(p)))
                 for e in _entries(p)[:20]:
                     print("  - %s%s" % (_rel(e), "/" if e.is_dir() else ""))
-                for cand in ("SKILL.md", "README.md"):
-                    if (p / cand).is_file():
-                        print("[asset] 入口文档：%s" % _rel(p / cand))
+                entry = p / "app.md"
+                if entry.is_file():
+                    print("[asset] 入口文档：%s" % _rel(entry))
             else:
                 print("[asset] ✗ 挂载不存在 → 视为不可用（见 ROUTES.md ⚠ 标记 / `control.md`〈卡壳处置〉）")
         return 0

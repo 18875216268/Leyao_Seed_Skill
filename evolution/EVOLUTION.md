@@ -70,7 +70,7 @@ python evolution/grow.py status         # 全景：轨迹/规则/提案/棘轮/�
 | kind | 改什么 | payload |
 | --- | --- | --- |
 | `route_update` | 路由表（`routes.json` → `ROUTES.md`） | `{"cmd": "add\|update\|remove", "args": [引擎同名参数...]}` |
-| `asset_write` | 资产内容（仅 `library/assets/` 内；只给 `text` = 追加；再给 `find` = **就地修正**，替换首个命中、未命中即作废） | `{"file": "library/assets/<id>/SKILL.md", "text": "…"}` 或 `{"file": "…", "find": "<原文>", "text": "<新文>"}` |
+| `asset_write` | 资产内容（仅 `library/assets/` 内；只给 `text` = 追加；再给 `find` = **就地修正**，替换首个命中、未命中即作废） | `{"file": "library/assets/<id>/app.md", "text": "…"}` 或 `{"file": "…", "find": "<原文>", "text": "<新文>"}` |
 | `meta_update` | 阈值层（用户区 `data/meta.json`，需元变异已开启） | `{"key": "thresholds.min_support", "value": 3}` |
 | `core_demote` | 规则 core → demoted | `{"rule": "<规则 id>"}` |
 | `framework_update` | 整包更新（版本维护层：staging 对齐全包；快照 / 证环 / 整体回滚） | `{"staging": "<新版包目录>", "version": "x.y.z", "summary": "…"}` |

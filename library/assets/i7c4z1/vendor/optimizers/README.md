@@ -11,9 +11,9 @@
 - **不实现登录**：优化 skill 不内置登录/鉴权，凭证统一由父 skill 自有登录组件
   （`scripts/login_bi.py` 登录本体，自带 CLI）提供或用户给定（见
   `vendor/SUBSKILL_ROUTING.md` §6 第 6 条）。
-- **结构自定**：包内可含 `SKILL.md` / `references/` / `scripts/` / `payloads/` 等，
+- **结构自定**：包内可含 `app.md` / `references/` / `scripts/` / `payloads/` 等，
   具体形态由该板块的优化文档决定（参考 Pms 同款 `optimizers/Pms_促销毛利v1.08` 的
-  `agents/ references/ scripts/ SKILL.md` 布局）。
+  `agents/ references/ scripts/ app.md` 布局）。
 
 ## 接入三步
 
